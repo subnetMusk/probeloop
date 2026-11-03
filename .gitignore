@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# ProbeLoop handles personal data (CVs, job offers, interview audio and
+# transcripts). Nothing of the sort may ever be committed. The only exception
+# is synthetic test material stored under a `fixtures/synthetic/` directory.
+# ---------------------------------------------------------------------------
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.import_linter_cache/
+
+# Node / frontend
+node_modules/
+.vite/
+.pnpm-store/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Local Docker Compose overrides
+compose.override.yaml
+compose.override.yml
+
+# Runtime data (database, blobs, audio, logs)
+data/
+var/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.db
+*.db-*
+
+# Audio recordings
+*.wav
+*.flac
+*.ogg
+*.oga
+*.opus
+*.webm
+*.mp3
+*.m4a
+*.aac
+
+# Model weights and voices
+models/
+*.gguf
+*.onnx
+*.onnx.json
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# Personal documents (CVs, job offers, exports)
+*.pdf
+*.docx
+*.doc
+*.odt
+*.rtf
+
+# Synthetic fixtures are the only allowed exception to the rules above
+!**/fixtures/synthetic/**
+
+# IDE and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
