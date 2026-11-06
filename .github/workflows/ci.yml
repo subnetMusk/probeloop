@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend.Dockerfile
+          target: dev
+          tags: probeloop-backend:dev
+          load: true
+          cache-from: type=gha,scope=backend-dev
+          cache-to: type=gha,mode=max,scope=backend-dev
+
+      - name: Lint and format
+        run: |
+          docker run --rm probeloop-backend:dev ruff check src tests evals
+          docker run --rm probeloop-backend:dev ruff format --check src tests evals
+
+      - name: Type check
+        run: docker run --rm probeloop-backend:dev mypy
+
+      - name: Import contracts
+        run: docker run --rm probeloop-backend:dev lint-imports
+
+      - name: Tests
+        run: docker run --rm probeloop-backend:dev pytest -q
+
+      - name: Build runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend.Dockerfile
+          target: runtime
+          tags: probeloop-backend:runtime
+          load: true
+          cache-from: type=gha,scope=backend-runtime
+          cache-to: type=gha,mode=max,scope=backend-runtime
+
+      - name: Runtime smoke test
+        run: |
+          docker run -d --name probeloop-smoke -p 127.0.0.1:8000:8000 --read-only --tmpfs /tmp \
+            --tmpfs /data:uid=1000 probeloop-backend:runtime
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs probeloop-smoke
+          exit 1
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for secrets
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.28.0 git /repo --redact --exit-code 1

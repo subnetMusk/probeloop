@@ -1,0 +1,33 @@
+# ProbeLoop runtime. On Windows/macOS the LLM is the Ollama installed on the host
+# (see docs/research/spike-results.md); on Linux, add compose.nvidia.yaml to run it here.
+name: probeloop
+
+services:
+  backend:
+    image: probeloop-backend:runtime
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: runtime
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      PROBELOOP_OLLAMA_BASE_URL: ${PROBELOOP_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      PROBELOOP_INTERVIEWER_MODEL: ${PROBELOOP_INTERVIEWER_MODEL:-ministral-3:8b}
+      PROBELOOP_LLM_DEBUG_LOG: ${PROBELOOP_LLM_DEBUG_LOG:-false}
+      PROBELOOP_DATA_DIR: /data
+    volumes:
+      - data:/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  data:
+    name: probeloop_data

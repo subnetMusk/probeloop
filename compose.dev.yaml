@@ -1,0 +1,22 @@
+# Development overlay: hot reload with `docker compose -f compose.yaml -f compose.dev.yaml watch`.
+# Checks run in the same image, e.g.
+#   docker compose -f compose.yaml -f compose.dev.yaml run --rm backend uv run pytest
+services:
+  backend:
+    image: probeloop-backend:dev
+    build:
+      target: dev
+    read_only: false
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /app/src
+        - action: sync
+          path: ./backend/tests
+          target: /app/tests
+        - action: sync
+          path: ./backend/evals
+          target: /app/evals
+        - action: rebuild
+          path: ./backend/uv.lock

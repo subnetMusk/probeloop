@@ -1,0 +1,11 @@
+# Only the backend sources go into the build context.
+*
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/src
+!backend/tests
+!backend/evals
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
