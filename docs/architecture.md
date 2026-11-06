@@ -545,6 +545,16 @@ An interviewer move is a single streamed LLM call with **schema-constrained JSON
   - the header format was valid in only 76–95% of moves.
 - Constrained JSON is also the format for the planner, the extractor and the evaluator.
 
+**One question per turn, enforced in code.**
+- In M2 the persona evaluations showed `ministral-3:8b` appending sub-questions ("Per
+  esempio…?") to most turns, even with an explicit rule in the prompt.
+- The interviewer therefore cuts the utterance at its first question mark, both in the stream and
+  in the recorded move. The extra text never reaches the client or the speech synthesiser.
+- The farewell (`end`) is exempt, and so are markdown emphasis characters, which are removed
+  before speech.
+- This sits alongside the time limits: the model decides what to ask, and the code guarantees the
+  shape of the turn.
+
 ### 10.3 Runtime details
 
 - **Microphone and echo.**

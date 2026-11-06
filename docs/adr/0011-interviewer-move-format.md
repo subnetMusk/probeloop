@@ -47,6 +47,10 @@ Use constrained JSON with this property order:
   - an occasional implausible `present_exercise` in the opening;
   - two questions in one turn.
 - The same structured-output path serves the realtime and the batch uses.
+- **Follow-up from M2.** Compound questions persisted with prompt changes alone. The utterance is
+  therefore cut at its first question mark, both while streaming and in the recorded move,
+  except in the farewell. Constrained JSON makes this safe: `action` is known before the
+  utterance starts.
 
 ## Alternatives considered
 

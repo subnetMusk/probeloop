@@ -116,6 +116,33 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
 
 ## M2 — End-to-end text skeleton · 7–10 days
 
+> **Status (2026-11-06): implemented, pending CI on GitHub.**
+>
+> **Local checks** (inside the dev container): ruff, mypy `--strict`, import-linter, 105 tests,
+> and live contract tests against `ministral-3:8b`.
+>
+> **Persona evaluation** (`evals/interviewer_personas.py`, three personas, simulated 15-minute
+> interviews):
+> - near-duplicate questions 0%;
+> - Italian 100%;
+> - one question per turn 100%;
+> - length 100–110% of the target;
+> - no fallbacks.
+>
+> **History of the one-question result.**
+> - Prompt v1: 18–73% of turns had a single question.
+> - Prompt v2: 18–100%.
+> - The remaining sub-questions are now cut in code (architecture §10.2).
+> - The evaluation also counts a single formal request without a question mark ("Mi descriva...")
+>   as one question, and reports the strict question-mark count next to it.
+>
+> **Runtime check.** `docker compose up` publishes on `127.0.0.1` only, with a read-only
+> filesystem, and a CLI interview runs end to end.
+>
+> **Known model behaviours left for the M7 evaluator work:**
+> - occasional invented details in the closing ("La ricontatteremo entro una settimana");
+> - occasional repeated insistence when the candidate does not answer.
+
 - **Deliverables**
   - **Project setup**
     - The `backend/` project with `uv` and Python 3.13, using the initial layout from the

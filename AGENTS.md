@@ -6,9 +6,12 @@ These rules apply to every change, whether a person or a coding agent writes it.
 
 ## Project status
 
-The project is in its design phase. Work follows the milestones in
+The project is in early development. Work follows the milestones in
 [docs/roadmap.md](docs/roadmap.md). Implement only the milestone being worked on. Do not
 anticipate later milestones or add features that have not been approved.
+
+The backend is in `backend/` (`src/probeloop`, `tests`, `evals`). The commands are listed in
+the [README](README.md#running-the-text-skeleton).
 
 ## Language
 

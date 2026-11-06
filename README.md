@@ -5,8 +5,9 @@ interviewer. The interview is a spoken conversation. The interviewer asks follow
 based on your answers, your CV and the job offer. After the call you get a detailed report, and
 you can track your progress across sessions.
 
-> **Status: design phase.** There is no runnable code yet. This repository currently contains
-> the architecture, the initial research and the roadmap.
+> **Status: early development (milestone M2).** A text-only interview skeleton runs end to end;
+> voice, document analysis, evaluation and the web UI come in later milestones (see the
+> [roadmap](docs/roadmap.md)).
 
 ## Goals
 
@@ -37,6 +38,55 @@ you can track your progress across sessions.
 - Everything runs under Docker Compose.
 
 See [docs/architecture.md](docs/architecture.md) for the full design.
+
+## Running the text skeleton
+
+**Requirements**
+- Docker with Compose.
+- [Ollama](https://ollama.com) on the host, with the interviewer model:
+
+  ```bash
+  ollama pull ministral-3:8b
+  ```
+
+**Start the backend.** It is published on `127.0.0.1:8000` only:
+
+```bash
+docker compose up -d --build
+```
+
+**Run a text interview** from inside the backend container. Type the answers; `/pause`,
+`/resume` and `/end` control the session:
+
+```bash
+docker compose exec backend probeloop chat --type technical --language it --minutes 15
+```
+
+**Development**, with hot reload and checks inside the container:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml watch
+```
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm backend pytest
+```
+
+**Tests against the real model** (`live` marker) and the interviewer evaluation:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm backend pytest -m live
+```
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm backend python -m evals.interviewer_personas
+```
+
+**Configuration** uses `PROBELOOP_*` environment variables
+(see [settings.py](backend/src/probeloop/settings.py)). For example,
+`PROBELOOP_INTERVIEWER_MODEL=qwen3.5:9b` switches the model.
+`PROBELOOP_LLM_DEBUG_LOG=true` writes prompts and outputs to `/data/logs/llm.jsonl`. That log
+contains personal data, so it is off by default.
 
 ## Documentation
 
