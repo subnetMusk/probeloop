@@ -49,8 +49,12 @@ Docker Compose is the supported way to run and develop ProbeLoop.
 ## Consequences
 
 - The host needs only Docker and git, and the application runs on Linux everywhere.
-- GPU access goes through Docker Desktop and WSL2. This must be verified in M1, with native
-  Ollama on the host as the fallback.
+- GPU access goes through Docker Desktop and WSL2. M1 verified it: the NVIDIA runtime is
+  available and the containerised Ollama runs on the GPU.
+- **On machine A (16 GB RAM), the native Ollama is the default.** In M1 the containerised Ollama
+  was as fast as the native one once warm, but it loaded models 3–15× slower through the WSL2 VM.
+  The Compose `ollama` service stays available for Linux hosts with enough RAM. See
+  `docs/research/spike-results.md` §2.1.
 - On macOS, containers cannot use Metal. The LLM runs remotely, and speech recognition runs on the
   CPU or as a native worker on the host.
 - The WSL2 VM's resources (`.wslconfig`) must be sized for the LLM and speech workloads.

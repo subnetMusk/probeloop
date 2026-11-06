@@ -50,6 +50,12 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
 
 ## M1 — Technical spikes with predefined thresholds · at most 3 days (timeboxed)
 
+> **Status (2026-11-06): measurements done, two items pending.** The results are in
+> [research/spike-results.md](research/spike-results.md), and ADRs 0009–0011 record the decisions.
+> Still pending:
+> - WER on real recordings (the spike so far used synthetic speech);
+> - the listening test for the default Piper voice.
+
 - **Deliverables**
   - Throwaway scripts in `spikes/`, outside the package.
   - `docs/research/spike-results.md`.
@@ -116,8 +122,9 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
       architecture document (§7.1).
     - Settings, structured logging, `TrustedHostMiddleware`.
     - `docker/backend.Dockerfile`, multi-stage, non-root, with `dev` and `runtime` targets.
-    - `compose.yaml` (backend and the `data` volume), `compose.nvidia.yaml` (Ollama with GPU) and
-      `compose.dev.yaml` (watch).
+    - `compose.yaml` (backend and the `data` volume; `OLLAMA_BASE_URL` defaults to the host's
+      native Ollama), `compose.nvidia.yaml` (optional Ollama service with GPU, for Linux hosts)
+      and `compose.dev.yaml` (watch).
   - **LLM access**
     - `ChatModel` with a native Ollama adapter and a fake.
     - A structured-output helper.
@@ -154,8 +161,8 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
     - 100% of turns in the configured language;
     - one question per turn in ≥ 90% of turns;
   - mypy `--strict` reports no errors, and CI is green;
-  - on a clean clone, `docker compose -f compose.yaml -f compose.nvidia.yaml up` starts the skeleton
-    with no host prerequisites other than Docker;
+  - on a clean clone, `docker compose up` starts the skeleton with no host prerequisites other
+    than Docker and the native Ollama;
   - the backend answers only on `127.0.0.1`.
 
 ## M3 — Voice vertical slice · 10–14 days
@@ -345,13 +352,13 @@ default.
 
 | # | Decision | Default | Closed by |
 |---|---|---|---|
-| 1 | Speech recognition engine and device | faster-whisper turbo int8 on CPU, incremental | M1 |
-| 2 | Speech synthesis engine and Italian voice | Piper in its own container, paola or serena | M1 |
-| 3 | Model and `num_ctx` | `qwen3.5:9b`, `think=false`, one `num_ctx` (8k) shared by every role using it | M1 |
-| 4 | Interviewer move format | Header + text, with JSON as the fallback | M1 |
+| 1 | Speech recognition engine and device | **Closed (ADR 0009):** Parakeet on CPU for live transcription, Whisper turbo refinement after the interview. To be confirmed on real recordings. | M1 |
+| 2 | Speech synthesis engine and Italian voice | **Engine closed (ADR 0010):** Piper in its own container. Voice: serena-medium or paola-medium, pending the listening test. | M1 |
+| 3 | Interviewer model and `num_ctx` | **Proposed (M1):** `ministral-3:8b` at 8k, with `qwen3.5:9b` as the alternative and evaluator candidate. 16k causes CPU offload on 8 GB. | Confirmed in M2 with the interviewer evaluations |
+| 4 | Interviewer move format | **Closed (ADR 0011):** constrained JSON, 100% valid, parsed incrementally | M1 |
 | 5 | Single user without authentication | Yes, published on `127.0.0.1` only | Approved with the design |
 | 6 | Default audio retention | "Keep", with per-session and global deletion | M4 |
-| 7 | Where Ollama runs on machine A | A Compose service with GPU (profile `nvidia`); native Ollama via `host.docker.internal` as the alternative | M1, together with the Docker Desktop GPU check |
+| 7 | Where Ollama runs on machine A | **Closed (M1):** the native Ollama on the host via `host.docker.internal`. The containerised Ollama loaded models 3–15× slower. | M1 |
 
 ## Operational prerequisites
 

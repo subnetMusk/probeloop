@@ -96,7 +96,7 @@ showed four problems:
 | Risk | Impact | Mitigation |
 |---|---|---|
 | LLM and speech recognition do not fit together in 8 GB of VRAM | High latency or CPU offload | M1 measurements; speech recognition on CPU; explicit `num_ctx` |
-| End-of-turn latency too high (> 5–6 s) | Unnatural conversation | Interviewer move streamed as "header + text"; per-sentence TTS; incremental STT; append-only prompt layout for KV-cache reuse; thresholds fixed in M1 |
+| End-of-turn latency too high (> 5–6 s) | Unnatural conversation | Interviewer move streamed as constrained JSON with the utterance parsed incrementally; per-sentence TTS; incremental STT; append-only prompt layout for KV-cache reuse (measured in M1: 0.6–0.9 s to the first token with the cache, 3.5–4.7 s without) |
 | Judgement quality of a 9B model in Italian | Shallow or wrong reports | Segment-level evaluation, verified quotes, score aggregation in code, configurable evaluator model |
 | Hallucinations in extraction and reports | Invented facts | Every item carries a source quote verified by fuzzy matching; unverified items are downgraded or discarded |
 | Prompt injection from documents | Manipulated behaviour or scores | Content handled as data, no dangerous tools, human review, evaluator isolated from raw external content |
@@ -183,12 +183,14 @@ Existing speech servers were considered and kept only as possible alternative ad
 
 **Ollama.**
 
-- On the development machine Ollama is a Compose service with an NVIDIA GPU reservation (profile
-  `nvidia`).
-- An external Ollama is also supported through `OLLAMA_BASE_URL`: native on the host via
-  `host.docker.internal`, or on the PC over the LAN when running on a Mac.
-- The two must not run at the same time, because they compete for the port and the VRAM.
-- Models live in a named volume. Bind mounts from NTFS would slow model loading.
+- **On machine A (Windows, 16 GB RAM), the native Ollama on the host is the default**, reached
+  through `OLLAMA_BASE_URL=http://host.docker.internal:11434`. In M1, the containerised Ollama
+  matched the native one once warm, but loading models through the WSL2 VM took 3–15× longer, and
+  the VM competed for RAM ([spike results](research/spike-results.md) §2.1).
+- The Compose `ollama` service (profile `nvidia`, GPU reservation, models in a named volume)
+  remains available for Linux hosts with enough RAM.
+- On a Mac, `OLLAMA_BASE_URL` points to the PC over the LAN.
+- Two Ollama instances must not hold models at the same time, because they compete for VRAM.
 
 ## 7. Modules
 
@@ -483,6 +485,12 @@ starts without 10–20 seconds of silence:
 
 - plan generation (from M5; before that, topics come from YAML);
 - model preloading in Ollama, with the cold-load progress shown in the UI;
+- **KV-cache priming**: after the plan exists, one request with the stable prompt prefix (system
+  rules, brief, topics) fills the cache.
+  - M1 measured the first token of a 5k-token prompt at 3.5–4.7 s on a fresh prompt, and at
+    0.6–0.9 s when the prefix was cached.
+  - With `OLLAMA_NUM_PARALLEL=1`, any other call to the same model evicts the cache. No other LLM
+    work may therefore run during an interview;
 - a microphone check with a level meter. The check also provides the user gesture that browsers
   require before they play audio.
 
@@ -517,29 +525,25 @@ starts without 10–20 seconds of silence:
 
 ### 10.2 The interviewer move
 
-An interviewer move is a single streamed LLM call in a **header + text** format:
+An interviewer move is a single streamed LLM call with **schema-constrained JSON output** (Ollama
+`format`):
 
-```
-ACTION=follow_up TOPIC=t3 COVERED=t2
-<utterance in the interview language, streamed sentence by sentence to TTS>
+```json
+{"action": "follow_up", "topic_id": "t3", "utterance": "...", "covered_topic_ids": ["t2"]}
 ```
 
-- `ACTION` is one of `follow_up`, `clarify`, `new_topic`, `present_exercise`, `wrap_up` or `end`.
-- A regular expression parses the first line.
-  - If the header is invalid, the move falls back to `follow_up` on the current topic, and the
-    anomaly is recorded.
-  - From the second line on, every complete sentence goes to TTS.
-- **Why not JSON with constrained decoding:**
-  - a reasoning field placed before the utterance costs 1.5–2 s before the first sentence;
-  - the grammar does not guarantee field order;
-  - escaping and partial JSON complicate streaming;
-  - a 9B model is expected to write better prose without JSON constraints.
-- Reasoning mode stays off.
-- Constrained JSON remains the format for the planner, the extractor and the evaluator, none of
-  which run in real time.
-- **Pending measurement (M1).** M1 compares both formats on time to the first utterance and on
-  header validity. The fallback is JSON whose first required fields are `action`, `topic_id` and
-  `utterance`.
+- `action` is one of `follow_up`, `clarify`, `new_topic`, `present_exercise`, `wrap_up` or `end`.
+- **The field order is fixed, and `utterance` comes before the bookkeeping field.** The stream is
+  parsed incrementally (`pydantic_core.from_json(..., allow_partial="trailing-strings")`), and
+  every complete sentence of `utterance` goes to TTS as soon as it exists.
+- **No reasoning field precedes the utterance**, and reasoning mode stays off.
+- **The choice is measured (M1, [ADR 0011](adr/0011-interviewer-move-format.md)):**
+  - constrained JSON was valid in 100% of 90 moves across three models, and the field order was
+    respected every time;
+  - time to the first complete sentence was the same as with a plain-text "header + text" format
+    (p50 0.8–1.0 s);
+  - the header format was valid in only 76–95% of moves.
+- Constrained JSON is also the format for the planner, the extractor and the evaluator.
 
 ### 10.3 Runtime details
 
@@ -550,17 +554,27 @@ ACTION=follow_up TOPIC=t3 COVERED=t2
     `playback.finished`.
   - `getUserMedia` is called with `echoCancellation` and `noiseSuppression`.
   - Denied permissions and device changes (`devicechange`) are recoverable states shown in the UI.
+- **Speech recognition engines** ([ADR 0009](adr/0009-speech-recognition.md)):
+  - **Live**: Parakeet TDT 0.6B v3 (int8, onnx-asr) transcribes each VAD segment. M1 measured a
+    tail of about 0.4 s after the click.
+  - **Refinement**: when the interview ends, a faster-whisper large-v3-turbo full pass with
+    snapshot-vocabulary biasing produces the transcript revision that the user reviews and the
+    evaluator uses.
+  - Whisper cannot serve the live path on the CPU. Its fixed 30 s window makes every segment cost
+    nearly the same, which gave an 11–13 s tail in M1.
 - **Speech recognition and the event loop.**
-  - All recognition work runs in a dedicated single-worker executor. This includes iterating the
-    lazy generator that faster-whisper's `transcribe()` returns.
-  - `cpu_threads` is bounded (indicatively 8) to leave room for Ollama, Piper and the browser.
-  - CTranslate2 releases the GIL, so the event loop stays responsive.
+  - The worker processes segments one at a time.
+  - The engine thread pools are bounded (indicatively 6–8 threads) to leave room for the backend,
+    Piper and the browser.
+  - onnxruntime and CTranslate2 release the GIL.
 - **Recognition edge cases.**
-  - A segment is force-cut at about 15 s even without a pause, so the tail left after the click
-    stays short.
-  - Defences against hallucinated text on silence (for example "Sottotitoli a cura di…"):
-    `vad_filter`, `condition_on_previous_text=False`, a minimum segment length and a blocklist of
-    known phrases.
+  - A segment is force-cut at 15 s even without a pause, so the tail left after the click stays
+    short.
+  - Defences against hallucinated text on silence (M1: "Grazie." on silence without VAD):
+    - VAD gating;
+    - `condition_on_previous_text=False` for Whisper;
+    - a minimum segment length;
+    - a blocklist of known phrases.
 - **Ollama.**
   - The model is preloaded in `READY`, kept loaded with an extended `keep_alive` during the
     session, and released at the end.
@@ -627,9 +641,12 @@ not done by the same mechanism that is supposed to prevent it.
       the audio, the revision and the metrics are stored.
    5. The next move follows, and so on, until `wrap_up`/`end` or the `TimePolicy` closes the
       session (`ENDED`).
-6. **Phase F.** The transcript editor creates a new revision for every correction. "Generate
-   report" queues an evaluation job, which produces report v1. After further corrections it can
-   produce v2.
+6. **Phase F.**
+   1. When the call ends, a refinement job re-transcribes the stored audio with Whisper turbo and
+      creates a `retranscription` revision for every turn. The UI shows the job's progress.
+   2. The transcript editor then creates a new revision for every correction.
+   3. "Generate report" queues an evaluation job, which produces report v1. After further
+      corrections it can produce v2.
 7. **Phase G.** The history shows past sessions and compares per-criterion scores. A comparison is
    valid only when both sessions used the same rubric version; otherwise the UI flags it.
 
@@ -666,7 +683,8 @@ A script regenerates the types, and CI fails if they change.
 - **Always pass `num_ctx` explicitly**, one value per loaded model.
   - Ollama's default is 4096 on GPUs below 24 GB, and the advertised 262k context is not usable
     on 8 GB.
-  - The actual value is *to be measured*, indicatively 8–16k.
+  - The value is **8192** on machine A. In M1, 16k pushed 0.8–1.3 GB of an 8–9B model onto the CPU
+    and cut generation from about 42 to about 30 tokens/s.
 - **Hard check instead of elaborate budgeting.** Ollama truncates prompts silently, so:
   - before a request, a conservative estimate is made (characters per token);
   - after it, `prompt_eval_count` is compared with `num_ctx`;
@@ -1054,7 +1072,7 @@ milestone starts.
 - Hypothesis stateful tests;
 - SSE, OpenTelemetry and an S3 blob store;
 - LAN authentication;
-- the OpenAI adapter, and alternative STT/TTS engines (MLX, Parakeet) unless M1 selects one;
+- the OpenAI adapter, and further STT/TTS engines (for example MLX on a Mac);
 - voice activity detection for barge-in.
 
 ## 23. Decision records
@@ -1069,9 +1087,9 @@ milestone starts.
 | [0006](adr/0006-single-user-local-first.md) | Single user, local-first, no authentication in the MVP | M0 |
 | [0007](adr/0007-licensing-policy.md) | Apache-2.0; no AGPL in-process; GPL only as separate programs | M0 |
 | [0008](adr/0008-docker-compose-runtime.md) | Docker Compose as the supported runtime and development environment | M0 |
-| 0009 | Speech recognition engine and device | after M1 |
-| 0010 | Speech synthesis engine and voice | after M1 |
-| 0011 | Interviewer move format | after M1 |
+| [0009](adr/0009-speech-recognition.md) | Parakeet on CPU for live transcription; Whisper turbo refinement pass after the interview | M1 |
+| [0010](adr/0010-speech-synthesis.md) | Piper in its own container; default voice pending a listening test | M1 |
+| [0011](adr/0011-interviewer-move-format.md) | Constrained JSON for the interviewer move, parsed incrementally | M1 |
 | 0012 | In-process job runner with database-backed jobs | M5 |
 | 0013 | Prompts and rubrics as versioned files | M2 / M7 |
 | 0014 | Evidence-grounded evaluation with score aggregation in code | M7 |
