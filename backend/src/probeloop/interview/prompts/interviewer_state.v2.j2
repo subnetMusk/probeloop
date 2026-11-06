@@ -1,0 +1,15 @@
+[Interview state]
+Topics covered: {{ covered | join(", ") or "none" }}. In progress: {{ in_progress | join(", ") or "none" }}. Not started: {{ not_started | join(", ") or "none" }}.
+{% if opening %}
+Time directive: about {{ minutes }} minutes are available. This is the beginning: greet the candidate briefly, state your role in one sentence without giving yourself a name, and ask the first question.
+{% elif directive == "normal" %}
+Time directive: about {{ minutes }} minutes remain.
+{% elif directive == "begin_wrap_up" %}
+Time directive: about {{ minutes }} minutes remain. Start wrapping up: at most one more question on the current topic, then move to the closing.
+{% elif directive == "final_question" %}
+Time directive: time is up. Ask whether the candidate has any questions for you. This is your last question.
+{% elif directive == "close" %}
+Time directive: the final question has been asked. Answer briefly anything the candidate asked; if you do not have the information, say that HR will follow up, without inventing dates or next steps. Then thank the candidate and end the interview with action end. Do not ask any question.
+{% else %}
+Time directive: time is over. End the interview now with action end.
+{% endif %}

@@ -1,0 +1,10 @@
+# Synthetic example used until document analysis (M5) exists. Fictional person and company.
+job: >-
+  Backend Developer (Python), mid level, at Lumen Logistics, a fictional logistics software
+  company. Requirements: Python, FastAPI or similar, PostgreSQL, automated testing, REST API
+  design, basic Docker. Nice to have: message queues, observability.
+candidate: >-
+  Marco Bianchi (fictional). Three years as a backend developer at a small e-commerce agency.
+  Declared skills: Python, FastAPI, PostgreSQL, Redis, Docker, pytest. Main declared project: a
+  route-optimization microservice for deliveries that reduced average planning time. Master's
+  thesis on caching strategies for read-heavy web APIs. Speaks Italian and English.

@@ -1,0 +1,30 @@
+# Default interview topics per interview type, used until the context snapshot (M5) provides
+# topics tailored to the candidate and the job. Titles are written for the interviewer model.
+hr:
+  - {id: t1, title: Introduction and motivation for the role}
+  - {id: t2, title: Career path and the most relevant past experience}
+  - {id: t3, title: What the candidate looks for in a team and a company}
+  - {id: t4, title: Strengths and areas the candidate wants to improve}
+  - {id: t5, title: Expectations and availability}
+  - {id: t6, title: Candidate questions and closing}
+behavioral:
+  - {id: t1, title: Introduction and motivation for the role}
+  - {id: t2, title: A project the candidate is proud of and their own contribution}
+  - {id: t3, title: A disagreement with a colleague and how it was handled}
+  - {id: t4, title: A failure or mistake and what the candidate learned}
+  - {id: t5, title: Working under pressure or with a tight deadline}
+  - {id: t6, title: Candidate questions and closing}
+technical:
+  - {id: t1, title: Introduction and the candidate's technical background}
+  - {id: t2, title: The main project in the brief - design, own contribution and results}
+  - {id: t3, title: Data storage and query performance}
+  - {id: t4, title: Automated testing practices}
+  - {id: t5, title: A design trade-off the candidate had to make}
+  - {id: t6, title: Candidate questions and closing}
+mixed:
+  - {id: t1, title: Introduction and motivation for the role}
+  - {id: t2, title: The main project in the brief - design, own contribution and results}
+  - {id: t3, title: A technical problem the candidate solved and the reasoning behind it}
+  - {id: t4, title: Teamwork and handling disagreement}
+  - {id: t5, title: Expectations and growth}
+  - {id: t6, title: Candidate questions and closing}
