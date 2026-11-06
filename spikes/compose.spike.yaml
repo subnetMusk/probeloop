@@ -1,0 +1,75 @@
+# Throwaway environment for the M1 technical spikes. See spikes/README.md.
+# Volumes use the names planned for the main stack so downloaded models are reused later.
+name: probeloop-spike
+
+services:
+  ollama:
+    image: ollama/ollama:0.40.14
+    environment:
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: q8_0
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks: [spike]
+
+  tts-piper:
+    build:
+      context: .
+      dockerfile: Dockerfile.piper
+    volumes:
+      - models:/models
+    command:
+      - python
+      - -m
+      - piper.http_server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --data-dir
+      - /models/piper
+      - -m
+      - it_IT-paola-medium
+    networks: [spike]
+    profiles: [tts]
+
+  bench:
+    build:
+      context: .
+      dockerfile: Dockerfile.bench
+    cpus: ${BENCH_CPUS:-8}
+    environment:
+      HF_HOME: /models/hf
+      OLLAMA_CONTAINER_URL: http://ollama:11434
+      OLLAMA_NATIVE_URL: http://host.docker.internal:11434
+      PIPER_URL: http://tts-piper:5000
+      BENCH_CPUS: ${BENCH_CPUS:-8}
+      VAD_MAX_S: ${VAD_MAX_S:-15}
+      PYTHONIOENCODING: utf-8
+    volumes:
+      - models:/models
+      - ./:/spikes:ro
+      - ./results:/results
+      - ./audio:/audio:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks: [spike]
+    profiles: [bench]
+
+volumes:
+  ollama:
+    name: probeloop_ollama
+  models:
+    name: probeloop_models
+
+networks:
+  spike: {}

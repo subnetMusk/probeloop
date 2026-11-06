@@ -1,0 +1,12 @@
+# Unmodified Piper (GPL-3.0-or-later) running as a separate program, reached over HTTP.
+FROM python:3.13-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /usr/local/bin/uv
+
+RUN uv pip install --system --no-cache "piper-tts[http]==1.8.0"
+
+RUN useradd --create-home --uid 1000 piper \
+    && mkdir -p /models/piper \
+    && chown -R 1000:1000 /models
+USER piper
+EXPOSE 5000

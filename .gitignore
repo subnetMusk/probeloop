@@ -82,6 +82,10 @@ models/
 *.odt
 *.rtf
 
+# Spike outputs and recordings (may contain the owner's voice and transcripts)
+spikes/results/
+spikes/audio/
+
 # Synthetic fixtures are the only allowed exception to the rules above
 !**/fixtures/synthetic/**
 

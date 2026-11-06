@@ -1,0 +1,104 @@
+{
+  "language": "Italian",
+  "note": "Synthetic, fictional data for the M1 spikes. Not a real person or company.",
+  "job": "Backend Developer (Python), mid level, at Lumen Logistics, a fictional logistics software company. Requirements: Python, FastAPI or similar, PostgreSQL, automated testing, REST API design, basic Docker. Nice to have: message queues, observability.",
+  "candidate_brief": "Marco Bianchi (fictional). Three years as a backend developer at a small e-commerce agency. Declared skills: Python, FastAPI, PostgreSQL, Redis, Docker, pytest. Main declared project: a route-optimization microservice for deliveries that reduced average planning time. Master's thesis on caching strategies for read-heavy web APIs. Speaks Italian and English.",
+  "topics": [
+    {"id": "t1", "title": "Introduction and motivation for the role"},
+    {"id": "t2", "title": "Route-optimization microservice: design, own contribution, results"},
+    {"id": "t3", "title": "PostgreSQL: query performance and indexing"},
+    {"id": "t4", "title": "Automated testing practices"},
+    {"id": "t5", "title": "Teamwork and handling disagreement"},
+    {"id": "t6", "title": "Candidate questions and closing"}
+  ],
+  "states": [
+    {
+      "name": "opening",
+      "history": [],
+      "answer": null,
+      "covered": [],
+      "directive": "normal: about 20 minutes remain. This is the start of the interview: greet the candidate briefly and ask the first question."
+    },
+    {
+      "name": "vague_motivation",
+      "history": [
+        ["interviewer", "ACTION=new_topic TOPIC=t1 COVERED=none\nBuongiorno Marco, grazie per essere qui. Per iniziare, mi racconta perché le interessa questa posizione in Lumen Logistics?"]
+      ],
+      "answer": "Mah, diciamo che cerco una nuova sfida e mi sembra un'azienda interessante, ecco.",
+      "covered": [],
+      "directive": "normal: about 19 minutes remain."
+    },
+    {
+      "name": "detailed_project",
+      "history": [
+        ["interviewer", "ACTION=new_topic TOPIC=t2 COVERED=t1\nNel suo CV cita un microservizio di ottimizzazione dei percorsi. Può descrivermi com'era progettato?"]
+      ],
+      "answer": "Sì, era un servizio FastAPI che riceveva gli ordini del giorno e calcolava i giri dei furgoni. Usavamo OR-Tools per il problema di routing, con una cache Redis per le matrici delle distanze. Io mi sono occupato soprattutto dell'API e della parte di caching, mentre l'algoritmo l'aveva impostato un collega. Il tempo medio di pianificazione è sceso da circa quaranta minuti a meno di cinque.",
+      "covered": ["t1"],
+      "directive": "normal: about 16 minutes remain."
+    },
+    {
+      "name": "wrong_technical_claim",
+      "history": [
+        ["interviewer", "ACTION=new_topic TOPIC=t3 COVERED=t1,t2\nParliamo di PostgreSQL. Come affronta una query lenta su una tabella molto grande?"]
+      ],
+      "answer": "Di solito aggiungo un indice su tutte le colonne della tabella, così qualsiasi query diventa veloce. Gli indici non hanno costi, quindi conviene metterne tanti.",
+      "covered": ["t1", "t2"],
+      "directive": "normal: about 12 minutes remain."
+    },
+    {
+      "name": "dont_know",
+      "history": [
+        ["interviewer", "ACTION=follow_up TOPIC=t3 COVERED=t1,t2\nCome userebbe EXPLAIN ANALYZE per capire dove una query perde tempo?"]
+      ],
+      "answer": "Onestamente non l'ho mai usato, non saprei.",
+      "covered": ["t1", "t2"],
+      "directive": "normal: about 11 minutes remain."
+    },
+    {
+      "name": "good_testing_answer",
+      "history": [
+        ["interviewer", "ACTION=new_topic TOPIC=t4 COVERED=t1,t2,t3\nCome organizza i test automatici in un progetto backend?"]
+      ],
+      "answer": "Separo test unitari e di integrazione. Gli unitari girano con pytest e dei fake per le dipendenze esterne, quelli di integrazione usano un PostgreSQL vero in un container, avviato in CI. Cerco di testare il comportamento e non i dettagli interni, e ogni bug trovato in produzione diventa prima un test che fallisce.",
+      "covered": ["t1", "t2", "t3"],
+      "directive": "normal: about 9 minutes remain."
+    },
+    {
+      "name": "off_topic",
+      "history": [
+        ["interviewer", "ACTION=new_topic TOPIC=t5 COVERED=t1,t2,t3,t4\nMi racconta una situazione in cui non era d'accordo con un collega su una scelta tecnica?"]
+      ],
+      "answer": "Ah, a proposito, ma voi usate il lavoro da remoto? E quanti giorni di ferie ci sono?",
+      "covered": ["t1", "t2", "t3", "t4"],
+      "directive": "normal: about 7 minutes remain."
+    },
+    {
+      "name": "ownership_unclear",
+      "history": [
+        ["interviewer", "ACTION=clarify TOPIC=t5 COVERED=t1,t2,t3,t4\nRisponderò volentieri alla fine. Prima però mi racconterebbe un disaccordo tecnico che ha vissuto?"]
+      ],
+      "answer": "Sì, una volta il team voleva passare a un'architettura a eventi con Kafka e alla fine abbiamo deciso di rimandare, ed è andata bene.",
+      "covered": ["t1", "t2", "t3", "t4"],
+      "directive": "begin_wrap_up: about 4 minutes remain. Start wrapping up: at most one more question on the current topic, then move to closing."
+    },
+    {
+      "name": "final_question",
+      "history": [
+        ["interviewer", "ACTION=follow_up TOPIC=t5 COVERED=t1,t2,t3,t4\nE lei, in quella discussione, che posizione aveva e come l'ha sostenuta?"]
+      ],
+      "answer": "Io ero contrario, perché il volume di messaggi non lo giustificava. Ho preparato una piccola stima dei costi e una prova con una coda più semplice, e il team ha scelto quella.",
+      "covered": ["t1", "t2", "t3", "t4"],
+      "directive": "final_question: time is up. Ask whether the candidate has any questions, as the last question."
+    },
+    {
+      "name": "closing",
+      "history": [
+        ["interviewer", "ACTION=new_topic TOPIC=t6 COVERED=t1,t2,t3,t4,t5\nAbbiamo quasi finito. Ha qualche domanda per me?"]
+      ],
+      "answer": "Sì, prima chiedevo del lavoro da remoto: come funziona da voi?",
+      "covered": ["t1", "t2", "t3", "t4", "t5"],
+      "directive": "force_close: answer briefly that details on remote work will be shared by HR, thank the candidate and end the interview."
+    }
+  ]
+}

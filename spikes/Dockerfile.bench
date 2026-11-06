@@ -1,0 +1,20 @@
+FROM python:3.13-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /usr/local/bin/uv
+
+RUN uv pip install --system --no-cache \
+      ollama==0.6.3 \
+      httpx==0.28.1 \
+      faster-whisper==1.2.1 \
+      av==16.0.1 \
+      "onnx-asr[cpu,hub]==0.12.0" \
+      jiwer==4.0.0 \
+      rapidfuzz==3.14.1 \
+      numpy==2.3.4 \
+      pydantic==2.12.3
+
+RUN useradd --create-home --uid 1000 bench \
+    && mkdir -p /models \
+    && chown 1000:1000 /models
+USER bench
+WORKDIR /spikes
