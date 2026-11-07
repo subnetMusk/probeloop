@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     context_window: int = 8192
     keep_alive: str = "30m"
     llm_debug_log: bool = False
+    llm_fake: bool = False  # scripted interviewer moves, for end-to-end tests
 
     # Speech services (Compose: stt-worker and tts-piper). Without both, voice interviews are off.
     stt_url: str | None = None

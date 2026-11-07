@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from probeloop.ai.debuglog import DebugLogChatModel
+from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
-from probeloop.ai.ports import ChatModel
+from probeloop.ai.ports import ChatModel, ChatRequest
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
 from probeloop.interview.application.service import SessionService
 from probeloop.interview.application.voice import VoiceServices
@@ -67,12 +70,34 @@ def build_voice(settings: Settings) -> VoiceServices | None:
     )
 
 
+def scripted_moves(questions: int = 3) -> Callable[[ChatRequest], str]:
+    """Interviewer moves for end-to-end tests: numbered questions, then a farewell.
+
+    The number comes from the request itself (each earlier move is an assistant message), so
+    every session gets the same script.
+    """
+
+    def move(request: ChatRequest) -> str:
+        asked = sum(1 for message in request.messages if message.role == "assistant")
+        if asked >= questions:
+            action, utterance = "end", "Grazie, il colloquio di prova è terminato."
+        else:
+            action, utterance = "follow_up", f"Questa è la domanda di prova numero {asked + 1}?"
+        return json.dumps(
+            {"action": action, "topic_id": "t1", "utterance": utterance, "covered_topic_ids": []}
+        )
+
+    return move
+
+
 def build(
     settings: Settings,
     *,
     model: ChatModel | None = None,
     voice: VoiceServices | None = None,
 ) -> Container:
+    if model is None and settings.llm_fake:
+        model = FakeChatModel([scripted_moves()], chunk_delay_s=0.01)
     if model is None:
         model = OllamaChatModel(
             base_url=settings.ollama_base_url,

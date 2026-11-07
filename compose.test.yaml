@@ -1,0 +1,15 @@
+# End-to-end tests: the backend with a scripted interviewer and fake speech engines, so the whole
+# browser path runs without a GPU, Ollama or speech models. Silero VAD stays real, and test
+# sessions go to their own volume.
+#   docker compose -f compose.yaml -f compose.test.yaml up -d --no-deps backend
+services:
+  backend:
+    environment:
+      PROBELOOP_LLM_FAKE: "true"
+      PROBELOOP_SPEECH_FAKE: "true"
+    volumes:
+      - e2e-data:/data
+
+volumes:
+  e2e-data:
+    name: probeloop_e2e_data

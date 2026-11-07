@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from probeloop.bootstrap import build_voice
+from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.ports import ChatMessage, ChatRequest
+from probeloop.bootstrap import build, build_voice, scripted_moves
 from probeloop.interview.domain.model import Language
 from probeloop.settings import Settings
 from probeloop.speech.fake import FakeSpeechToText, FakeTextToSpeech
@@ -47,3 +50,23 @@ def test_fake_speech_for_end_to_end_tests() -> None:
     assert isinstance(voice.stt, FakeSpeechToText)
     assert isinstance(voice.tts, FakeTextToSpeech)
     assert voice.voice_for(Language.ENGLISH) is None
+
+
+def test_scripted_moves_ask_numbered_questions_then_say_goodbye() -> None:
+    move = scripted_moves(questions=2)
+
+    def after(moves: int) -> dict[str, str]:
+        history = [ChatMessage(role, "x") for _ in range(moves) for role in ("user", "assistant")]
+        request = ChatRequest(instructions="", messages=(*history, ChatMessage("user", "x")))
+        return json.loads(move(request))  # type: ignore[no-any-return]
+
+    assert after(0) == after(0)  # every session starts the same way
+    assert after(0)["utterance"] == "Questa è la domanda di prova numero 1?"
+    assert after(1)["utterance"] == "Questa è la domanda di prova numero 2?"
+    assert after(2)["action"] == "end"
+
+
+def test_the_fake_language_model_is_selected_by_the_settings(tmp_path: Path) -> None:
+    container = build(settings(data_dir=tmp_path, llm_fake=True, speech_fake=True))
+    assert isinstance(container.model, FakeChatModel)
+    assert container.sessions.voice is not None
