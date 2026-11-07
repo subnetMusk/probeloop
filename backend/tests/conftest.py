@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field
 
 import pytest
@@ -25,10 +25,12 @@ from probeloop.interview.domain.model import (
     InterviewSession,
     InterviewType,
     Language,
+    Modality,
     MoveAction,
     Topic,
 )
 from probeloop.interview.domain.time_policy import TimeDirective
+from probeloop.speech.audio import PcmAudio
 
 
 @dataclass
@@ -46,6 +48,8 @@ class FakeClock:
 class MemoryStore:
     sessions: dict[str, InterviewSession] = field(default_factory=dict)
     saves: int = 0
+    audio: dict[tuple[str, int], PcmAudio] = field(default_factory=dict)
+    metrics: list[dict[str, object]] = field(default_factory=list)
 
     async def save(self, session: InterviewSession) -> None:
         self.saves += 1
@@ -64,6 +68,12 @@ class MemoryStore:
 
     async def delete(self, session_id: str) -> bool:
         return self.sessions.pop(session_id, None) is not None
+
+    async def save_answer_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
+        self.audio[(session_id, turn_seq)] = audio
+
+    async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None:
+        self.metrics.append(dict(record))
 
 
 @dataclass
@@ -126,12 +136,17 @@ def failing(times: int, then: MoveScript = default_script) -> MoveScript:
     return script
 
 
-def make_config(minutes: int = 15, language: Language = Language.ITALIAN) -> InterviewConfig:
+def make_config(
+    minutes: int = 15,
+    language: Language = Language.ITALIAN,
+    modality: Modality = Modality.TEXT,
+) -> InterviewConfig:
     return InterviewConfig(
         interview_type=InterviewType.TECHNICAL,
         difficulty=Difficulty.MEDIUM,
         language=language,
         target_duration_s=minutes * 60,
+        modality=modality,
     )
 
 
@@ -143,9 +158,14 @@ def make_context() -> InterviewContext:
     )
 
 
-def make_session(minutes: int = 15, session_id: str = "0" * 32) -> InterviewSession:
+def make_session(
+    minutes: int = 15, session_id: str = "0" * 32, modality: Modality = Modality.TEXT
+) -> InterviewSession:
     return InterviewSession(
-        id=session_id, config=make_config(minutes), context=make_context(), created_at=0.0
+        id=session_id,
+        config=make_config(minutes, modality=modality),
+        context=make_context(),
+        created_at=0.0,
     )
 
 

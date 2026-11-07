@@ -25,13 +25,14 @@ from pydantic import ValidationError
 from probeloop import logging_setup
 from probeloop.ai.ports import LlmError
 from probeloop.api.schemas import (
+    MAX_AUDIO_FRAME_BYTES,
     CreateSession,
     JoinMessage,
     SessionSummaryView,
     SessionView,
     TurnEnd,
     error_message,
-    event_message,
+    event_frames,
     incoming_adapter,
 )
 from probeloop.bootstrap import Container, build
@@ -46,6 +47,7 @@ from probeloop.interview.domain.model import (
     InterviewConfig,
     InvalidConfigError,
     InvalidTransitionError,
+    Language,
 )
 from probeloop.settings import Settings
 
@@ -54,6 +56,8 @@ logger = logging.getLogger(__name__)
 WS_POLICY_VIOLATION = 1008
 WS_SESSION_BUSY = 4409
 WS_SESSION_NOT_FOUND = 4404
+
+type Frame = dict[str, Any] | bytes
 
 
 def create_app(container: Container | None = None) -> FastAPI:
@@ -94,6 +98,19 @@ def create_app(container: Container | None = None) -> FastAPI:
             raise HTTPException(status_code=503, detail="model unavailable") from exc
         return {"model": container.model.model_ref, "context_window": caps.context_window}
 
+    @app.get("/api/speech")
+    async def speech_status() -> dict[str, Any]:
+        """Whether voice interviews can start now, for the microphone check page."""
+        voice = sessions.voice
+        if voice is None:
+            return {"ready": False, "problems": ["speech services not configured"], "voices": {}}
+        problems = await voice.service_problems()
+        return {
+            "ready": not problems,
+            "problems": problems,
+            "voices": {language.value: voice.voice_for(language) for language in Language},
+        }
+
     @app.post("/api/sessions", status_code=201, dependencies=[Depends(require_json)])
     async def create_session(body: CreateSession) -> SessionView:
         try:
@@ -103,15 +120,16 @@ def create_app(container: Container | None = None) -> FastAPI:
                 language=body.language,
                 target_duration_s=body.duration_minutes * 60,
                 custom_instructions=body.custom_instructions,
+                modality=body.modality,
             )
             context = default_context(
                 body.interview_type,
                 candidate_brief=body.candidate_brief,
                 job_brief=body.job_brief,
             )
+            return SessionView.of(await sessions.create(config, context))
         except InvalidConfigError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return SessionView.of(await sessions.create(config, context))
 
     @app.get("/api/sessions")
     async def list_sessions() -> list[SessionSummaryView]:
@@ -142,7 +160,7 @@ def create_app(container: Container | None = None) -> FastAPI:
         await _serve(websocket, session_id)
 
     async def _serve(websocket: WebSocket, session_id: str) -> None:
-        outbox: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        outbox: asyncio.Queue[Frame | None] = asyncio.Queue()
         sender = asyncio.create_task(_send_loop(websocket, outbox))
         live: LiveSession | None = None
         try:
@@ -150,8 +168,9 @@ def create_app(container: Container | None = None) -> FastAPI:
             if join is None:
                 return
 
-            async def listener(seq: int, event: SessionEvent) -> None:
-                outbox.put_nowait(event_message(seq, event))
+            async def listener(seq: int | None, event: SessionEvent) -> None:
+                for frame in event_frames(seq, event):
+                    outbox.put_nowait(frame)
 
             try:
                 live = await sessions.connect(session_id, listener)
@@ -163,9 +182,11 @@ def create_app(container: Container | None = None) -> FastAPI:
                 return
 
             for seq, event in live.log.since(join.last_seq):
-                outbox.put_nowait(event_message(seq, event))
+                for frame in event_frames(seq, event):
+                    outbox.put_nowait(frame)
             orchestrator = live.orchestrator
-            outbox.put_nowait({**event_message(0, orchestrator.snapshot()), "seq": None})
+            for frame in event_frames(None, orchestrator.snapshot()):
+                outbox.put_nowait(frame)
             orchestrator.prepare()
             await _command_loop(websocket, live, outbox)
         except WebSocketDisconnect:
@@ -180,7 +201,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             await sender
 
     async def _command_loop(
-        websocket: WebSocket, live: LiveSession, outbox: asyncio.Queue[dict[str, Any] | None]
+        websocket: WebSocket, live: LiveSession, outbox: asyncio.Queue[Frame | None]
     ) -> None:
         orchestrator = live.orchestrator
         commands: dict[str, Callable[[], Awaitable[None]]] = {
@@ -192,9 +213,23 @@ def create_app(container: Container | None = None) -> FastAPI:
             "turn.start": orchestrator.start_answer,
         }
         while True:
-            raw = await websocket.receive_json()
+            received = await websocket.receive()
+            if received["type"] == "websocket.disconnect":
+                raise WebSocketDisconnect(received.get("code", 1000))
+            audio = received.get("bytes")
+            if audio is not None:
+                if not audio or len(audio) % 2 or len(audio) > MAX_AUDIO_FRAME_BYTES:
+                    outbox.put_nowait(
+                        error_message("invalid_audio_frame", "expected 16-bit PCM, at most 64 KiB")
+                    )
+                    continue
+                try:
+                    await orchestrator.audio_frame(audio)
+                except InvalidTransitionError as exc:
+                    outbox.put_nowait(error_message("invalid_command", str(exc)))
+                continue
             try:
-                message = incoming_adapter.validate_python(raw)
+                message = incoming_adapter.validate_json(received.get("text") or "")
             except ValidationError:
                 outbox.put_nowait(error_message("invalid_message", "unknown or malformed message"))
                 continue
@@ -209,15 +244,18 @@ def create_app(container: Container | None = None) -> FastAPI:
                     outbox.put_nowait(error_message("already_joined", "session already joined"))
                 else:
                     await commands[message.type]()
-            except InvalidTransitionError as exc:
+            except (InvalidTransitionError, ValueError) as exc:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
 
     return app
 
 
 async def _receive_join(websocket: WebSocket) -> JoinMessage | None:
+    received = await websocket.receive()
+    if received["type"] == "websocket.disconnect":
+        raise WebSocketDisconnect(received.get("code", 1000))
     try:
-        message = incoming_adapter.validate_python(await websocket.receive_json())
+        message = incoming_adapter.validate_json(received.get("text") or "")
     except ValidationError:
         message = None
     if not isinstance(message, JoinMessage):
@@ -226,7 +264,10 @@ async def _receive_join(websocket: WebSocket) -> JoinMessage | None:
     return message
 
 
-async def _send_loop(websocket: WebSocket, outbox: asyncio.Queue[dict[str, Any] | None]) -> None:
-    while (message := await outbox.get()) is not None:
+async def _send_loop(websocket: WebSocket, outbox: asyncio.Queue[Frame | None]) -> None:
+    while (frame := await outbox.get()) is not None:
         with contextlib.suppress(Exception):  # the client may already be gone
-            await websocket.send_json(message)
+            if isinstance(frame, bytes):
+                await websocket.send_bytes(frame)
+            else:
+                await websocket.send_json(frame)

@@ -99,6 +99,7 @@ forbidden_modules = [
   "jinja2",
   "yaml",
   "probeloop.ai",
+  "probeloop.speech",
   "probeloop.storage",
   "probeloop.api",
   "probeloop.interview.application",

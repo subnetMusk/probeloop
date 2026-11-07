@@ -8,19 +8,23 @@ from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from probeloop.interview.application.events import SessionEvent
+from probeloop.interview.application.events import SentenceAudio, SessionEvent
 from probeloop.interview.application.orchestrator import SessionOrchestrator
 from probeloop.interview.application.ports import Clock, Interviewer, SessionStore, SessionSummary
+from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import (
     InterviewConfig,
     InterviewContext,
     InterviewSession,
+    InvalidConfigError,
+    Modality,
     SessionStatus,
 )
 
 REPLAY_BUFFER = 500
 
-type Listener = Callable[[int, SessionEvent], Awaitable[None]]
+# The sequence number is None for events that are delivered live but not kept for replay.
+type Listener = Callable[[int | None, SessionEvent], Awaitable[None]]
 
 
 class SessionNotFoundError(LookupError):
@@ -40,6 +44,11 @@ class EventLog:
     listener: Listener | None = None
 
     async def publish(self, event: SessionEvent) -> None:
+        if isinstance(event, SentenceAudio):
+            # Audio is large, and after a reconnection the interviewer does not repeat itself.
+            if self.listener is not None:
+                await self.listener(None, event)
+            return
         seq = self.next_seq
         self.next_seq += 1
         self.events.append((seq, event))
@@ -83,17 +92,30 @@ class SessionService:
         store: SessionStore,
         interviewer: Interviewer,
         clock: Clock,
+        voice: VoiceServices | None = None,
         new_id: Callable[[], str] = lambda: uuid.uuid4().hex,
     ) -> None:
         self._store = store
         self._interviewer = interviewer
         self._clock = clock
+        self._voice = voice
         self._new_id = new_id
         self._live: dict[str, LiveSession] = {}
         self._connected: set[str] = set()
         self._lock = asyncio.Lock()
 
+    @property
+    def voice(self) -> VoiceServices | None:
+        return self._voice
+
     async def create(self, config: InterviewConfig, context: InterviewContext) -> InterviewSession:
+        if config.modality is Modality.VOICE:
+            if self._voice is None:
+                raise InvalidConfigError("voice interviews need the speech services")
+            if self._voice.voice_for(config.language) is None:
+                raise InvalidConfigError(
+                    f"no voice is configured for language '{config.language.value}'"
+                )
         session = InterviewSession(
             id=self._new_id(), config=config, context=context, created_at=self._clock.now()
         )
@@ -135,6 +157,7 @@ class SessionService:
                     store=self._store,
                     clock=self._clock,
                     sink=log.publish,
+                    voice=self._voice,
                 )
                 live = LiveSession(orchestrator=orchestrator, log=log)
                 self._live[session_id] = live

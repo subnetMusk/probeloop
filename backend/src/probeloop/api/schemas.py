@@ -8,11 +8,15 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from probeloop.interview.application.events import (
     AnswerRecorded,
+    AnswerTimeWarning,
     ErrorRaised,
     MoveCompleted,
+    SentenceAudio,
     SessionEnded,
     SessionEvent,
+    SpeechFinished,
     StateChanged,
+    TranscriptPartial,
     UtteranceDelta,
 )
 from probeloop.interview.application.ports import SessionSummary
@@ -23,10 +27,12 @@ from probeloop.interview.domain.model import (
     InterviewSession,
     InterviewType,
     Language,
+    Modality,
 )
 
 MAX_BRIEF = 4000
 MAX_ANSWER = 8000
+MAX_AUDIO_FRAME_BYTES = 64 * 1024  # two seconds of 16 kHz PCM16; the browser sends about 0.1 s
 
 
 class Strict(BaseModel):
@@ -40,6 +46,7 @@ class CreateSession(Strict):
     interview_type: InterviewType
     difficulty: Difficulty = Difficulty.MEDIUM
     language: Language = Language.ITALIAN
+    modality: Modality = Modality.TEXT
     duration_minutes: int = Field(default=15, ge=5, le=90)
     custom_instructions: str = Field(default="", max_length=MAX_CUSTOM_INSTRUCTIONS)
     candidate_brief: str | None = Field(default=None, max_length=MAX_BRIEF)
@@ -63,6 +70,7 @@ class SessionView(BaseModel):
     interview_type: str
     difficulty: str
     language: str
+    modality: str
     target_duration_s: int
     created_at: float
     end_reason: str | None
@@ -98,6 +106,7 @@ class SessionView(BaseModel):
             interview_type=s.config.interview_type.value,
             difficulty=s.config.difficulty.value,
             language=s.config.language.value,
+            modality=s.config.modality.value,
             target_duration_s=s.config.target_duration_s,
             created_at=s.created_at,
             end_reason=s.end_reason.value if s.end_reason else None,
@@ -151,8 +160,10 @@ class SimpleCommand(ClientMessage):
 
 
 class TurnEnd(ClientMessage):
+    """End of answer. Text sessions send the typed answer; voice sessions send no text."""
+
     type: Literal["turn.end"]
-    text: str = Field(max_length=MAX_ANSWER)
+    text: str | None = Field(default=None, max_length=MAX_ANSWER)
 
 
 IncomingMessage = Annotated[JoinMessage | SimpleCommand | TurnEnd, Field(discriminator="type")]
@@ -160,9 +171,21 @@ incoming_adapter: TypeAdapter[JoinMessage | SimpleCommand | TurnEnd] = TypeAdapt
 
 
 # ---------------------------------------------------------------------- WebSocket: server -> client
+#
+# Binary frames from the client are 16 kHz mono PCM16 answer audio. The only binary frames the
+# server sends follow a `tts.chunk` message: they carry that sentence's PCM16 audio at the
+# `sample_rate` the message states.
 
 
-def event_message(seq: int, event: SessionEvent) -> dict[str, Any]:
+def event_frames(seq: int | None, event: SessionEvent) -> list[dict[str, Any] | bytes]:
+    """The WebSocket frames of one event: a JSON message, plus the audio of a `tts.chunk`."""
+    message = event_message(seq, event)
+    if isinstance(event, SentenceAudio):
+        return [message, event.audio.data]
+    return [message]
+
+
+def event_message(seq: int | None, event: SessionEvent) -> dict[str, Any]:
     body: dict[str, Any]
     match event:
         case StateChanged():
@@ -188,11 +211,37 @@ def event_message(seq: int, event: SessionEvent) -> dict[str, Any]:
                 "utterance": event.utterance,
                 "fallback": event.fallback,
             }
+        case SentenceAudio():
+            body = {
+                "type": "tts.chunk",
+                "turn_seq": event.turn_seq,
+                "index": event.index,
+                "text": event.text,
+                "sample_rate": event.audio.sample_rate,
+                "samples": event.audio.samples,
+                "duration_s": round(event.audio.duration_s, 3),
+            }
+        case SpeechFinished():
+            body = {
+                "type": "tts.done",
+                "turn_seq": event.turn_seq,
+                "sentences": event.sentences,
+                "failed": event.failed,
+            }
+        case TranscriptPartial():
+            body = {"type": "transcript.partial", "turn_seq": event.turn_seq, "text": event.text}
+        case AnswerTimeWarning():
+            body = {
+                "type": "answer.time_warning",
+                "turn_seq": event.turn_seq,
+                "remaining_s": event.remaining_s,
+            }
         case AnswerRecorded():
             body = {
                 "type": "candidate.answer.recorded",
                 "turn_seq": event.turn_seq,
                 "text": event.text,
+                "complete": event.complete,
             }
         case SessionEnded():
             body = {

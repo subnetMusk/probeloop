@@ -35,5 +35,21 @@ class PiperTextToSpeech:
             raise SpeechError("tts-piper sent no audio")
         return audio
 
+    async def check(self, voice: str) -> str | None:
+        """A problem description for the user, or None when `voice` can be used."""
+        try:
+            response = await self._client.get("/voices", timeout=5.0)
+        except httpx.HTTPError:
+            return "the speech synthesis service is unreachable"
+        if response.status_code != 200:
+            return f"the speech synthesis service answered {response.status_code}"
+        try:
+            voices = response.json()
+        except ValueError:
+            return "the speech synthesis service sent an invalid answer"
+        if not isinstance(voices, dict) or voice not in voices:
+            return f"the voice '{voice}' is not installed in the speech synthesis service"
+        return None
+
     async def aclose(self) -> None:
         await self._client.aclose()

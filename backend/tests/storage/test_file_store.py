@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -7,12 +8,15 @@ import pytest
 from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
+    Modality,
     MoveAction,
     MoveStatus,
     SessionStatus,
 )
+from probeloop.speech.audio import PcmAudio, from_wav
 from probeloop.storage.file_store import FileSessionStore, from_dict, to_dict
 from tests.conftest import make_session
+from tests.speech_audio import tone
 
 SESSION_ID = "a" * 32
 
@@ -76,3 +80,32 @@ async def test_ids_cannot_escape_the_store(tmp_path: Path, bad_id: str) -> None:
     assert not await store.delete(bad_id)
     with pytest.raises(ValueError, match="invalid session id"):
         store.session_dir(bad_id)
+
+
+def test_voice_modality_round_trip() -> None:
+    s = make_session(session_id=SESSION_ID, modality=Modality.VOICE)
+    assert from_dict(to_dict(s)).config.modality is Modality.VOICE
+
+
+def test_sessions_written_before_voice_support_load_as_text() -> None:
+    data = to_dict(played_session())
+    del data["config"]["modality"]
+    assert from_dict(data).config.modality is Modality.TEXT
+
+
+async def test_answer_audio_and_metrics_are_removed_with_the_session(tmp_path: Path) -> None:
+    store = FileSessionStore(tmp_path)
+    await store.save(played_session())
+    audio = PcmAudio(tone(0.5))
+    await store.save_answer_audio(SESSION_ID, 1, audio)
+    await store.append_metrics(SESSION_ID, {"kind": "turn", "answer_turn_seq": 1})
+    await store.append_metrics(SESSION_ID, {"kind": "turn", "answer_turn_seq": 3})
+
+    directory = tmp_path / SESSION_ID
+    assert from_wav((directory / "audio" / "answer-0001.wav").read_bytes()) == audio
+    lines = (directory / "metrics.jsonl").read_text("utf-8").splitlines()
+    assert [json.loads(line)["answer_turn_seq"] for line in lines] == [1, 3]
+    assert not list(directory.rglob("*.tmp"))
+
+    assert await store.delete(SESSION_ID)
+    assert not directory.exists()

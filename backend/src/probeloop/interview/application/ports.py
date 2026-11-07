@@ -17,6 +17,7 @@ from probeloop.interview.domain.model import (
     Turn,
 )
 from probeloop.interview.domain.time_policy import TimeDirective
+from probeloop.speech.audio import PcmAudio
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,3 +73,9 @@ class SessionStore(Protocol):
     async def summaries(self) -> list[SessionSummary]: ...
 
     async def delete(self, session_id: str) -> bool: ...
+
+    async def save_answer_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
+        """Keep the audio of a spoken answer, so that it can be transcribed again later."""
+        ...
+
+    async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None: ...

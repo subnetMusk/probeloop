@@ -1,23 +1,36 @@
-"""Drives one live interview session: interviewer moves, answers, pauses and limits."""
+"""Drives one live interview session: interviewer moves, answers, pauses and limits.
+
+In a voice session the orchestrator also runs the speech path. The interviewer's utterance is
+synthesised sentence by sentence while it streams. The candidate's audio goes to a
+`TurnTranscriber` between "answer" and "end of answer"; frames that arrive at any other time are
+dropped, which keeps the interviewer's own voice out of the transcript.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import logging
-from dataclasses import replace
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 
 from probeloop.ai.ports import LlmError
 from probeloop.interview.application.events import (
     AnswerRecorded,
+    AnswerTimeWarning,
     ErrorRaised,
     EventSink,
     MoveCompleted,
+    SentenceAudio,
     SessionEnded,
     SessionEvent,
+    SpeechFinished,
     StateChanged,
+    TranscriptPartial,
     UtteranceDelta,
 )
+from probeloop.interview.application.metrics import TurnMetrics
 from probeloop.interview.application.phrases import FALLBACK, FAREWELL
 from probeloop.interview.application.ports import (
     Clock,
@@ -27,18 +40,39 @@ from probeloop.interview.application.ports import (
     MoveRequest,
     SessionStore,
 )
+from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
     InterviewSession,
+    Modality,
     MoveAction,
     MoveStatus,
     Phase,
     SessionStatus,
 )
 from probeloop.interview.domain.time_policy import TimeDirective, remaining_s, time_directive
+from probeloop.speech.synthesizer import SpokenSentence, SynthesisEvent, UtteranceSynthesizer
+from probeloop.speech.transcriber import (
+    PartialTranscript,
+    TranscriberEvent,
+    TurnTranscriber,
+    TurnTranscript,
+)
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _ReplyTiming:
+    """Timestamps of the reply to one spoken answer, for `TurnMetrics`."""
+
+    transcript: TurnTranscript
+    answer_seq: int
+    ended_at: float
+    first_text_at: float | None = None
+    move_recorded_at: float | None = None
+    first_audio_at: float | None = None
 
 
 class SessionOrchestrator:
@@ -56,19 +90,31 @@ class SessionOrchestrator:
         store: SessionStore,
         clock: Clock,
         sink: EventSink,
+        voice: VoiceServices | None = None,
         llm_attempts: int = 2,
+        timer: Callable[[], float] = time.perf_counter,
     ) -> None:
         self.session = session
         self._interviewer = interviewer
         self._store = store
         self._clock = clock
         self._sink = sink
+        self._voice = voice
         self._llm_attempts = llm_attempts
+        self._timer = timer
         self._lock = asyncio.Lock()
         self._prepare_task: asyncio.Task[None] | None = None
         self._move_task: asyncio.Task[None] | None = None
         self._partial: MoveDelta | None = None
         self._partial_text = ""
+        self._transcriber: TurnTranscriber | None = None
+        self._answer_seq = 0
+        self._answer_warned = False
+        self.dropped_frames = 0
+
+    @property
+    def is_voice(self) -> bool:
+        return self.session.config.modality is Modality.VOICE
 
     # ------------------------------------------------------------------ commands
 
@@ -80,12 +126,26 @@ class SessionOrchestrator:
             )
 
     async def start(self) -> None:
+        if self.is_voice and self.session.status is SessionStatus.READY:
+            problems = await self.voice_problems()
+            if problems:
+                await self._emit(
+                    ErrorRaised(
+                        code="speech_unavailable", message="; ".join(problems), recoverable=True
+                    )
+                )
+                return
         if self._prepare_task is not None:
             await asyncio.gather(self._prepare_task, return_exceptions=True)
         async with self._lock:
             self.session.start(self._clock.now())
             await self._commit()
             self._schedule_move()
+
+    async def voice_problems(self) -> list[str]:
+        if self._voice is None:
+            return ["the speech services are not configured"]
+        return await self._voice.problems(self.session.config.language)
 
     async def playback_finished(self) -> None:
         async with self._lock:
@@ -95,24 +155,58 @@ class SessionOrchestrator:
     async def start_answer(self) -> None:
         async with self._lock:
             self.session.start_answer(self._clock.now())
+            if self.is_voice and self._transcriber is None:
+                # After a reconnection the same answer continues: the transcriber is kept.
+                assert self._voice is not None
+                self._answer_seq = len(self.session.turns)
+                self._answer_warned = False
+                self._transcriber = self._voice.transcriber(
+                    self.session.config.language, self._on_transcript
+                )
             await self._commit()
 
-    async def end_answer(self, text: str) -> None:
-        """Record the candidate's answer. In text mode the transcript is final immediately."""
+    async def audio_frame(self, pcm: bytes) -> bool:
+        """Add answer audio (16 kHz PCM16). Returns False when the frame was dropped."""
+        transcriber = self._transcriber
+        if (
+            transcriber is None
+            or self.session.status is not SessionStatus.IN_PROGRESS
+            or self.session.phase is not Phase.CANDIDATE_SPEAKING
+        ):
+            self.dropped_frames += 1
+            return False
+        transcriber.push(pcm)
+        await self._check_answer_length(transcriber.audio_s)
+        return True
+
+    async def end_answer(self, text: str | None = None) -> None:
+        """Close the candidate's answer: typed `text` in a text session, audio in a voice one."""
+        if self.is_voice and text is not None:
+            raise ValueError("a voice session takes spoken answers")
+        if not self.is_voice and text is None:
+            raise ValueError("a text session needs the answer text")
         async with self._lock:
             now = self._clock.now()
             self.session.finish_answer(now)
-            self.session.record_answer(text, now)
+            timing = None
+            if text is None:
+                timing = await self._finish_spoken_answer()
+                text = timing.transcript.text
+                complete = timing.transcript.complete
+            else:
+                text, complete = text.strip(), True
+            self.session.record_answer(text, self._clock.now())
             turn = self.session.turns[-1]
-            await self._emit(AnswerRecorded(turn_seq=turn.seq, text=text.strip()))
+            await self._emit(AnswerRecorded(turn_seq=turn.seq, text=text, complete=complete))
             await self._commit()
-            self._schedule_move()
+            self._schedule_move(timing)
 
     async def pause(self) -> None:
         await self._cancel_move()
         async with self._lock:
             if self.session.status is not SessionStatus.IN_PROGRESS:
                 return
+            await self._cancel_move()  # one may have been scheduled while waiting for the lock
             self.session.pause(self._clock.now(), partial_move=self._take_partial())
             await self._commit()
 
@@ -128,6 +222,8 @@ class SessionOrchestrator:
         async with self._lock:
             if self.session.is_terminal:
                 return
+            await self._cancel_move()  # one may have been scheduled while waiting for the lock
+            await self._drop_answer()
             self.session.end(reason, self._clock.now(), partial_move=self._take_partial())
             await self._commit()
 
@@ -138,9 +234,10 @@ class SessionOrchestrator:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._prepare_task
         await self._cancel_move()
+        await self._drop_answer()
 
     async def wait_for_move(self) -> None:
-        """Wait until the current move, if any, has been recorded. Used by tests and the CLI."""
+        """Wait until the current move, and its speech, are done. Used by tests and the CLI."""
         task = self._move_task
         if task is not None:
             await asyncio.gather(task, return_exceptions=True)
@@ -154,6 +251,52 @@ class SessionOrchestrator:
             elapsed_s=round(elapsed, 1),
             remaining_s=round(remaining_s(elapsed, self.session.config.target_duration_s), 1),
         )
+
+    # ------------------------------------------------------------------ spoken answers
+
+    async def _finish_spoken_answer(self) -> _ReplyTiming:
+        """Wait for the final transcript and store the answer's audio. Runs under the lock."""
+        transcriber = self._transcriber
+        assert transcriber is not None, "start_answer creates the transcriber"
+        self._transcriber = None
+        ended_at = self._timer()
+        transcript = await transcriber.finish()
+        try:
+            await self._store.save_answer_audio(self.session.id, self._answer_seq, transcript.audio)
+        except OSError:
+            logger.exception("answer audio not stored", extra={"session_id": self.session.id})
+        return _ReplyTiming(transcript=transcript, answer_seq=self._answer_seq, ended_at=ended_at)
+
+    async def _check_answer_length(self, audio_s: float) -> None:
+        assert self._voice is not None
+        if not self._answer_warned and audio_s >= self._voice.answer_warning_s:
+            self._answer_warned = True
+            await self._emit(
+                AnswerTimeWarning(
+                    turn_seq=self._answer_seq,
+                    remaining_s=round(self._voice.answer_limit_s - audio_s, 1),
+                )
+            )
+        if audio_s >= self._voice.answer_limit_s and not self._lock.locked():
+            logger.info("answer reached its time limit", extra={"session_id": self.session.id})
+            await self.end_answer()
+
+    async def _on_transcript(self, event: TranscriberEvent) -> None:
+        if isinstance(event, PartialTranscript):
+            await self._emit(TranscriptPartial(turn_seq=self._answer_seq, text=event.text))
+        else:
+            await self._emit(
+                ErrorRaised(
+                    code="stt_failed",
+                    message="part of the answer could not be transcribed; its audio is kept",
+                    recoverable=True,
+                )
+            )
+
+    async def _drop_answer(self) -> None:
+        transcriber, self._transcriber = self._transcriber, None
+        if transcriber is not None:
+            await transcriber.cancel()
 
     # ------------------------------------------------------------------ moves
 
@@ -180,14 +323,26 @@ class SessionOrchestrator:
             remaining_s=remaining_s(elapsed, self.session.config.target_duration_s),
         )
 
-    def _schedule_move(self) -> None:
+    def _schedule_move(self, timing: _ReplyTiming | None = None) -> None:
         self._partial = None
         self._partial_text = ""
-        self._move_task = asyncio.create_task(self._run_move(), name=f"move-{self.session.id}")
+        self._move_task = asyncio.create_task(
+            self._run_move(timing), name=f"move-{self.session.id}"
+        )
 
-    async def _run_move(self) -> None:
+    async def _run_move(self, timing: _ReplyTiming | None) -> None:
+        turn_seq = len(self.session.turns)
+        speaker = None
         try:
-            await self._generate_and_record()
+            if self.is_voice and self._voice is not None:
+                speaker = self._voice.synthesizer(
+                    self.session.config.language,
+                    lambda event: self._on_sentence(turn_seq, event, timing),
+                )
+            recorded = await self._generate_and_record(turn_seq, speaker, timing)
+            if recorded and speaker is not None:
+                await self._finish_speech(turn_seq, speaker, timing)
+                speaker = None
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # the session must not stay stuck in THINKING
@@ -196,8 +351,16 @@ class SessionOrchestrator:
                 if not self.session.is_terminal:
                     self.session.fail(f"internal error: {type(exc).__name__}", self._clock.now())
                     await self._commit()
+        finally:
+            if speaker is not None:
+                await speaker.cancel()
 
-    async def _generate_and_record(self) -> None:
+    async def _generate_and_record(
+        self,
+        turn_seq: int,
+        speaker: UtteranceSynthesizer | None,
+        timing: _ReplyTiming | None,
+    ) -> bool:
         session = self.session
         now = self._clock.now()
         elapsed = session.elapsed_s(now)
@@ -205,7 +368,6 @@ class SessionOrchestrator:
         directive = time_directive(
             elapsed, target, final_question_asked=session.final_question_asked
         )
-        turn_seq = len(session.turns)
 
         if directive is TimeDirective.FORCE_CLOSE:
             move = InterviewerMove(
@@ -214,21 +376,25 @@ class SessionOrchestrator:
                 utterance=FAREWELL[session.config.language],
                 fallback=True,
             )
-            await self._emit(UtteranceDelta(turn_seq=turn_seq, text=move.utterance))
+            await self._say(turn_seq, move.utterance, speaker, timing)
         else:
-            move = await self._generate(self._request(directive, elapsed), turn_seq)
+            move = await self._generate(
+                self._request(directive, elapsed), turn_seq, speaker, timing
+            )
 
         move = self._normalise(move, directive)
         async with self._lock:
             if session.status is not SessionStatus.IN_PROGRESS:
-                return
+                return False
             if session.phase is not Phase.INTERVIEWER_THINKING:
-                return
+                return False
             session.record_move(
                 move, self._clock.now(), final_question=directive is TimeDirective.FINAL_QUESTION
             )
             self._partial = None
             self._partial_text = ""
+            if timing is not None:
+                timing.move_recorded_at = self._timer()
             await self._emit(
                 MoveCompleted(
                     turn_seq=turn_seq,
@@ -239,15 +405,22 @@ class SessionOrchestrator:
                 )
             )
             await self._commit()
+        return True
 
-    async def _generate(self, request: MoveRequest, turn_seq: int) -> InterviewerMove:
+    async def _generate(
+        self,
+        request: MoveRequest,
+        turn_seq: int,
+        speaker: UtteranceSynthesizer | None,
+        timing: _ReplyTiming | None,
+    ) -> InterviewerMove:
         for attempt in range(1, self._llm_attempts + 1):
             try:
                 async for item in self._interviewer.next_move(request):
                     if isinstance(item, MoveDelta):
                         self._partial = item
                         self._partial_text += item.text
-                        await self._emit(UtteranceDelta(turn_seq=turn_seq, text=item.text))
+                        await self._say(turn_seq, item.text, speaker, timing)
                     elif isinstance(item, MoveDone):
                         return item.move
                 raise LlmError("interviewer stream ended without a move")
@@ -261,12 +434,89 @@ class SessionOrchestrator:
         await self._emit(
             ErrorRaised(code="llm_unavailable", message="LLM call failed", recoverable=True)
         )
+        fallback = FALLBACK[self.session.config.language]
+        if self._partial_text.strip():
+            await self._say(turn_seq, f" … {fallback}", speaker, timing)
+        else:
+            await self._say(turn_seq, fallback, speaker, timing)
         return InterviewerMove(
             action=MoveAction.FOLLOW_UP,
             topic_id=self.session.current_topic_id(),
-            utterance=_join_partial(self._partial_text, FALLBACK[self.session.config.language]),
+            utterance=_join_partial(self._partial_text, fallback),
             fallback=True,
         )
+
+    async def _say(
+        self,
+        turn_seq: int,
+        text: str,
+        speaker: UtteranceSynthesizer | None,
+        timing: _ReplyTiming | None,
+    ) -> None:
+        """Show utterance text to the client and, in a voice session, speak it."""
+        if timing is not None and timing.first_text_at is None and text.strip():
+            timing.first_text_at = self._timer()
+        await self._emit(UtteranceDelta(turn_seq=turn_seq, text=text))
+        if speaker is not None:
+            speaker.push(text)
+
+    async def _on_sentence(
+        self, turn_seq: int, event: SynthesisEvent, timing: _ReplyTiming | None
+    ) -> None:
+        if isinstance(event, SpokenSentence):
+            if timing is not None and timing.first_audio_at is None:
+                timing.first_audio_at = self._timer()
+            await self._emit(
+                SentenceAudio(
+                    turn_seq=turn_seq, index=event.index, text=event.text, audio=event.audio
+                )
+            )
+        else:
+            await self._emit(
+                ErrorRaised(
+                    code="tts_failed",
+                    message="a sentence could not be spoken; its text is shown",
+                    recoverable=True,
+                )
+            )
+
+    async def _finish_speech(
+        self, turn_seq: int, speaker: UtteranceSynthesizer, timing: _ReplyTiming | None
+    ) -> None:
+        speech = await speaker.finish()
+        await self._emit(
+            SpeechFinished(
+                turn_seq=turn_seq, sentences=len(speech.sentences), failed=len(speech.failed)
+            )
+        )
+        if timing is None:
+            return
+        assert self._voice is not None
+        transcript = timing.transcript
+
+        def since_end(at: float | None) -> float | None:
+            return None if at is None else round(at - timing.ended_at, 3)
+
+        metrics = TurnMetrics(
+            answer_turn_seq=timing.answer_seq,
+            answer_audio_s=round(transcript.audio.duration_s, 2),
+            stt_engine=transcript.engine_ref,
+            stt_segments=len(transcript.segments),
+            stt_dropped_segments=len(transcript.dropped),
+            stt_failed_segments=len(transcript.failed),
+            stt_finalize_s=round(transcript.finalize_s, 3),
+            llm_first_text_s=since_end(timing.first_text_at),
+            move_recorded_s=since_end(timing.move_recorded_at),
+            tts_voice=self._voice.voice_for(self.session.config.language) or "",
+            tts_first_audio_s=since_end(timing.first_audio_at),
+            tts_sentences=len(speech.sentences),
+            tts_failed_sentences=len(speech.failed),
+        )
+        logger.info("turn metrics", extra={"session_id": self.session.id, **metrics.as_record()})
+        try:
+            await self._store.append_metrics(self.session.id, metrics.as_record())
+        except OSError:
+            logger.exception("turn metrics not stored", extra={"session_id": self.session.id})
 
     def _normalise(self, move: InterviewerMove, directive: TimeDirective) -> InterviewerMove:
         """Repair what the schema cannot guarantee: known topic ids and closing on time."""

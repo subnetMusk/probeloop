@@ -14,7 +14,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from probeloop.speech.audio import SAMPLE_WIDTH, PcmAudio
+from probeloop.speech.audio import SAMPLE_RATE, SAMPLE_WIDTH, PcmAudio
 from probeloop.speech.filters import FilterConfig, rejection_reason
 from probeloop.speech.ports import (
     SpeechError,
@@ -137,6 +137,11 @@ class TurnTranscriber:
     def audio(self) -> PcmAudio:
         """All the audio received so far."""
         return PcmAudio(bytes(self._audio))
+
+    @property
+    def audio_s(self) -> float:
+        """Duration of the audio received so far, without copying it."""
+        return len(self._audio) / SAMPLE_WIDTH / SAMPLE_RATE
 
     def start(self) -> None:
         if self._tasks is None:

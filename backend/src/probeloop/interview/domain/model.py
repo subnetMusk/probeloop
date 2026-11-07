@@ -37,6 +37,11 @@ class Language(StrEnum):
     ENGLISH = "en"
 
 
+class Modality(StrEnum):
+    TEXT = "text"  # typed answers, no audio (the development CLI)
+    VOICE = "voice"  # spoken questions and answers
+
+
 @dataclass(frozen=True, slots=True)
 class InterviewConfig:
     interview_type: InterviewType
@@ -44,6 +49,7 @@ class InterviewConfig:
     language: Language
     target_duration_s: int
     custom_instructions: str = ""
+    modality: Modality = Modality.TEXT
 
     def __post_init__(self) -> None:
         if not MIN_DURATION_S <= self.target_duration_s <= MAX_DURATION_S:

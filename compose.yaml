@@ -30,6 +30,9 @@ services:
       PROBELOOP_INTERVIEWER_MODEL: ${PROBELOOP_INTERVIEWER_MODEL:-ministral-3:8b}
       PROBELOOP_LLM_DEBUG_LOG: ${PROBELOOP_LLM_DEBUG_LOG:-false}
       PROBELOOP_DATA_DIR: /data
+      PROBELOOP_STT_URL: http://stt-worker:8000
+      PROBELOOP_TTS_URL: http://tts-piper:5000
+      PROBELOOP_TTS_VOICE_IT: ${PROBELOOP_TTS_VOICE:-it_IT-serena-medium}
     volumes:
       - data:/data
     networks: [default, internal]

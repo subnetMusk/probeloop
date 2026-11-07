@@ -1,7 +1,8 @@
-"""File-based session store: one directory per session, holding `session.json`.
+"""File-based session store: one directory per session.
 
-Used until database persistence (milestone M4). Deleting a session removes its directory, which
-will also hold the session's audio from M3 on.
+Each directory holds `session.json`, the audio of spoken answers (`audio/answer-NNNN.wav`, 16 kHz
+mono) and `metrics.jsonl` (one `TurnMetrics` record per spoken answer). Used until database
+persistence (milestone M4). Deleting a session removes its directory, and with it all of its files.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import os
 import re
 import shutil
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ from probeloop.interview.domain.model import (
     InterviewSession,
     InterviewType,
     Language,
+    Modality,
     MoveAction,
     MoveStatus,
     Phase,
@@ -35,6 +38,7 @@ from probeloop.interview.domain.model import (
     TopicCoverage,
     Turn,
 )
+from probeloop.speech.audio import PcmAudio, to_wav
 
 SCHEMA_VERSION = 1
 _ID = re.compile(r"^[0-9a-f]{32}$")
@@ -57,6 +61,12 @@ class FileSessionStore:
     async def delete(self, session_id: str) -> bool:
         return await asyncio.to_thread(self._delete, session_id)
 
+    async def save_answer_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
+        await asyncio.to_thread(self._write_audio, session_id, turn_seq, audio)
+
+    async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None:
+        await asyncio.to_thread(self._append_metrics, session_id, dict(record))
+
     def session_dir(self, session_id: str) -> Path:
         if not _ID.match(session_id):
             raise ValueError("invalid session id")
@@ -68,14 +78,18 @@ class FileSessionStore:
         directory = self.session_dir(session.id)
         directory.mkdir(parents=True, exist_ok=True)
         data = json.dumps(to_dict(session), ensure_ascii=False, indent=2)
-        fd, tmp = tempfile.mkstemp(dir=directory, prefix=".session.", suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(data)
-            os.replace(tmp, directory / "session.json")
-        except BaseException:
-            Path(tmp).unlink(missing_ok=True)
-            raise
+        _atomic_write(directory / "session.json", data.encode("utf-8"))
+
+    def _write_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
+        directory = self.session_dir(session_id) / "audio"
+        directory.mkdir(parents=True, exist_ok=True)
+        _atomic_write(directory / f"answer-{turn_seq:04d}.wav", to_wav(audio))
+
+    def _append_metrics(self, session_id: str, record: dict[str, object]) -> None:
+        directory = self.session_dir(session_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        with (directory / "metrics.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     def _read(self, session_id: str) -> InterviewSession | None:
         try:
@@ -112,6 +126,17 @@ class FileSessionStore:
         return True
 
 
+def _atomic_write(path: Path, data: bytes) -> None:
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
 # ---------------------------------------------------------------------- mapping
 
 
@@ -126,6 +151,7 @@ def to_dict(s: InterviewSession) -> dict[str, Any]:
             "language": s.config.language.value,
             "target_duration_s": s.config.target_duration_s,
             "custom_instructions": s.config.custom_instructions,
+            "modality": s.config.modality.value,
         },
         "context": {
             "candidate_brief": s.context.candidate_brief,
@@ -161,6 +187,8 @@ def from_dict(d: dict[str, Any]) -> InterviewSession:
             language=Language(c["language"]),
             target_duration_s=c["target_duration_s"],
             custom_instructions=c["custom_instructions"],
+            # Absent in sessions written before voice support: those were text interviews.
+            modality=Modality(c.get("modality", Modality.TEXT.value)),
         ),
         context=InterviewContext(
             candidate_brief=ctx["candidate_brief"],

@@ -69,3 +69,16 @@ async def test_failures_become_speech_errors(
 ) -> None:
     with pytest.raises(SpeechError, match=message):
         await adapter(handler).synthesize("Una frase.", VOICE)
+
+
+async def test_check_finds_the_installed_voice() -> None:
+    voices = {VOICE: {"audio": {"sample_rate": 22050}}, "it_IT-paola-medium": {}}
+    tts = adapter(lambda r: httpx.Response(200, json=voices))
+    assert await tts.check(VOICE) is None
+    problem = await tts.check("en_US-missing-medium")
+    assert problem is not None
+    assert "not installed" in problem
+
+
+async def test_check_reports_an_unreachable_service() -> None:
+    assert await adapter(refused).check(VOICE) == "the speech synthesis service is unreachable"

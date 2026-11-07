@@ -100,3 +100,27 @@ async def test_other_sample_rates_are_refused_before_sending() -> None:
 
     with pytest.raises(SpeechError, match="16 kHz"):
         await adapter(handler).transcribe(PcmAudio(tone(0.2), 22_050), TranscribeOptions("it"))
+
+
+@pytest.mark.parametrize(
+    ("response", "problem"),
+    [
+        (httpx.Response(200, json={"status": "ready", "engines": {}}), None),
+        (httpx.Response(503, json={"status": "loading", "engines": {}}), "still loading"),
+        (httpx.Response(503, json={"status": "failed", "engines": {}}), "not working"),
+        (httpx.Response(502, content=b"bad gateway"), "not working"),
+    ],
+)
+async def test_check_reports_the_worker_state(
+    response: httpx.Response, problem: str | None
+) -> None:
+    result = await adapter(lambda r: response).check()
+    if problem is None:
+        assert result is None
+    else:
+        assert result is not None
+        assert problem in result
+
+
+async def test_check_reports_an_unreachable_worker() -> None:
+    assert await adapter(refused).check() == "the speech recognition service is unreachable"

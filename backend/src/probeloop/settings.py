@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     keep_alive: str = "30m"
     llm_debug_log: bool = False
 
+    # Speech services (Compose: stt-worker and tts-piper). Without both, voice interviews are off.
+    stt_url: str | None = None
+    tts_url: str | None = None
+    tts_voice_it: str | None = "it_IT-serena-medium"
+    tts_voice_en: str | None = None  # no English voice is chosen yet
+    speech_fake: bool = False  # fake recogniser and synthesiser, for end-to-end tests
+    answer_warning_s: float = 240.0
+    answer_limit_s: float = 360.0
+
     allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
     allowed_origins: list[str] = [
         "http://localhost:8000",
