@@ -91,6 +91,22 @@ services:
     volumes:
       - models:/models
 
+  # Development tool: a synthetic candidate that answers out loud (backend/evals/voice_candidate.py).
+  # It shares the backend's network, so it reaches the backend on 127.0.0.1 and Piper by name.
+  #   docker compose --profile tools run --rm voice-candidate --minutes 10
+  # Runs are written to ./var/voice-candidate (git-ignored).
+  voice-candidate:
+    image: probeloop-backend:dev
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: dev
+    profiles: [tools]
+    network_mode: service:backend
+    entrypoint: ["python", "-m", "evals.voice_candidate"]
+    volumes:
+      - ./var/voice-candidate:/io
+
 networks:
   internal:
     internal: true
