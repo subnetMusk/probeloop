@@ -102,7 +102,7 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
   )
 }
 
-function Ended({ state }: { state: InterviewState }) {
+function Ended({ state, sessionId }: { state: InterviewState; sessionId: string }) {
   const answers = state.entries.filter((e) => e.speaker === 'candidate').length
   return (
     <Stage className="items-center overflow-y-auto p-6">
@@ -118,10 +118,22 @@ function Ended({ state }: { state: InterviewState }) {
           </p>
           <p className="max-w-md text-xs text-zinc-500">
             The full transcript and the audio of the whole conversation are kept with the session.
+            Your answers are now transcribed again, more accurately: review them before the report.
           </p>
-          <Button asChild variant="secondary">
-            <Link to="/">New interview</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild>
+              <Link
+                to="/sessions/$sessionId"
+                params={{ sessionId }}
+                data-testid="review-transcript"
+              >
+                Review the transcript
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link to="/">New interview</Link>
+            </Button>
+          </div>
         </div>
         {state.entries.length > 0 && (
           <div className="h-[60vh]">
@@ -193,7 +205,7 @@ export function InterviewPage() {
       </Lobby>
     )
   }
-  if (state.ended) return <Ended state={state} />
+  if (state.ended) return <Ended state={state} sessionId={sessionId} />
   if (state.status === null || state.status === 'ready') {
     return <Preparation state={state} onRetry={retryStart} />
   }

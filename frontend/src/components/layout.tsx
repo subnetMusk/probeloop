@@ -20,6 +20,23 @@ export function Layout() {
               <span className="ml-2 hidden text-sm text-muted-foreground sm:inline">
                 interview practice, out loud
               </span>
+              <nav className="ml-auto flex items-center gap-1 text-sm">
+                <Link
+                  to="/"
+                  className="rounded-md px-3 py-1.5 hover:bg-muted"
+                  activeProps={{ className: 'font-medium text-foreground' }}
+                  activeOptions={{ exact: true }}
+                >
+                  New interview
+                </Link>
+                <Link
+                  to="/sessions"
+                  className="rounded-md px-3 py-1.5 hover:bg-muted"
+                  activeProps={{ className: 'font-medium text-foreground' }}
+                >
+                  Your interviews
+                </Link>
+              </nav>
             </div>
           </header>
         )}

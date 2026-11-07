@@ -33,4 +33,18 @@ test('a voice interview from the setup page to the end of the call', async ({ pa
   await page.getByTestId('end-call').click()
   await expect(page.getByText('The interview has ended')).toBeVisible()
   await expect(page.getByTestId('ended-summary')).toContainText('1 answer')
+
+  // After the call the answers are transcribed again; the transcript can then be corrected.
+  await page.getByTestId('review-transcript').click()
+  await expect(page.getByTestId('refine-done')).toContainText('1 answers', { timeout: 30_000 })
+  const answerText = page.getByTestId('answer-text')
+  await expect(answerText).toContainText('Segmento di prova')
+  await page.getByRole('button', { name: 'Correct' }).click()
+  await page.getByLabel('Corrected answer').fill('Ho lavorato con FastAPI.')
+  await page.getByRole('button', { name: 'Save correction' }).click()
+  await expect(answerText).toHaveText('Ho lavorato con FastAPI.')
+  await expect(page.getByText('edited')).toBeVisible()
+
+  await page.getByRole('link', { name: 'All interviews' }).click()
+  await expect(page.getByTestId('session-row').first()).toContainText('Ended')
 })

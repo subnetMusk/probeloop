@@ -72,6 +72,21 @@
         "title": "Difficulty",
         "type": "string"
       },
+      "EditAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 8000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "EditAnswer",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -95,6 +110,105 @@
         "title": "InterviewType",
         "type": "string"
       },
+      "JobView": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "number"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "subject_id",
+          "status",
+          "progress",
+          "message",
+          "error",
+          "result",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "JobView",
+        "type": "object"
+      },
       "Language": {
         "enum": [
           "it",
@@ -111,11 +225,62 @@
         "title": "Modality",
         "type": "string"
       },
+      "RevisionView": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "engine_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Ref"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "text",
+          "source",
+          "created_at",
+          "engine_ref"
+        ],
+        "title": "RevisionView",
+        "type": "object"
+      },
       "SessionSummaryView": {
         "properties": {
           "created_at": {
             "title": "Created At",
             "type": "number"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
           },
           "id": {
             "title": "Id",
@@ -139,7 +304,8 @@
           "created_at",
           "status",
           "interview_type",
-          "language"
+          "language",
+          "ended_at"
         ],
         "title": "SessionSummaryView",
         "type": "object"
@@ -304,9 +470,27 @@
             ],
             "title": "Action"
           },
+          "audio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio"
+          },
           "elapsed_s": {
             "title": "Elapsed S",
             "type": "number"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionView"
+            },
+            "title": "Revisions",
+            "type": "array"
           },
           "seq": {
             "title": "Seq",
@@ -345,13 +529,23 @@
               }
             ],
             "title": "Topic Id"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/WordView"
+            },
+            "title": "Words",
+            "type": "array"
           }
         },
         "required": [
           "seq",
           "speaker",
           "elapsed_s",
-          "text"
+          "text",
+          "revisions",
+          "words",
+          "audio"
         ],
         "title": "TurnView",
         "type": "object"
@@ -395,6 +589,41 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "WordView": {
+        "properties": {
+          "end_s": {
+            "title": "End S",
+            "type": "number"
+          },
+          "probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability"
+          },
+          "start_s": {
+            "title": "Start S",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "start_s",
+          "end_s",
+          "probability"
+        ],
+        "title": "WordView",
+        "type": "object"
       }
     }
   },
@@ -404,6 +633,45 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_api_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job"
+      }
+    },
     "/api/llm": {
       "get": {
         "operationId": "llm_status_api_llm_get",
@@ -549,6 +817,238 @@
           }
         },
         "summary": "Get Session"
+      }
+    },
+    "/api/sessions/{session_id}/answers/{turn_seq}": {
+      "put": {
+        "description": "Correct the transcript of an answer: the text becomes a new revision.",
+        "operationId": "edit_answer_api_sessions__session_id__answers__turn_seq__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "turn_seq",
+            "required": true,
+            "schema": {
+              "title": "Turn Seq",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Answer"
+      }
+    },
+    "/api/sessions/{session_id}/files/{name}": {
+      "get": {
+        "operationId": "session_file_api_sessions__session_id__files__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Session File"
+      }
+    },
+    "/api/sessions/{session_id}/jobs": {
+      "get": {
+        "operationId": "session_jobs_api_sessions__session_id__jobs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobView"
+                  },
+                  "title": "Response Session Jobs Api Sessions  Session Id  Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Session Jobs"
+      }
+    },
+    "/api/sessions/{session_id}/metrics": {
+      "get": {
+        "operationId": "session_metrics_api_sessions__session_id__metrics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Session Metrics Api Sessions  Session Id  Metrics Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Session Metrics"
+      }
+    },
+    "/api/sessions/{session_id}/refine": {
+      "post": {
+        "description": "Transcribe the answers again from their audio, with the accurate recogniser.",
+        "operationId": "refine_transcript_api_sessions__session_id__refine_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refine Transcript"
       }
     },
     "/api/speech": {
