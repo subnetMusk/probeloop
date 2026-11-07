@@ -37,7 +37,8 @@ def test_service_urls_select_the_http_adapters_and_their_checks() -> None:
         Language.ITALIAN: "it_IT-serena-medium",
         Language.ENGLISH: "en_GB-test-medium",
     }
-    assert len(voice.checks) == 3  # the worker, then one per voice
+    assert voice.stt_status == voice.stt.status
+    assert voice.tts_status == voice.tts.status
 
 
 def test_fake_speech_for_end_to_end_tests() -> None:
@@ -45,5 +46,4 @@ def test_fake_speech_for_end_to_end_tests() -> None:
     assert voice is not None
     assert isinstance(voice.stt, FakeSpeechToText)
     assert isinstance(voice.tts, FakeTextToSpeech)
-    assert voice.checks == []
     assert voice.voice_for(Language.ENGLISH) is None

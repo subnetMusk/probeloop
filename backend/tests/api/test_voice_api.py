@@ -95,6 +95,14 @@ def test_a_voice_interview_over_the_websocket(client: TestClient, tmp_path: Path
         inbox = Inbox(ws)
         send(ws, "session.join", last_seq=0)
         send(ws, "session.start")
+        loading = inbox.until("session.preparing")
+        assert loading["progress"] == 0.0
+        assert [s["name"] for s in loading["steps"]] == [
+            "language_model",
+            "speech_recognition",
+            "speech_synthesis",
+        ]
+        assert inbox.until("session.preparing", progress=1.0)
         done = inbox.until("tts.done")
         assert (done["turn_seq"], done["sentences"], done["failed"]) == (0, 2, 0)
         chunks = [meta for meta, _ in inbox.audio]
@@ -129,10 +137,25 @@ def test_a_voice_interview_over_the_websocket(client: TestClient, tmp_path: Path
     assert view["modality"] == "voice"
     assert [t["text"] for t in view["turns"]][1] == "Sono uno sviluppatore backend."
     directory = tmp_path / "sessions" / session_id
-    stored = from_wav((directory / "audio" / "answer-0001.wav").read_bytes())
+    stored = from_wav((directory / "audio" / "turn-0001-candidate.wav").read_bytes())
     assert stored.data == ANSWER
+    question = from_wav((directory / "audio" / "turn-0000-interviewer.wav").read_bytes())
+    assert question.sample_rate == 22_050
     (metrics,) = (directory / "metrics.jsonl").read_text("utf-8").splitlines()
     assert json.loads(metrics)["answer_turn_seq"] == 1
+
+    transcript = json.loads((directory / "transcript.json").read_text("utf-8"))
+    assert transcript["audio"] == "audio/interview.wav"
+    assert [(t["speaker"], t["audio"]) for t in transcript["turns"]] == [
+        ("interviewer", "audio/turn-0000-interviewer.wav"),
+        ("candidate", "audio/turn-0001-candidate.wav"),
+        ("interviewer", "audio/turn-0002-interviewer.wav"),
+    ]
+    markdown = (directory / "transcript.md").read_text("utf-8")
+    assert "> Sono uno sviluppatore backend." in markdown
+    whole = from_wav((directory / "audio" / "interview.wav").read_bytes())
+    assert whole.sample_rate == 22_050
+    assert whole.duration_s > question.duration_s + stored.duration_s
 
     assert client.delete(f"/api/sessions/{session_id}").status_code == 204
     assert not directory.exists()
@@ -190,3 +213,23 @@ def test_speech_status_reports_the_voices(client: TestClient) -> None:
         "problems": [],
         "voices": {"it": "it_IT-test", "en": None},
     }
+
+
+def test_only_one_interview_runs_at_a_time(client: TestClient) -> None:
+    first, second = create(client), create(client)
+    with client.websocket_connect(f"/ws/sessions/{first}") as a:
+        inbox_a = Inbox(a)
+        send(a, "session.join")
+        send(a, "session.start")
+        inbox_a.until("tts.done")
+        with client.websocket_connect(f"/ws/sessions/{second}") as b:
+            inbox_b = Inbox(b)
+            send(b, "session.join")
+            send(b, "session.start")
+            error = inbox_b.until("error")
+            assert error["code"] == "invalid_command"
+            assert "another interview is in progress" in error["message"]
+            send(a, "session.end")
+            inbox_a.until("session.ended")
+            send(b, "session.start")
+            assert inbox_b.until("session.preparing")["progress"] == 0.0

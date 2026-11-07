@@ -13,6 +13,7 @@ from probeloop.interview.domain.model import (
     InterviewSession,
     MoveAction,
     SessionStatus,
+    Speaker,
     TopicCoverage,
     Turn,
 )
@@ -74,8 +75,14 @@ class SessionStore(Protocol):
 
     async def delete(self, session_id: str) -> bool: ...
 
-    async def save_answer_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
-        """Keep the audio of a spoken answer, so that it can be transcribed again later."""
+    async def save_turn_audio(
+        self, session_id: str, turn_seq: int, speaker: Speaker, audio: PcmAudio
+    ) -> None:
+        """Keep the audio of one turn: answers can be transcribed again later."""
         ...
 
     async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None: ...
+
+    async def export(self, session: InterviewSession) -> None:
+        """Write what a finished interview leaves: the full transcript and the whole audio."""
+        ...

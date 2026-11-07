@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from probeloop.speech.audio import PcmAudio
 
@@ -15,6 +15,18 @@ class SpeechError(Exception):
 
     The message is safe to log: it never contains audio or text.
     """
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceStatus:
+    """Health of a speech service. `starting` is worth waiting for; `failed` is not."""
+
+    state: Literal["ready", "starting", "failed"]
+    message: str | None = None  # for the user, when not ready
+
+    @property
+    def ready(self) -> bool:
+        return self.state == "ready"
 
 
 @dataclass(frozen=True, slots=True)

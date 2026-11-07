@@ -1,5 +1,9 @@
 """Drives one live interview session: interviewer moves, answers, pauses and limits.
 
+"Start" first loads what the interview needs, in parallel: the language model (with its prompt
+cache), and in a voice session the speech recogniser and the voice. The client shows the
+progress; the first question is generated only once everything is ready.
+
 In a voice session the orchestrator also runs the speech path. The interviewer's utterance is
 synthesised sentence by sentence while it streams. The candidate's audio goes to a
 `TurnTranscriber` between "answer" and "end of answer"; frames that arrive at any other time are
@@ -12,7 +16,7 @@ import asyncio
 import contextlib
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 
 from probeloop.ai.ports import LlmError
@@ -22,6 +26,9 @@ from probeloop.interview.application.events import (
     ErrorRaised,
     EventSink,
     MoveCompleted,
+    PreparationStep,
+    PreparationStepName,
+    Preparing,
     SentenceAudio,
     SessionEnded,
     SessionEvent,
@@ -45,13 +52,17 @@ from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
     InterviewSession,
+    InvalidTransitionError,
     Modality,
     MoveAction,
     MoveStatus,
     Phase,
     SessionStatus,
+    Speaker,
 )
 from probeloop.interview.domain.time_policy import TimeDirective, remaining_s, time_directive
+from probeloop.speech.audio import PcmAudio
+from probeloop.speech.ports import ServiceStatus, SpeechError
 from probeloop.speech.synthesizer import SpokenSentence, SynthesisEvent, UtteranceSynthesizer
 from probeloop.speech.transcriber import (
     PartialTranscript,
@@ -61,6 +72,8 @@ from probeloop.speech.transcriber import (
 )
 
 logger = logging.getLogger(__name__)
+
+VOICE_WARM_UP = "Ok."  # synthesised once at start, so the voice is loaded before the first question
 
 
 @dataclass
@@ -103,49 +116,49 @@ class SessionOrchestrator:
         self._llm_attempts = llm_attempts
         self._timer = timer
         self._lock = asyncio.Lock()
-        self._prepare_task: asyncio.Task[None] | None = None
+        self._start_task: asyncio.Task[None] | None = None
         self._move_task: asyncio.Task[None] | None = None
         self._partial: MoveDelta | None = None
         self._partial_text = ""
         self._transcriber: TurnTranscriber | None = None
         self._answer_seq = 0
         self._answer_warned = False
+        self._exported = False
         self.dropped_frames = 0
 
     @property
     def is_voice(self) -> bool:
         return self.session.config.modality is Modality.VOICE
 
+    @property
+    def is_active(self) -> bool:
+        """Starting or in progress: using the model and the speech services."""
+        starting = self._start_task is not None and not self._start_task.done()
+        return starting or self.session.status is SessionStatus.IN_PROGRESS
+
     # ------------------------------------------------------------------ commands
 
-    def prepare(self) -> None:
-        """Warm up the model while the session is READY, so the opening move starts quickly."""
-        if self.session.status is SessionStatus.READY and self._prepare_task is None:
-            self._prepare_task = asyncio.create_task(
-                self._prepare(), name=f"prepare-{self.session.id}"
-            )
-
     async def start(self) -> None:
-        if self.is_voice and self.session.status is SessionStatus.READY:
-            problems = await self.voice_problems()
-            if problems:
-                await self._emit(
-                    ErrorRaised(
-                        code="speech_unavailable", message="; ".join(problems), recoverable=True
-                    )
-                )
-                return
-        if self._prepare_task is not None:
-            await asyncio.gather(self._prepare_task, return_exceptions=True)
-        async with self._lock:
-            self.session.start(self._clock.now())
-            await self._commit()
-            self._schedule_move()
+        """Begin loading what the interview needs; the interview starts once all of it is ready.
 
-    async def voice_problems(self) -> list[str]:
-        if self._voice is None:
-            return ["the speech services are not configured"]
-        return await self._voice.problems(self.session.config.language)
+        Returns at once. Progress arrives as `Preparing` events; a failure arrives as an error
+        and leaves the session READY, so the client can try again.
+        """
+        if self.session.status is not SessionStatus.READY:
+            raise InvalidTransitionError(f"expected status ready, got {self.session.status}")
+        if self._start_task is not None and not self._start_task.done():
+            raise InvalidTransitionError("the interview is already starting")
+        self._start_task = asyncio.create_task(
+            self._prepare_and_start(), name=f"start-{self.session.id}"
+        )
+
+    async def cancel_start(self) -> None:
+        """Stop loading, for example because the client went away. The session stays READY."""
+        task = self._start_task
+        if task is not None and not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     async def playback_finished(self) -> None:
         async with self._lock:
@@ -229,15 +242,14 @@ class SessionOrchestrator:
 
     async def close(self) -> None:
         """Stop background work without changing the session (used on shutdown)."""
-        if self._prepare_task is not None and not self._prepare_task.done():
-            self._prepare_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._prepare_task
+        await self.cancel_start()
         await self._cancel_move()
         await self._drop_answer()
 
     async def wait_for_move(self) -> None:
-        """Wait until the current move, and its speech, are done. Used by tests and the CLI."""
+        """Wait until the start, then the current move and its speech, are done (for tests)."""
+        if self._start_task is not None:
+            await asyncio.gather(self._start_task, return_exceptions=True)
         task = self._move_task
         if task is not None:
             await asyncio.gather(task, return_exceptions=True)
@@ -262,7 +274,9 @@ class SessionOrchestrator:
         ended_at = self._timer()
         transcript = await transcriber.finish()
         try:
-            await self._store.save_answer_audio(self.session.id, self._answer_seq, transcript.audio)
+            await self._store.save_turn_audio(
+                self.session.id, self._answer_seq, Speaker.CANDIDATE, transcript.audio
+            )
         except OSError:
             logger.exception("answer audio not stored", extra={"session_id": self.session.id})
         return _ReplyTiming(transcript=transcript, answer_seq=self._answer_seq, ended_at=ended_at)
@@ -300,18 +314,93 @@ class SessionOrchestrator:
 
     # ------------------------------------------------------------------ moves
 
-    async def _prepare(self) -> None:
+    # ------------------------------------------------------------------ preparation
+
+    async def _prepare_and_start(self) -> None:
+        if not await self._prepare():
+            return
+        async with self._lock:
+            if self.session.status is not SessionStatus.READY:
+                return
+            self.session.start(self._clock.now())
+            await self._commit()
+            self._schedule_move()
+
+    async def _prepare(self) -> bool:
+        """Load every resource in parallel and report progress. True when all are ready."""
+        loaders: dict[PreparationStepName, Callable[[], Awaitable[str | None]]] = {
+            "language_model": self._load_language_model
+        }
+        if self.is_voice:
+            loaders["speech_recognition"] = self._wait_for_recognition
+            loaders["speech_synthesis"] = self._load_voice
+        steps = {name: PreparationStep(name, "loading") for name in loaders}
+        await self._emit(Preparing(tuple(steps.values())))
+
+        async def run(name: PreparationStepName, load: Callable[[], Awaitable[str | None]]) -> bool:
+            problem = await load()
+            if problem is None:
+                steps[name] = PreparationStep(name, "ready")
+            else:
+                steps[name] = PreparationStep(name, "failed", problem)
+            await self._emit(Preparing(tuple(steps.values())))
+            return problem is None
+
+        results = await asyncio.gather(*(run(name, load) for name, load in loaders.items()))
+        if all(results):
+            return True
+        problems = [s.detail or s.name for s in steps.values() if s.state == "failed"]
+        await self._emit(
+            ErrorRaised(code="preparation_failed", message="; ".join(problems), recoverable=True)
+        )
+        return False
+
+    async def _load_language_model(self) -> str | None:
+        """Load the model and fill its prompt cache with the stable part of the prompt."""
         try:
             await self._interviewer.prepare(self._request(TimeDirective.NORMAL, 0.0))
         except LlmError as exc:
             logger.warning(
                 "model warm-up failed", extra={"session_id": self.session.id, "error": str(exc)}
             )
-            await self._emit(
-                ErrorRaised(
-                    code="llm_unavailable", message="the model is not reachable", recoverable=True
-                )
-            )
+            return "the language model is not reachable or could not be loaded"
+        return None
+
+    async def _wait_for_recognition(self) -> str | None:
+        voice = self._voice
+        if voice is None:
+            return "the speech services are not configured"
+        return await self._wait_until_ready(voice.recognition_status, voice)
+
+    async def _load_voice(self) -> str | None:
+        services = self._voice
+        if services is None:
+            return "the speech services are not configured"
+        language = self.session.config.language
+        voice = services.voice_for(language)
+        if voice is None:
+            return f"no voice is configured for language '{language.value}'"
+        problem = await self._wait_until_ready(lambda: services.synthesis_status(voice), services)
+        if problem is not None:
+            return problem
+        try:
+            await services.tts.synthesize(VOICE_WARM_UP, voice)
+        except SpeechError:
+            return "the speech synthesis service could not use the voice"
+        return None
+
+    async def _wait_until_ready(
+        self, status: Callable[[], Awaitable[ServiceStatus]], services: VoiceServices
+    ) -> str | None:
+        """Wait for a service that is still starting; give up on one that failed."""
+        deadline = self._timer() + services.ready_timeout_s
+        while True:
+            current = await status()
+            if current.ready:
+                return None
+            if current.state == "failed" or self._timer() >= deadline:
+                return current.message or "a speech service is not ready"
+            await asyncio.sleep(services.poll_s)
 
     def _request(self, directive: TimeDirective, elapsed: float) -> MoveRequest:
         return MoveRequest(
@@ -484,6 +573,19 @@ class SessionOrchestrator:
         self, turn_seq: int, speaker: UtteranceSynthesizer, timing: _ReplyTiming | None
     ) -> None:
         speech = await speaker.finish()
+        if speech.sentences:
+            # Before SpeechFinished: once the client has played it, the interview may end and
+            # be exported.
+            audio = PcmAudio(
+                b"".join(s.audio.data for s in speech.sentences),
+                speech.sentences[0].audio.sample_rate,
+            )
+            try:
+                await self._store.save_turn_audio(
+                    self.session.id, turn_seq, Speaker.INTERVIEWER, audio
+                )
+            except OSError:
+                logger.exception("speech audio not stored", extra={"session_id": self.session.id})
         await self._emit(
             SpeechFinished(
                 turn_seq=turn_seq, sentences=len(speech.sentences), failed=len(speech.failed)
@@ -559,9 +661,19 @@ class SessionOrchestrator:
         await self._store.save(self.session)
         await self._emit(self.snapshot())
         if self.session.is_terminal:
+            await self._export()
             await self._emit(
                 SessionEnded(reason=self.session.end_reason, failure=self.session.failure)
             )
+
+    async def _export(self) -> None:
+        if self._exported:
+            return
+        self._exported = True
+        try:
+            await self._store.export(self.session)
+        except Exception:  # the session itself is saved; only the export is missing
+            logger.exception("interview export failed", extra={"session_id": self.session.id})
 
     async def _emit(self, event: SessionEvent) -> None:
         try:

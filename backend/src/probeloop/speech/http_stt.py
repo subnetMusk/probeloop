@@ -6,7 +6,7 @@ import httpx
 from pydantic import ValidationError
 
 from probeloop.speech.audio import SAMPLE_RATE, PcmAudio
-from probeloop.speech.ports import SpeechError, TranscribeOptions, Transcription
+from probeloop.speech.ports import ServiceStatus, SpeechError, TranscribeOptions, Transcription
 from probeloop.speech.wire import Engine, TranscriptionBody
 
 
@@ -58,21 +58,25 @@ class HttpSpeechToText:
         self._engine_ref = body.engine_ref
         return body.to_transcription()
 
-    async def check(self) -> str | None:
-        """A problem description for the user, or None when the worker is ready."""
+    async def status(self) -> ServiceStatus:
+        """Whether the worker can transcribe now. An unreachable worker may still be starting."""
         try:
             response = await self._client.get("/health", timeout=5.0)
         except httpx.HTTPError:
-            return "the speech recognition service is unreachable"
+            return ServiceStatus("starting", "the speech recognition service is unreachable")
         if response.status_code == 200:
-            return None
+            return ServiceStatus("ready")
         try:
-            status = response.json().get("status")
+            state = response.json().get("status")
         except (ValueError, AttributeError):
-            status = None
-        if status == "loading":
-            return "the speech recognition service is still loading its model"
-        return "the speech recognition service is not working (see its logs)"
+            state = None
+        if state == "loading":
+            return ServiceStatus(
+                "starting", "the speech recognition service is still loading its model"
+            )
+        return ServiceStatus(
+            "failed", "the speech recognition service is not working (see its logs)"
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()

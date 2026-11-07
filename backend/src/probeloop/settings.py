@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     data_dir: Path = Path("/data")
     log_level: str = "INFO"
+    static_dir: Path | None = None  # the built SPA; the runtime image sets /app/static
 
     ollama_base_url: str = "http://host.docker.internal:11434"
     interviewer_model: str = "ministral-3:8b"

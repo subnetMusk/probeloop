@@ -79,6 +79,7 @@ class UtteranceSynthesizer:
         *,
         sink: SynthesisSink | None = None,
         max_sentence_chars: int = 250,
+        first_clause_chars: int | None = 40,
         attempts: int = 2,
         timer: Callable[[], float] = time.perf_counter,
     ) -> None:
@@ -87,7 +88,9 @@ class UtteranceSynthesizer:
         self._tts = tts
         self._voice = voice
         self._sink = sink
-        self._splitter = SentenceSplitter(max_chars=max_sentence_chars)
+        self._splitter = SentenceSplitter(
+            max_chars=max_sentence_chars, first_clause_chars=first_clause_chars
+        )
         self._attempts = attempts
         self._timer = timer
         self._queue: asyncio.Queue[tuple[int, str] | None] = asyncio.Queue()

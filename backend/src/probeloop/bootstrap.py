@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import functools
 import time
 from dataclasses import dataclass
 
@@ -11,13 +10,12 @@ from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
 from probeloop.interview.application.service import SessionService
-from probeloop.interview.application.voice import HealthCheck, VoiceServices
+from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import Language
 from probeloop.settings import Settings
 from probeloop.speech.fake import FakeSpeechToText, FakeTextToSpeech
 from probeloop.speech.http_stt import HttpSpeechToText
 from probeloop.speech.piper import PiperTextToSpeech
-from probeloop.speech.ports import SpeechToText, TextToSpeech
 from probeloop.speech.silero import SileroVad
 from probeloop.storage.file_store import FileSessionStore
 
@@ -44,26 +42,26 @@ def build_voice(settings: Settings) -> VoiceServices | None:
         )
         if voice
     }
-    stt: SpeechToText
-    tts: TextToSpeech
-    checks: list[HealthCheck] = []
     if settings.speech_fake:
-        stt, tts = FakeSpeechToText(), FakeTextToSpeech()
-    elif settings.stt_url and settings.tts_url:
-        http_stt = HttpSpeechToText(settings.stt_url, timeout_s=15.0)
-        piper = PiperTextToSpeech(settings.tts_url, timeout_s=15.0)
-        checks.append(http_stt.check)
-        for voice in voices.values():
-            checks.append(functools.partial(piper.check, voice))
-        stt, tts = http_stt, piper
-    else:
+        return VoiceServices(
+            stt=FakeSpeechToText(),
+            tts=FakeTextToSpeech(),
+            vad=SileroVad,
+            voices=voices,
+            answer_warning_s=settings.answer_warning_s,
+            answer_limit_s=settings.answer_limit_s,
+        )
+    if not (settings.stt_url and settings.tts_url):
         return None
+    stt = HttpSpeechToText(settings.stt_url, timeout_s=15.0)
+    tts = PiperTextToSpeech(settings.tts_url, timeout_s=15.0)
     return VoiceServices(
         stt=stt,
         tts=tts,
         vad=SileroVad,
         voices=voices,
-        checks=checks,
+        stt_status=stt.status,
+        tts_status=tts.status,
         answer_warning_s=settings.answer_warning_s,
         answer_limit_s=settings.answer_limit_s,
     )

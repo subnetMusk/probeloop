@@ -9,7 +9,7 @@ from __future__ import annotations
 import httpx
 
 from probeloop.speech.audio import PcmAudio, from_wav
-from probeloop.speech.ports import SpeechError
+from probeloop.speech.ports import ServiceStatus, SpeechError
 
 
 class PiperTextToSpeech:
@@ -35,21 +35,25 @@ class PiperTextToSpeech:
             raise SpeechError("tts-piper sent no audio")
         return audio
 
-    async def check(self, voice: str) -> str | None:
-        """A problem description for the user, or None when `voice` can be used."""
+    async def status(self, voice: str) -> ServiceStatus:
+        """Whether `voice` can be used now. An unreachable service may still be starting."""
         try:
             response = await self._client.get("/voices", timeout=5.0)
         except httpx.HTTPError:
-            return "the speech synthesis service is unreachable"
+            return ServiceStatus("starting", "the speech synthesis service is unreachable")
         if response.status_code != 200:
-            return f"the speech synthesis service answered {response.status_code}"
+            return ServiceStatus(
+                "failed", f"the speech synthesis service answered {response.status_code}"
+            )
         try:
             voices = response.json()
         except ValueError:
-            return "the speech synthesis service sent an invalid answer"
+            return ServiceStatus("failed", "the speech synthesis service sent an invalid answer")
         if not isinstance(voices, dict) or voice not in voices:
-            return f"the voice '{voice}' is not installed in the speech synthesis service"
-        return None
+            return ServiceStatus(
+                "failed", f"the voice '{voice}' is not installed in the speech synthesis service"
+            )
+        return ServiceStatus("ready")
 
     async def aclose(self) -> None:
         await self._client.aclose()

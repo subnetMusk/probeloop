@@ -12,6 +12,7 @@ from probeloop.interview.domain.model import (
     MoveAction,
     MoveStatus,
     SessionStatus,
+    Speaker,
 )
 from probeloop.speech.audio import PcmAudio, from_wav
 from probeloop.storage.file_store import FileSessionStore, from_dict, to_dict
@@ -97,15 +98,60 @@ async def test_answer_audio_and_metrics_are_removed_with_the_session(tmp_path: P
     store = FileSessionStore(tmp_path)
     await store.save(played_session())
     audio = PcmAudio(tone(0.5))
-    await store.save_answer_audio(SESSION_ID, 1, audio)
+    await store.save_turn_audio(SESSION_ID, 1, Speaker.CANDIDATE, audio)
     await store.append_metrics(SESSION_ID, {"kind": "turn", "answer_turn_seq": 1})
     await store.append_metrics(SESSION_ID, {"kind": "turn", "answer_turn_seq": 3})
 
     directory = tmp_path / SESSION_ID
-    assert from_wav((directory / "audio" / "answer-0001.wav").read_bytes()) == audio
+    assert from_wav((directory / "audio" / "turn-0001-candidate.wav").read_bytes()) == audio
     lines = (directory / "metrics.jsonl").read_text("utf-8").splitlines()
     assert [json.loads(line)["answer_turn_seq"] for line in lines] == [1, 3]
     assert not list(directory.rglob("*.tmp"))
 
     assert await store.delete(SESSION_ID)
     assert not directory.exists()
+
+
+async def test_a_finished_interview_is_exported(tmp_path: Path) -> None:
+    store = FileSessionStore(tmp_path)
+    session = played_session()
+    session.resume(17)
+    session.end(EndReason.USER_ENDED, 30)
+    await store.save(session)
+    question = PcmAudio(bytes(2 * 22_050), 22_050)  # one second at the voice's rate
+    answer = PcmAudio(tone(2.0))
+    await store.save_turn_audio(SESSION_ID, 0, Speaker.INTERVIEWER, question)
+    await store.save_turn_audio(SESSION_ID, 1, Speaker.CANDIDATE, answer)
+    await store.export(session)
+
+    directory = tmp_path / SESSION_ID
+    document = json.loads((directory / "transcript.json").read_text("utf-8"))
+    assert document["session_id"] == SESSION_ID
+    assert document["end_reason"] == "user_ended"
+    assert document["audio"] == "audio/interview.wav"
+    assert [(t["speaker"], t["text"], t["audio"]) for t in document["turns"]] == [
+        ("interviewer", "Progetto?", "audio/turn-0000-interviewer.wav"),
+        ("candidate", "Un servizio di routing.", "audio/turn-0001-candidate.wav"),
+        ("interviewer", "x", None),  # the interrupted move: no audio
+    ]
+    assert document["turns"][2]["status"] == "interrupted"
+
+    markdown = (directory / "transcript.md").read_text("utf-8")
+    assert "**Interviewer** · 0:01" in markdown
+    assert "> Un servizio di routing." in markdown
+    assert "(interrupted)" in markdown
+
+    whole = from_wav((directory / "audio" / "interview.wav").read_bytes())
+    assert whole.sample_rate == 22_050  # the highest of the two rates
+    assert whole.duration_s == pytest.approx(1.0 + 0.6 + 2.0, abs=0.01)
+
+
+async def test_a_text_interview_exports_only_the_transcript(tmp_path: Path) -> None:
+    store = FileSessionStore(tmp_path)
+    session = played_session()
+    session.end(EndReason.USER_ENDED, 30)
+    await store.export(session)
+    document = json.loads((tmp_path / SESSION_ID / "transcript.json").read_text("utf-8"))
+    assert document["audio"] is None
+    assert all(t["audio"] is None for t in document["turns"])
+    assert not (tmp_path / SESSION_ID / "audio").exists()

@@ -1,8 +1,16 @@
 """File-based session store: one directory per session.
 
-Each directory holds `session.json`, the audio of spoken answers (`audio/answer-NNNN.wav`, 16 kHz
-mono) and `metrics.jsonl` (one `TurnMetrics` record per spoken answer). Used until database
-persistence (milestone M4). Deleting a session removes its directory, and with it all of its files.
+Each directory holds:
+
+- `session.json`, the state of the session;
+- `audio/turn-NNNN-<speaker>.wav`, the audio of every turn of a voice interview (answers at
+  16 kHz, the interviewer at its voice's rate);
+- `metrics.jsonl`, one `TurnMetrics` record per spoken answer;
+- once the interview is over, `transcript.json`, `transcript.md` and `audio/interview.wav` (the
+  whole conversation in one file).
+
+Used until database persistence (milestone M4). Deleting a session removes its directory, and with
+it all of its files.
 """
 
 from __future__ import annotations
@@ -34,11 +42,16 @@ from probeloop.interview.domain.model import (
     MoveStatus,
     Phase,
     SessionStatus,
+    Speaker,
     Topic,
     TopicCoverage,
     Turn,
 )
-from probeloop.speech.audio import PcmAudio, to_wav
+from probeloop.speech.arrays import concatenate
+from probeloop.speech.audio import PcmAudio, from_wav, to_wav
+from probeloop.storage.exports import transcript_document, transcript_markdown
+
+TURN_GAP_S = 0.6  # silence between turns in the combined audio
 
 SCHEMA_VERSION = 1
 _ID = re.compile(r"^[0-9a-f]{32}$")
@@ -61,11 +74,16 @@ class FileSessionStore:
     async def delete(self, session_id: str) -> bool:
         return await asyncio.to_thread(self._delete, session_id)
 
-    async def save_answer_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
-        await asyncio.to_thread(self._write_audio, session_id, turn_seq, audio)
+    async def save_turn_audio(
+        self, session_id: str, turn_seq: int, speaker: Speaker, audio: PcmAudio
+    ) -> None:
+        await asyncio.to_thread(self._write_audio, session_id, turn_seq, speaker, audio)
 
     async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None:
         await asyncio.to_thread(self._append_metrics, session_id, dict(record))
+
+    async def export(self, session: InterviewSession) -> None:
+        await asyncio.to_thread(self._export, session)
 
     def session_dir(self, session_id: str) -> Path:
         if not _ID.match(session_id):
@@ -80,10 +98,32 @@ class FileSessionStore:
         data = json.dumps(to_dict(session), ensure_ascii=False, indent=2)
         _atomic_write(directory / "session.json", data.encode("utf-8"))
 
-    def _write_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
+    def _write_audio(
+        self, session_id: str, turn_seq: int, speaker: Speaker, audio: PcmAudio
+    ) -> None:
         directory = self.session_dir(session_id) / "audio"
         directory.mkdir(parents=True, exist_ok=True)
-        _atomic_write(directory / f"answer-{turn_seq:04d}.wav", to_wav(audio))
+        _atomic_write(directory / turn_audio_name(turn_seq, speaker), to_wav(audio))
+
+    def _export(self, session: InterviewSession) -> None:
+        directory = self.session_dir(session.id)
+        directory.mkdir(parents=True, exist_ok=True)
+        turn_audio: dict[int, str] = {}
+        recordings: list[PcmAudio] = []
+        for turn in session.turns:
+            path = directory / "audio" / turn_audio_name(turn.seq, turn.speaker)
+            if path.is_file():
+                turn_audio[turn.seq] = path.relative_to(directory).as_posix()
+                recordings.append(from_wav(path.read_bytes()))
+        combined = None
+        if recordings:
+            combined = "audio/interview.wav"
+            whole = concatenate(recordings, gap_s=TURN_GAP_S)
+            _atomic_write(directory / combined, to_wav(whole))
+        document = transcript_document(session, turn_audio, combined)
+        text = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
+        _atomic_write(directory / "transcript.json", text.encode("utf-8"))
+        _atomic_write(directory / "transcript.md", transcript_markdown(document).encode("utf-8"))
 
     def _append_metrics(self, session_id: str, record: dict[str, object]) -> None:
         directory = self.session_dir(session_id)
@@ -124,6 +164,10 @@ class FileSessionStore:
             return False
         shutil.rmtree(directory)
         return True
+
+
+def turn_audio_name(turn_seq: int, speaker: Speaker) -> str:
+    return f"turn-{turn_seq:04d}-{speaker.value}.wav"
 
 
 def _atomic_write(path: Path, data: bytes) -> None:

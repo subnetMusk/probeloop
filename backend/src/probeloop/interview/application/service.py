@@ -17,6 +17,7 @@ from probeloop.interview.domain.model import (
     InterviewContext,
     InterviewSession,
     InvalidConfigError,
+    InvalidTransitionError,
     Modality,
     SessionStatus,
 )
@@ -142,6 +143,29 @@ class SessionService:
         if not await self._store.delete(session_id):
             raise SessionNotFoundError(session_id)
 
+    async def start(self, session_id: str) -> None:
+        """Start the interview, unless another one is running: there is one candidate, one model
+        and one set of speech services, and two interviews would talk over each other."""
+        self._require_no_other_active(session_id)
+        await self._live_orchestrator(session_id).start()
+
+    async def resume(self, session_id: str) -> None:
+        self._require_no_other_active(session_id)
+        await self._live_orchestrator(session_id).resume()
+
+    def _require_no_other_active(self, session_id: str) -> None:
+        for other_id, live in self._live.items():
+            if other_id != session_id and live.orchestrator.is_active:
+                raise InvalidTransitionError(
+                    "another interview is in progress; end or pause it first"
+                )
+
+    def _live_orchestrator(self, session_id: str) -> SessionOrchestrator:
+        live = self._live.get(session_id)
+        if live is None:
+            raise SessionNotFoundError(session_id)
+        return live.orchestrator
+
     async def connect(self, session_id: str, listener: Listener) -> LiveSession:
         """Attach a client. Only one client per session; a second one is rejected."""
         async with self._lock:
@@ -174,6 +198,7 @@ class SessionService:
                 return
             live.log.listener = None
         orchestrator = live.orchestrator
+        await orchestrator.cancel_start()  # nobody is waiting for the first question any more
         if orchestrator.session.status is SessionStatus.IN_PROGRESS:
             await orchestrator.pause()
         if orchestrator.session.is_terminal:

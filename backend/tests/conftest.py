@@ -27,6 +27,7 @@ from probeloop.interview.domain.model import (
     Language,
     Modality,
     MoveAction,
+    Speaker,
     Topic,
 )
 from probeloop.interview.domain.time_policy import TimeDirective
@@ -49,7 +50,9 @@ class MemoryStore:
     sessions: dict[str, InterviewSession] = field(default_factory=dict)
     saves: int = 0
     audio: dict[tuple[str, int], PcmAudio] = field(default_factory=dict)
+    speakers: dict[tuple[str, int], str] = field(default_factory=dict)
     metrics: list[dict[str, object]] = field(default_factory=list)
+    exports: list[str] = field(default_factory=list)
 
     async def save(self, session: InterviewSession) -> None:
         self.saves += 1
@@ -69,8 +72,14 @@ class MemoryStore:
     async def delete(self, session_id: str) -> bool:
         return self.sessions.pop(session_id, None) is not None
 
-    async def save_answer_audio(self, session_id: str, turn_seq: int, audio: PcmAudio) -> None:
+    async def save_turn_audio(
+        self, session_id: str, turn_seq: int, speaker: Speaker, audio: PcmAudio
+    ) -> None:
         self.audio[(session_id, turn_seq)] = audio
+        self.speakers[(session_id, turn_seq)] = speaker.value
+
+    async def export(self, session: InterviewSession) -> None:
+        self.exports.append(session.id)
 
     async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None:
         self.metrics.append(dict(record))
@@ -107,9 +116,12 @@ class ScriptedInterviewer:
     chunk_delay_s: float = 0.0
     requests: list[MoveRequest] = field(default_factory=list)
     prepared: int = 0
+    prepare_errors: list[Exception] = field(default_factory=list)  # raised by the next warm-ups
 
     async def prepare(self, request: MoveRequest) -> None:
         self.prepared += 1
+        if self.prepare_errors:
+            raise self.prepare_errors.pop(0)
 
     async def next_move(self, request: MoveRequest) -> AsyncIterator[MoveDelta | MoveDone]:
         self.requests.append(request)

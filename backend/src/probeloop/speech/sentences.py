@@ -10,6 +10,11 @@ so a boundary costs one more streamed token, about 20 ms. Not a boundary:
 
 A sentence that grows past `max_chars` without ending is cut at its last comma, semicolon or
 colon (or at its last space), which bounds the wait for the first audio.
+
+The first chunk of an utterance matters most: speech starts only when it is complete. With
+`first_clause_chars`, the first chunk also ends at the first comma, semicolon or colon after that
+many characters. Interviewer questions are often one long sentence; in the M3 voice run, waiting
+for its end put the first audio 1-2 s later than a clause would have.
 """
 
 from __future__ import annotations
@@ -71,11 +76,13 @@ def _speakable(text: str) -> bool:
 
 
 class SentenceSplitter:
-    def __init__(self, *, max_chars: int = 250) -> None:
+    def __init__(self, *, max_chars: int = 250, first_clause_chars: int | None = None) -> None:
         if max_chars < 20:
             raise ValueError("max_chars is too small for a sentence")
         self._max_chars = max_chars
+        self._first_clause_chars = first_clause_chars
         self._buffer = ""
+        self._emitted = False
 
     def feed(self, text: str) -> list[str]:
         """Add streamed text; return the sentences it completed."""
@@ -95,11 +102,18 @@ class SentenceSplitter:
             out.append(self._buffer[start : match.end(2)].strip())
             start = position = match.end()
         self._buffer = self._buffer[start:]
+        if not out and not self._emitted and self._first_clause_chars is not None:
+            clause = _SOFT_BREAK.search(self._buffer, self._first_clause_chars)
+            if clause is not None:
+                out.append(self._buffer[: clause.start() + 1].strip())
+                self._buffer = self._buffer[clause.start() + 1 :].lstrip()
         while len(self._buffer) > self._max_chars:
             cut = self._soft_cut(self._buffer[: self._max_chars])
             out.append(self._buffer[:cut].strip())
             self._buffer = self._buffer[cut:].lstrip()
-        return [s for s in out if _speakable(s)]
+        spoken = [s for s in out if _speakable(s)]
+        self._emitted = self._emitted or bool(spoken)
+        return spoken
 
     def flush(self) -> list[str]:
         """Return the text left over at the end of the stream."""

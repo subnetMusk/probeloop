@@ -2,20 +2,26 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
+from probeloop.ai.ports import LlmError
 from probeloop.interview.application.events import (
     AnswerRecorded,
     ErrorRaised,
     MoveCompleted,
+    Preparing,
     SessionEnded,
     StateChanged,
     UtteranceDelta,
 )
 from probeloop.interview.application.orchestrator import SessionOrchestrator
 from probeloop.interview.application.phrases import FALLBACK, FAREWELL
+from probeloop.interview.application.ports import MoveRequest
 from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
     InterviewerTurn,
+    InvalidTransitionError,
     Language,
     MoveAction,
     MoveStatus,
@@ -214,15 +220,63 @@ async def test_end_cancels_the_running_move(
     assert isinstance(recorder.events[-1], SessionEnded)
 
 
-async def test_prepare_warms_up_once_before_start(
+async def test_start_loads_the_model_before_the_first_question(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
     o, interviewer = orchestrator(clock, store, recorder)
-    o.prepare()
-    o.prepare()
     await o.start()
+    with pytest.raises(InvalidTransitionError, match="already starting"):
+        await o.start()
     await o.wait_for_move()
     assert interviewer.prepared == 1
+    progress = recorder.of(Preparing)
+    assert [[(s.name, s.state) for s in p.steps] for p in progress] == [
+        [("language_model", "loading")],
+        [("language_model", "ready")],
+    ]
+    assert progress[-1].progress == 1.0
+    kinds = [type(e) for e in recorder.events]
+    assert kinds.index(Preparing) < kinds.index(MoveCompleted)
+    assert o.session.status is SessionStatus.IN_PROGRESS
+
+
+async def test_a_model_that_cannot_load_keeps_the_session_ready(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    interviewer = ScriptedInterviewer(prepare_errors=[LlmError("connection refused")])
+    o, _ = orchestrator(clock, store, recorder, interviewer)
+    await o.start()
+    await o.wait_for_move()
+    assert o.session.status is SessionStatus.READY
+    (error,) = recorder.of(ErrorRaised)
+    assert error.code == "preparation_failed"
+    assert "language model" in error.message
+    assert recorder.of(Preparing)[-1].steps[0].state == "failed"
+    assert interviewer.requests == []
+
+    await o.start()  # the client tries again, and this time the model loads
+    await o.wait_for_move()
+    assert o.session.status is SessionStatus.IN_PROGRESS
+    assert interviewer.prepared == 2
+
+
+async def test_cancelling_the_start_leaves_the_session_ready(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    gate = asyncio.Event()
+
+    class SlowModel(ScriptedInterviewer):
+        async def prepare(self, request: MoveRequest) -> None:
+            await gate.wait()
+
+    o, _ = orchestrator(clock, store, recorder, SlowModel())
+    await o.start()
+    await asyncio.sleep(0)
+    await o.cancel_start()
+    gate.set()
+    await o.wait_for_move()
+    assert o.session.status is SessionStatus.READY
+    assert recorder.of(MoveCompleted) == []
 
 
 async def test_broken_event_sink_does_not_break_the_session(

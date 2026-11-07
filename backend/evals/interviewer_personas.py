@@ -165,6 +165,15 @@ class MemoryStore:
     async def delete(self, session_id: str) -> bool:
         return self.sessions.pop(session_id, None) is not None
 
+    async def save_turn_audio(self, *args: object) -> None:
+        return None  # text interviews have no audio
+
+    async def append_metrics(self, *args: object) -> None:
+        return None
+
+    async def export(self, session: InterviewSession) -> None:
+        return None
+
 
 async def _ignore(event: SessionEvent) -> None:
     return None

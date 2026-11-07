@@ -71,14 +71,16 @@ async def test_failures_become_speech_errors(
         await adapter(handler).synthesize("Una frase.", VOICE)
 
 
-async def test_check_finds_the_installed_voice() -> None:
+async def test_status_finds_the_installed_voice() -> None:
     voices = {VOICE: {"audio": {"sample_rate": 22050}}, "it_IT-paola-medium": {}}
     tts = adapter(lambda r: httpx.Response(200, json=voices))
-    assert await tts.check(VOICE) is None
-    problem = await tts.check("en_US-missing-medium")
-    assert problem is not None
-    assert "not installed" in problem
+    assert (await tts.status(VOICE)).ready
+    missing = await tts.status("en_US-missing-medium")
+    assert missing.state == "failed"
+    assert "not installed" in (missing.message or "")
 
 
-async def test_check_reports_an_unreachable_service() -> None:
-    assert await adapter(refused).check(VOICE) == "the speech synthesis service is unreachable"
+async def test_an_unreachable_service_may_still_be_starting() -> None:
+    status = await adapter(refused).status(VOICE)
+    assert status.state == "starting"
+    assert status.message == "the speech synthesis service is unreachable"

@@ -146,8 +146,13 @@ def test_disconnect_pauses_and_reconnect_replays(client: TestClient) -> None:
 
     with client.websocket_connect(f"/ws/sessions/{session_id}") as ws:
         send(ws, "session.join", last_seq=last)
-        replayed = receive_until(ws, "state.changed", status="paused")
-        assert replayed["seq"] > last
+        # The pause is stored in a thread: when the client returns that quickly, its numbered
+        # event comes from the replay or, just after the unnumbered snapshot, live.
+        for _ in range(20):
+            message = receive_until(ws, "state.changed", status="paused")
+            if message["seq"] is not None:
+                break
+        assert message["seq"] > last
         send(ws, "session.resume")
         receive_until(ws, "state.changed", status="in_progress")
 

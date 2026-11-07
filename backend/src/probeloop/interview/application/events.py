@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Literal
 
 from probeloop.interview.domain.model import EndReason, MoveAction, Phase, SessionStatus
 from probeloop.speech.audio import PcmAudio
@@ -15,6 +16,28 @@ class StateChanged:
     phase: Phase | None
     elapsed_s: float
     remaining_s: float
+
+
+type PreparationStepName = Literal["language_model", "speech_recognition", "speech_synthesis"]
+type PreparationState = Literal["loading", "ready", "failed"]
+
+
+@dataclass(frozen=True, slots=True)
+class PreparationStep:
+    name: PreparationStepName
+    state: PreparationState
+    detail: str | None = None  # why it failed
+
+
+@dataclass(frozen=True, slots=True)
+class Preparing:
+    """Progress of loading what the interview needs, between "start" and the first question."""
+
+    steps: tuple[PreparationStep, ...]
+
+    @property
+    def progress(self) -> float:
+        return sum(s.state == "ready" for s in self.steps) / len(self.steps) if self.steps else 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +113,7 @@ class ErrorRaised:
 
 type SessionEvent = (
     StateChanged
+    | Preparing
     | UtteranceDelta
     | MoveCompleted
     | SentenceAudio

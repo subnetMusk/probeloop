@@ -108,3 +108,43 @@ def test_random_chunking_gives_the_same_sentences() -> None:
 def test_max_chars_must_allow_a_sentence() -> None:
     with pytest.raises(ValueError, match="too small"):
         SentenceSplitter(max_chars=5)
+
+
+QUESTION = (
+    "Signor Bianchi, durante il confronto tra il solver e la pianificazione manuale, "
+    "quali metriche ha usato per decidere che le rotte erano affidabili?"
+)
+
+
+@pytest.mark.parametrize("chunk", [None, 1, 4])
+def test_the_first_chunk_can_end_at_a_clause(chunk: int | None) -> None:
+    splitter = SentenceSplitter(first_clause_chars=40)
+    pieces = (
+        [QUESTION]
+        if chunk is None
+        else [QUESTION[i : i + chunk] for i in range(0, len(QUESTION), chunk)]
+    )
+    out: list[str] = []
+    for piece in pieces:
+        out += splitter.feed(piece)
+    out += splitter.flush()
+    assert out == [
+        "Signor Bianchi, durante il confronto tra il solver e la pianificazione manuale,",
+        "quali metriche ha usato per decidere che le rotte erano affidabili?",
+    ]
+
+
+def test_only_the_first_chunk_is_cut_at_a_clause() -> None:
+    splitter = SentenceSplitter(first_clause_chars=10)
+    text = "Bene, partiamo. Mi racconti, con calma e nel dettaglio, il suo ultimo progetto? "
+    assert splitter.feed(text + "X") == [
+        "Bene, partiamo.",
+        "Mi racconti, con calma e nel dettaglio, il suo ultimo progetto?",
+    ]
+
+
+def test_a_short_first_sentence_is_not_cut() -> None:
+    assert split("Grazie, molto chiaro. Passiamo oltre.") == [
+        "Grazie, molto chiaro.",
+        "Passiamo oltre.",
+    ]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pytest
 
@@ -12,6 +13,7 @@ from probeloop.interview.application.events import (
     AnswerTimeWarning,
     ErrorRaised,
     MoveCompleted,
+    Preparing,
     SentenceAudio,
     SessionEnded,
     SpeechFinished,
@@ -19,7 +21,7 @@ from probeloop.interview.application.events import (
     UtteranceDelta,
 )
 from probeloop.interview.application.orchestrator import SessionOrchestrator
-from probeloop.interview.application.voice import HealthCheck, VoiceServices
+from probeloop.interview.application.voice import RecognitionStatus, VoiceServices
 from probeloop.interview.domain.model import (
     CandidateTurn,
     InterviewerMove,
@@ -30,7 +32,7 @@ from probeloop.interview.domain.model import (
     SessionStatus,
 )
 from probeloop.speech.fake import EnergyVad, FakeSpeechToText, FakeTextToSpeech, SttScript
-from probeloop.speech.ports import SpeechError
+from probeloop.speech.ports import ServiceStatus, SpeechError
 from tests.conftest import EventRecorder, FakeClock, MemoryStore, ScriptedInterviewer, make_session
 from tests.speech_audio import frames, silence, tone
 
@@ -41,17 +43,20 @@ ANSWER = tone(1.0) + silence(0.8) + tone(1.0) + silence(0.8)
 def voice_services(
     stt_script: Sequence[SttScript] = (),
     tts_script: Sequence[Exception | None] = (),
-    checks: Sequence[HealthCheck] = (),
+    stt_status: RecognitionStatus | None = None,
     **limits: float,
 ) -> VoiceServices:
-    return VoiceServices(
+    voice = VoiceServices(
         stt=FakeSpeechToText(stt_script),
         tts=FakeTextToSpeech(script=tts_script),
         vad=EnergyVad,
         voices={Language.ITALIAN: VOICE},
-        checks=checks,
+        poll_s=0.01,
         **limits,
     )
+    if stt_status is not None:
+        voice = replace(voice, stt_status=stt_status)
+    return voice
 
 
 def voice_session(
@@ -95,6 +100,7 @@ async def test_a_spoken_turn_from_question_to_reply(
 
     (sentence,) = recorder.of(SentenceAudio)
     assert (sentence.turn_seq, sentence.index, sentence.text) == (0, 0, "Domanda numero 1?")
+    assert voice.tts.calls[0][0] == "Ok."  # type: ignore[attr-defined]
     assert sentence.audio.sample_rate == 22_050
     assert recorder.of(SpeechFinished) == [SpeechFinished(turn_seq=0, sentences=1, failed=0)]
     kinds = [type(e) for e in recorder.events]
@@ -120,6 +126,12 @@ async def test_a_spoken_turn_from_question_to_reply(
 
     await o.wait_for_move()
     assert len(recorder.of(SpeechFinished)) == 2
+    assert store.speakers == {
+        (o.session.id, 0): "interviewer",
+        (o.session.id, 1): "candidate",
+        (o.session.id, 2): "interviewer",
+    }
+    assert store.audio[(o.session.id, 0)].sample_rate == 22_050
     (metrics,) = store.metrics
     assert metrics["answer_turn_seq"] == 1
     assert metrics["answer_audio_s"] == pytest.approx(len(ANSWER) / 32_000, abs=0.01)
@@ -147,17 +159,60 @@ async def test_frames_outside_the_candidate_turn_are_dropped(
     assert store.audio[(o.session.id, 1)].data == ANSWER
 
 
+async def test_start_loads_the_model_the_recogniser_and_the_voice(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    states = iter(["starting", "starting", "ready"])
+
+    async def worker_loading() -> ServiceStatus:
+        return ServiceStatus(next(states), "the speech recognition service is still loading")
+
+    voice = voice_services(stt_status=worker_loading)
+    o = voice_session(clock, store, recorder, voice)
+    await o.start()
+    await o.wait_for_move()
+    first, *_, last = recorder.of(Preparing)
+    assert {s.name: s.state for s in first.steps} == {
+        "language_model": "loading",
+        "speech_recognition": "loading",
+        "speech_synthesis": "loading",
+    }
+    assert {s.state for s in last.steps} == {"ready"}
+    assert last.progress == 1.0
+    assert isinstance(voice.tts, FakeTextToSpeech)
+    assert voice.tts.calls[0] == ("Ok.", VOICE)  # the voice is loaded before the first question
+    assert o.session.status is SessionStatus.IN_PROGRESS
+
+
 async def test_the_interview_does_not_start_while_a_speech_service_is_down(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
-    async def worker_loading() -> str | None:
-        return "the speech recognition service is still loading its model"
+    async def worker_failed() -> ServiceStatus:
+        return ServiceStatus("failed", "the speech recognition service is not working")
 
-    o = voice_session(clock, store, recorder, voice_services(checks=[worker_loading]))
+    o = voice_session(clock, store, recorder, voice_services(stt_status=worker_failed))
     await o.start()
+    await o.wait_for_move()
     (error,) = recorder.of(ErrorRaised)
-    assert error.code == "speech_unavailable"
-    assert "still loading" in error.message
+    assert error.code == "preparation_failed"
+    assert "not working" in error.message
+    steps = {s.name: s for s in recorder.of(Preparing)[-1].steps}
+    assert steps["speech_recognition"].state == "failed"
+    assert steps["language_model"].state == "ready"
+    assert o.session.status is SessionStatus.READY
+
+
+async def test_a_service_still_starting_after_the_timeout_fails_the_start(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    async def never_ready() -> ServiceStatus:
+        return ServiceStatus("starting", "the speech recognition service is unreachable")
+
+    voice = replace(voice_services(stt_status=never_ready), ready_timeout_s=0.05)
+    o = voice_session(clock, store, recorder, voice)
+    await o.start()
+    await o.wait_for_move()
+    assert "unreachable" in recorder.of(ErrorRaised)[0].message
     assert o.session.status is SessionStatus.READY
 
 
@@ -172,7 +227,8 @@ async def test_without_speech_services_a_voice_interview_cannot_start(
         sink=recorder,
     )
     await o.start()
-    assert recorder.of(ErrorRaised)[0].code == "speech_unavailable"
+    await o.wait_for_move()
+    assert recorder.of(ErrorRaised)[0].code == "preparation_failed"
     assert o.session.status is SessionStatus.READY
 
 
@@ -222,13 +278,15 @@ async def test_ending_the_call_during_an_answer_discards_it(
     await o.end()
     assert o.session.status is SessionStatus.ENDED
     assert recorder.of(AnswerRecorded) == []
-    assert store.audio == {}
+    assert "candidate" not in store.speakers.values()
+    assert store.exports == [o.session.id]
 
 
 async def test_a_sentence_that_cannot_be_spoken_is_reported(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
-    voice = voice_services(tts_script=[SpeechError("down"), SpeechError("down")])
+    # The warm-up sentence works; the question fails twice.
+    voice = voice_services(tts_script=[None, SpeechError("down"), SpeechError("down")])
     o = voice_session(clock, store, recorder, voice)
     await o.start()
     await o.wait_for_move()
@@ -276,7 +334,7 @@ async def test_answers_must_match_the_modality(
     with pytest.raises(ValueError, match="answer text"):
         await text.end_answer()
     assert recorder.of(SentenceAudio)  # the voice session spoke
-    assert store.audio == {}
+    assert "candidate" not in store.speakers.values()
 
 
 async def test_ending_the_call_while_the_answer_is_transcribed_stops_the_reply(
@@ -318,3 +376,4 @@ async def test_the_farewell_is_spoken_too(
     ]
     await o.playback_finished()
     assert o.session.status is SessionStatus.ENDED
+    assert store.exports == [o.session.id]  # once, before SessionEnded reaches the client

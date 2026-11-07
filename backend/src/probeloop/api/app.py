@@ -7,6 +7,7 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import (
@@ -20,6 +21,8 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from probeloop import logging_setup
@@ -30,10 +33,12 @@ from probeloop.api.schemas import (
     JoinMessage,
     SessionSummaryView,
     SessionView,
+    SpeechStatusView,
     TurnEnd,
     error_message,
     event_frames,
     incoming_adapter,
+    pong_message,
 )
 from probeloop.bootstrap import Container, build
 from probeloop.interview.application.catalog import default_context
@@ -99,17 +104,19 @@ def create_app(container: Container | None = None) -> FastAPI:
         return {"model": container.model.model_ref, "context_window": caps.context_window}
 
     @app.get("/api/speech")
-    async def speech_status() -> dict[str, Any]:
+    async def speech_status() -> SpeechStatusView:
         """Whether voice interviews can start now, for the microphone check page."""
         voice = sessions.voice
         if voice is None:
-            return {"ready": False, "problems": ["speech services not configured"], "voices": {}}
+            return SpeechStatusView(
+                ready=False, problems=["speech services not configured"], voices={}
+            )
         problems = await voice.service_problems()
-        return {
-            "ready": not problems,
-            "problems": problems,
-            "voices": {language.value: voice.voice_for(language) for language in Language},
-        }
+        return SpeechStatusView(
+            ready=not problems,
+            problems=problems,
+            voices={language.value: voice.voice_for(language) for language in Language},
+        )
 
     @app.post("/api/sessions", status_code=201, dependencies=[Depends(require_json)])
     async def create_session(body: CreateSession) -> SessionView:
@@ -187,7 +194,6 @@ def create_app(container: Container | None = None) -> FastAPI:
             orchestrator = live.orchestrator
             for frame in event_frames(None, orchestrator.snapshot()):
                 outbox.put_nowait(frame)
-            orchestrator.prepare()
             await _command_loop(websocket, live, outbox)
         except WebSocketDisconnect:
             pass
@@ -205,9 +211,9 @@ def create_app(container: Container | None = None) -> FastAPI:
     ) -> None:
         orchestrator = live.orchestrator
         commands: dict[str, Callable[[], Awaitable[None]]] = {
-            "session.start": orchestrator.start,
+            "session.start": lambda: sessions.start(orchestrator.session.id),
             "session.pause": orchestrator.pause,
-            "session.resume": orchestrator.resume,
+            "session.resume": lambda: sessions.resume(orchestrator.session.id),
             "session.end": orchestrator.end,
             "playback.finished": orchestrator.playback_finished,
             "turn.start": orchestrator.start_answer,
@@ -237,7 +243,7 @@ def create_app(container: Container | None = None) -> FastAPI:
                 continue
             try:
                 if message.type == "ping":
-                    outbox.put_nowait({"seq": None, "type": "pong"})
+                    outbox.put_nowait(pong_message())
                 elif isinstance(message, TurnEnd):
                     await orchestrator.end_answer(message.text)
                 elif isinstance(message, JoinMessage):
@@ -247,7 +253,24 @@ def create_app(container: Container | None = None) -> FastAPI:
             except (InvalidTransitionError, ValueError) as exc:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
 
+    if settings.static_dir is not None:
+        _serve_spa(app, settings.static_dir)
     return app
+
+
+def _serve_spa(app: FastAPI, directory: Path) -> None:
+    """Serve the built frontend. Client-side routes get index.html; API paths never do."""
+    index = directory / "index.html"
+    if not index.is_file():
+        logger.warning("no built frontend found", extra={"static_dir": str(directory)})
+        return
+    app.mount("/assets", StaticFiles(directory=directory / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa(path: str) -> FileResponse:
+        if path.split("/", 1)[0] in ("api", "ws", "health", "assets"):
+            raise HTTPException(status_code=404, detail="not found")
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
 async def _receive_join(websocket: WebSocket) -> JoinMessage | None:

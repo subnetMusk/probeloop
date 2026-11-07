@@ -103,24 +103,26 @@ async def test_other_sample_rates_are_refused_before_sending() -> None:
 
 
 @pytest.mark.parametrize(
-    ("response", "problem"),
+    ("response", "state", "message"),
     [
-        (httpx.Response(200, json={"status": "ready", "engines": {}}), None),
-        (httpx.Response(503, json={"status": "loading", "engines": {}}), "still loading"),
-        (httpx.Response(503, json={"status": "failed", "engines": {}}), "not working"),
-        (httpx.Response(502, content=b"bad gateway"), "not working"),
+        (httpx.Response(200, json={"status": "ready", "engines": {}}), "ready", None),
+        (httpx.Response(503, json={"status": "loading", "engines": {}}), "starting", "loading"),
+        (httpx.Response(503, json={"status": "failed", "engines": {}}), "failed", "not working"),
+        (httpx.Response(502, content=b"bad gateway"), "failed", "not working"),
     ],
 )
-async def test_check_reports_the_worker_state(
-    response: httpx.Response, problem: str | None
+async def test_status_reports_the_worker_state(
+    response: httpx.Response, state: str, message: str | None
 ) -> None:
-    result = await adapter(lambda r: response).check()
-    if problem is None:
-        assert result is None
+    status = await adapter(lambda r: response).status()
+    assert status.state == state
+    if message is None:
+        assert status.ready
     else:
-        assert result is not None
-        assert problem in result
+        assert message in (status.message or "")
 
 
-async def test_check_reports_an_unreachable_worker() -> None:
-    assert await adapter(refused).check() == "the speech recognition service is unreachable"
+async def test_an_unreachable_worker_may_still_be_starting() -> None:
+    status = await adapter(refused).status()
+    assert status.state == "starting"
+    assert status.message == "the speech recognition service is unreachable"
