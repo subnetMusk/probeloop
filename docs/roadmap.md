@@ -194,6 +194,38 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
 
 ## M3 — Voice vertical slice · 10–14 days
 
+> **Status (2026-11-07): implemented; the criteria that need a real voice are pending.**
+>
+> **Built:** the deliverables below, plus what the first runs asked for:
+> - starting an interview loads the model, the recogniser and the voice, with progress on screen;
+> - only one interview can be active at a time;
+> - a finished interview leaves `transcript.json`, `transcript.md` and `audio/interview.wav`;
+> - a synthetic voice candidate (`evals/voice_candidate.py`) for end-to-end runs.
+>
+> **Checks:** 321 backend and 22 frontend unit tests, live contract tests of both speech engines,
+> and the Playwright end-to-end test in CI.
+>
+> **Measured with the synthetic voice candidate** (technical interview, 10 minutes, 16 answers
+> written live by an agent and spoken by Piper):
+> - mean WER 7.8% (max 21%) on synthetic speech;
+> - reply latency (end of answer to the first audio of the reply, at the client) p50 3.5 s,
+>   p95 4.7 s, max 5.9 s. One-sentence questions waited for the whole sentence before synthesis;
+>   the first chunk is now cut at a clause, not yet re-measured;
+> - one turn measured in the browser: 2.0 s.
+>
+> **Pending, with the repository owner:**
+> - a 10-minute interview with a real voice;
+> - latency over at least 30 turns measured in the browser;
+> - WER on real recordings and the default voice (deferred).
+>
+> **Observed, for later milestones:**
+> - Parakeet garbles English technical terms ("FastAPI" became "FastaP", "cache" became
+>   "caca"), partly because Piper mispronounces them in synthetic answers. The post-interview
+>   Whisper pass with a vocabulary prompt fixes part of it (16% to 7% WER on one fixture).
+> - The interviewer sometimes asks to clarify a misrecognised term, rarely probes a gap the
+>   candidate admits, addresses the candidate by name in almost every turn, and can add invented
+>   details to the farewell.
+
 - **Deliverables**
   - **Compose services**
     - `stt-worker` (CPU image; a CUDA variant only if M1 justifies it).

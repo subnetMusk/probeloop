@@ -5,9 +5,10 @@ interviewer. The interview is a spoken conversation. The interviewer asks follow
 based on your answers, your CV and the job offer. After the call you get a detailed report, and
 you can track your progress across sessions.
 
-> **Status: early development (milestone M2).** A text-only interview skeleton runs end to end;
-> voice, document analysis, evaluation and the web UI come in later milestones (see the
-> [roadmap](docs/roadmap.md)).
+> **Status: early development (milestone M3).** A spoken interview runs end to end in the
+> browser: the interviewer speaks, you answer out loud, and the transcript and the audio of the
+> whole conversation are kept. Document analysis, evaluation and reports come in later milestones
+> (see the [roadmap](docs/roadmap.md)).
 
 ## Goals
 
@@ -39,7 +40,7 @@ you can track your progress across sessions.
 
 See [docs/architecture.md](docs/architecture.md) for the full design.
 
-## Running the text skeleton
+## Running a voice interview
 
 **Requirements**
 - Docker with Compose.
@@ -49,44 +50,115 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
   ollama pull ministral-3:8b
   ```
 
-**Start the backend.** It is published on `127.0.0.1:8000` only:
+**Download the speech models** once (about 3 GB, into the `probeloop_models` volume). The speech
+services run on an internal network without internet access, so they cannot fetch models
+themselves:
+
+```bash
+docker compose --profile setup run --rm stt-models
+```
+
+```bash
+docker compose --profile setup run --rm tts-voices
+```
+
+**Start everything.** Only the backend is published, on `127.0.0.1:8000`, and it serves the web
+app:
 
 ```bash
 docker compose up -d --build
 ```
 
-**Run a text interview** from inside the backend container. Type the answers; `/pause`,
-`/resume` and `/end` control the session:
+Then open <http://127.0.0.1:8000>, check the microphone, and join. Joining loads the language
+model and the speech engines first, which can take a minute the first time. Use headphones if you
+can: the microphone only records between "Answer" and "End of answer" (or the space bar), but
+headphones keep the interviewer's voice out of the room.
+
+**What a session leaves** in the `probeloop_data` volume, under `sessions/<id>/`:
+`transcript.md` and `transcript.json` (the whole conversation), `audio/interview.wav` (both
+voices in one file), the audio of every turn, and `metrics.jsonl` (latency of every reply).
+Deleting a session (`DELETE /api/sessions/<id>`) removes the whole directory.
+
+**A text interview** (no audio) still runs from inside the backend container. Type the answers;
+`/pause`, `/resume` and `/end` control the session:
 
 ```bash
 docker compose exec backend probeloop chat --type technical --language it --minutes 15
 ```
 
-**Development**, with hot reload and checks inside the container:
+## Development
+
+Hot reload for the backend, and Vite with hot module replacement on <http://127.0.0.1:5173>:
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml watch
 ```
 
+**Backend checks** run in the dev image:
+
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml run --rm backend pytest
 ```
 
-**Tests against the real model** (`live` marker) and the interviewer evaluation:
+**Frontend checks** (ESLint, Prettier, TypeScript, Vitest, build) run in a Node container:
 
 ```bash
-docker compose -f compose.yaml -f compose.dev.yaml run --rm backend pytest -m live
+docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim sh -c "npm ci && npm run lint && npm run typecheck && npm test && npm run build"
 ```
+
+**API types.** The frontend's TypeScript types are generated from the backend's contract (OpenAPI
+and the JSON Schema of the WebSocket messages); CI fails when they are out of date:
+
+```bash
+docker run --rm -v "$PWD/frontend/src/api/contract:/out" probeloop-backend:dev python -m probeloop.api.contract /out
+```
+
+```bash
+docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim npm run gen:types
+```
+
+**End-to-end test.** Playwright drives Chromium with a fake microphone against a backend that uses
+a scripted interviewer and fake speech engines (no GPU or models needed):
+
+```bash
+docker compose -f compose.yaml -f compose.test.yaml up -d --no-deps backend
+```
+
+```bash
+docker run --rm --network container:probeloop-backend-1 -v "$PWD:/repo" -w /repo/frontend mcr.microsoft.com/playwright:v1.65.0-noble sh -c "npm ci && npx playwright test"
+```
+
+Run `docker compose up -d --no-deps backend` afterwards to go back to the real engines.
+
+**Tests against real models** (`live` marker): the interviewer with Ollama, and the speech engines
+in-process and through the running services:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -e PROBELOOP_TEST_STT_URL=http://stt-worker:8000 -e PROBELOOP_TEST_TTS_URL=http://tts-piper:5000 backend pytest -m live
+```
+
+**Evaluations.** The interviewer with scripted text personas:
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml run --rm backend python -m evals.interviewer_personas
 ```
 
+A synthetic voice candidate takes a real voice interview against the running stack. Every question
+is written to `var/voice-candidate/run-*/turn-NNNN-question.json`; whoever plays the candidate (a
+person or an agent) writes the answer to `turn-NNNN-answer.txt` (`/end` ends the call), and the
+tool speaks it with Piper. The run ends with a report of what was said, what was recognised (WER)
+and the reply latency of every turn:
+
+```bash
+docker compose --profile tools run --rm voice-candidate --minutes 10
+```
+
 **Configuration** uses `PROBELOOP_*` environment variables
 (see [settings.py](backend/src/probeloop/settings.py)). For example,
-`PROBELOOP_INTERVIEWER_MODEL=qwen3.5:9b` switches the model.
-`PROBELOOP_LLM_DEBUG_LOG=true` writes prompts and outputs to `/data/logs/llm.jsonl`. That log
-contains personal data, so it is off by default.
+`PROBELOOP_INTERVIEWER_MODEL=qwen3.5:9b` switches the model, and `PROBELOOP_TTS_VOICE` the
+interviewer's voice (`it_IT-serena-medium` by default; download others with the `tts-voices`
+service). `PROBELOOP_LLM_DEBUG_LOG=true` writes prompts and outputs to `/data/logs/llm.jsonl`.
+That log contains personal data, so it is off by default.
 
 ## Documentation
 
@@ -95,6 +167,7 @@ contains personal data, so it is off by default.
   LLMs, speech engines and realtime transport. It distinguishes documented facts, inferences and
   points that still need to be verified.
 - [Roadmap](docs/roadmap.md)
+- [Proposal: CV review, context, evaluation and reports](docs/proposals/2026-11-context-evaluation-reports.md)
 - [Architecture decision records](docs/adr/)
 - [Contributor and coding-agent conventions](AGENTS.md)
 
