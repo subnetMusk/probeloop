@@ -1,0 +1,71 @@
+{
+  "voice": "it_IT-paola-medium",
+  "sample_rate": 16000,
+  "fixtures": {
+    "three_sentences": {
+      "duration_s": 10.808,
+      "utterances": [
+        {
+          "text": "Ho lavorato tre anni come sviluppatore backend.",
+          "start_s": 0.5,
+          "end_s": 2.931
+        },
+        {
+          "text": "Usavamo soprattutto Python e PostgreSQL.",
+          "start_s": 4.131,
+          "end_s": 6.631
+        },
+        {
+          "text": "Mi occupavo delle API per gli ordini.",
+          "start_s": 7.831,
+          "end_s": 10.008
+        }
+      ]
+    },
+    "long_answer": {
+      "duration_s": 19.637,
+      "utterances": [
+        {
+          "text": "Il microservizio riceveva ogni mattina gli ordini del giorno.",
+          "start_s": 0.3,
+          "end_s": 3.325
+        },
+        {
+          "text": "Poi calcolava i giri dei furgoni con un risolutore di vincoli.",
+          "start_s": 3.575,
+          "end_s": 6.425
+        },
+        {
+          "text": "Le matrici delle distanze restavano in una cache per un'ora.",
+          "start_s": 6.675,
+          "end_s": 9.661
+        },
+        {
+          "text": "Così il tempo di pianificazione scendeva da quaranta a cinque minuti.",
+          "start_s": 9.911,
+          "end_s": 13.138
+        },
+        {
+          "text": "Il risultato veniva poi controllato da un operatore.",
+          "start_s": 13.388,
+          "end_s": 15.993
+        },
+        {
+          "text": "Alla fine i percorsi venivano inviati agli autisti.",
+          "start_s": 16.243,
+          "end_s": 18.837
+        }
+      ]
+    },
+    "late_start": {
+      "duration_s": 5.748,
+      "utterances": [
+        {
+          "text": "Sì, certo, posso fare un esempio concreto.",
+          "start_s": 2.5,
+          "end_s": 4.748
+        }
+      ]
+    }
+  }
+}

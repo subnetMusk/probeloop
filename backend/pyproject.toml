@@ -13,6 +13,7 @@ dependencies = [
   "jinja2>=3.1.6",
   "pyyaml>=6.0.3",
   "websockets>=15",
+  "pysilero-vad>=3.4",
 ]
 
 [project.scripts]
@@ -86,4 +87,36 @@ forbidden_modules = [
   "probeloop.storage",
   "probeloop.api",
   "probeloop.interview.application",
+]
+
+[[tool.importlinter.contracts]]
+name = "Speech does not depend on other modules"
+type = "forbidden"
+source_modules = ["probeloop.speech"]
+forbidden_modules = [
+  "probeloop.interview",
+  "probeloop.ai",
+  "probeloop.storage",
+  "probeloop.api",
+  "probeloop.bootstrap",
+]
+
+[[tool.importlinter.contracts]]
+name = "Speech use cases do not import adapters"
+type = "forbidden"
+source_modules = [
+  "probeloop.speech.ports",
+  "probeloop.speech.audio",
+  "probeloop.speech.segmenter",
+  "probeloop.speech.filters",
+  "probeloop.speech.transcriber",
+]
+forbidden_modules = [
+  "probeloop.speech.silero",
+  "probeloop.speech.fake",
+  "pysilero_vad",
+  "fastapi",
+  "starlette",
+  "pydantic",
+  "httpx",
 ]
