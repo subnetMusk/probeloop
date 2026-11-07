@@ -74,10 +74,28 @@ model and the speech engines first, which can take a minute the first time. Use 
 can: the microphone only records between "Answer" and "End of answer" (or the space bar), but
 headphones keep the interviewer's voice out of the room.
 
-**What a session leaves** in the `probeloop_data` volume, under `sessions/<id>/`:
-`transcript.md` and `transcript.json` (the whole conversation), `audio/interview.wav` (both
-voices in one file), the audio of every turn, and `metrics.jsonl` (latency of every reply).
-Deleting a session (`DELETE /api/sessions/<id>`) removes the whole directory.
+**After the call** your answers are transcribed again from their recordings with Whisper, a
+slower but more accurate recogniser (a few minutes for a 10-minute interview; the first run also
+loads the model). "Your interviews" lists past sessions: each has the recording, the transcript
+with the doubtful words highlighted, and the downloads. Correcting an answer keeps the earlier
+versions.
+
+**What a session leaves** in the `probeloop_data` volume: the database `probeloop.db` (SQLite),
+and under `sessions/<id>/` the files: `transcript.md` and `transcript.json` (the whole
+conversation, rewritten after every correction), `audio/interview.wav` (both voices in one file)
+and the audio of every turn. Deleting an interview removes its rows and its directory.
+
+Sessions recorded before the database (M3) are moved into it once with:
+
+```bash
+docker compose exec backend probeloop import-sessions
+```
+
+**PostgreSQL** can replace SQLite (the `postgres` profile; sessions are not copied between the two):
+
+```bash
+PROBELOOP_POSTGRES_PASSWORD=change-me PROBELOOP_DATABASE_URL=postgresql+asyncpg://probeloop:change-me@postgres:5432/probeloop docker compose --profile postgres up -d
+```
 
 **A text interview** (no audio) still runs from inside the backend container. Type the answers;
 `/pause`, `/resume` and `/end` control the session:

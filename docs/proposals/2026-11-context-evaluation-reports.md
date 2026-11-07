@@ -2,7 +2,7 @@
 
 - Status: reviewed by the owner; decisions recorded in [section 9](#9-decisions)
 - Date: 2026-11-07
-- Scope: M4, M5, M7 and M8 of the [roadmap](../roadmap.md), plus a CV review that the roadmap does
+- Scope: M4, M5 and M7 of the [roadmap](../roadmap.md), plus a CV review that the roadmap does
   not have yet. Nothing here is implemented; this is the design to follow when those milestones
   start.
 
@@ -17,21 +17,23 @@ After M3 a voice interview runs end to end. Each session keeps:
 The synthetic voice candidate (`evals/voice_candidate.py`) can run whole interviews without a
 person. Interviewer context is still a fixed sample brief, and nothing evaluates the candidate.
 
-**Proposed order:** M4, then M5, then the CV review (new), then M7, M6, M8 and M9. The roadmap puts
+**Proposed order:** M4, then M5, then the CV review (new), then M7, M6 and M9. M8 (web and
+GitHub enrichment) is dropped: nothing is fetched from the internet (section 2.5). The roadmap puts
 the final UI (M6) before evaluation (M7). Reports are the point of the product, and the report
 pages are most of what M6 would polish, so evaluation should come first.
 
-## 2. Acquiring the context (M5, then M8)
+## 2. Acquiring the context (M5)
 
 ### 2.1 Inputs
 
 | Input | Form | How it is read |
 |---|---|---|
 | CV | PDF (LinkedIn: its PDF export) | Text extraction with page and offset |
-| Job offer | PDF, pasted text or URL | A URL goes through the fetcher (section 2.5) |
+| Job offer | PDF or pasted text | Same extraction as the CV |
 | Job offer described in words | Free text ("junior PHP web developer, web agency, 0–2 years…") | The model drafts a job offer that the user edits (section 2.2) |
-| Supporting documents | PDF or text (portfolio, project notes) | Same pipeline as the CV, typed "supporting" |
-| External links (M8) | Every link found in the CV, the job offer and the supporting documents, plus links the user adds | GitHub through its API; everything else through the fetcher |
+| Resources | Each with a title chosen by the user, and either text typed in a box or a text file (txt, md, json, xml, html, docx, pdf) | Same pipeline as the CV; kept in reusable profiles (section 2.5) |
+
+Nothing is fetched from the internet: links in the documents are not followed.
 
 ### 2.2 Without a real job offer
 
@@ -78,33 +80,30 @@ Each step is a job with progress, and each output is stored and reused by conten
   - optionally, a conservative fuzzy correction of the live transcript.
 - **The CV review and the evaluator** (section 4.1 lists what the evaluator receives).
 
-### 2.5 Fetching external resources (M8)
+### 2.5 Resources and profiles
 
-Scope: every link found in the user's documents, plus the links the user adds. The fetcher opens
-the given pages; it does not crawl beyond them, except GitHub, which is read through its API
-(profile, repositories, READMEs, languages, commit activity).
+Anything beyond the CV and the job offer (project notes, a portfolio, a README, a cover letter)
+is added by the user as a **resource**: a title of their choice, plus either text typed in a box
+or one text file (txt, md, json, xml, html, docx or pdf). The resource screen shows one empty
+title-and-content row; as soon as it is filled, a new empty row appears below it, so the user
+adds as many as they need.
 
-- **A separate `fetcher` service** runs Playwright with headless Chromium, so pages that need
-  JavaScript render as in a browser. It is the only service with internet access. It sits on its
-  own network, with no route to the backend's internal network or to the host. Every request from
-  the browser, including subresources and redirects, goes through an in-service proxy that applies
-  `UrlGuard`: it blocks private and link-local addresses, pins the resolved IP against DNS
-  rebinding, and caps redirects, size and time.
-- **Fresh context for each page**: no persistent profile, no cookies or sign-ins, downloads
-  disabled, robots.txt honoured. The service returns the rendered text (trafilatura on the final
-  DOM) and the final URL; the backend never receives HTML to render.
-- **Each resource has a status** that the review screen shows: downloaded, or not downloaded with
-  the reason (login wall, robots, timeout, too large, blocked address, unreadable content). For a
-  failed resource the user removes it, or adds its content by hand (pasted text or a PDF).
-  LinkedIn profiles need a sign-in, so they always fail this way; the PDF export is the way in.
-- **Pages are data.** Their facts carry quotes verified against the fetched text, and injection
-  signals (instructions addressed to a model, hidden text) are flagged in the review.
+Resources are kept in **profiles**, so the same set can be reused across interviews:
+
+1. Before the resources, the user picks an existing profile or creates a new one.
+2. The resource screen shows the profile's resources, which can still be changed.
+3. If they were changed, the user chooses: overwrite the profile, save them as a new profile, or
+   use them for this interview only without saving.
+
+HTML and XML are reduced to their text; tags, scripts and styles are dropped. Each resource is
+data, delimited in prompts like the CV.
 
 ### 2.6 Safety
 
-- External content is data. It is delimited in prompts, and extraction calls have no tools.
+- Documents and resources are data. They are delimited in prompts, and extraction calls have no
+  tools.
 - Quotes are verified, and invisible text is flagged before review.
-- Only the `fetcher` service reaches the internet, and only through `UrlGuard`.
+- No service fetches anything from the internet.
 
 ## 3. CV review (new)
 
@@ -164,10 +163,8 @@ whole context it needs:
 - the answer unit, and the surrounding turns;
 - the rubric of the unit's kind, with its anchors;
 - the user's documents as approved in the snapshot: the CV, the job offer (real or generated) and
-  the supporting documents, as delimited data;
-- the snapshot's facts and the requirement matrix;
-- external pages only as verified facts, never as raw text, since they are the content most
-  likely to carry injected instructions.
+  the resources, as delimited data;
+- the snapshot's facts and the requirement matrix.
 
 A judge call is about 5k tokens (rubric 1k, documents 3k, unit 1k), within an 8k context.
 
@@ -448,4 +445,4 @@ Recorded on 2026-11-07 from the owner's answers to the first draft.
 | Evaluator | `qwen3.5:9b` with thinking, asynchronous, with the user's documents in context; accuracy over speed (section 4.1) |
 | Exports | Markdown, JSON and PDF (section 4.4) |
 | Background refinement during the interview | Not now: it costs little CPU, but about 1 GB of memory that machine A does not have to spare. Refinement runs after the call (section 4.5) |
-| External sources | Every link in the documents, fetched with Playwright in an isolated service; failures reported per resource, and the user removes the resource or adds it by hand (section 2.5) |
+| External sources | Revised on 2026-11-07: nothing is fetched from the internet. Resources are titled text or text files added by the user, saved in reusable profiles (section 2.5). The job offer no longer accepts a URL |
