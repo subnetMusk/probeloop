@@ -114,8 +114,13 @@ export function useInterview(sessionId: string, kit: AudioKit | null) {
   }, [kit])
 
   const retryStart = useCallback(() => {
+    dispatch({ type: 'notice', text: null })
     socketRef.current?.command('session.start')
   }, [])
 
-  return { state, answer, endAnswer, endCall, resume, retryStart }
+  const dismissNotice = useCallback(() => {
+    dispatch({ type: 'notice', text: null })
+  }, [])
+
+  return { state, answer, endAnswer, endCall, resume, retryStart, dismissNotice }
 }

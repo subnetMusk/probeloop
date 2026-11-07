@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { MicIcon } from 'lucide-react'
+import { CheckCircle2Icon, CircleAlertIcon, Loader2Icon, MicIcon, VideoIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { api } from '@/api/rest'
@@ -8,7 +8,6 @@ import type { CreateSession } from '@/api/rest'
 import { PROBLEM_TEXT, useAudio } from '@/audio/audio-state'
 import { LevelMeter } from '@/components/level-meter'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -34,11 +33,17 @@ const DIFFICULTIES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium
 const LANGUAGES: Record<Language, string> = { it: 'Italian', en: 'English' }
 const DURATIONS = [5, 10, 15, 20, 30]
 
+// Piper voices need attribution under their licence (ADR 0010).
+const VOICE_CREDITS: Record<string, string> = {
+  'it_IT-serena-medium': 'serena (Piper), CC BY 4.0',
+  'it_IT-paola-medium': 'paola (Piper), CC0',
+}
+
 function Choice<T extends string>(props: {
   id: string
   label: string
   value: T
-  options: Record<T, string> | Record<string, string>
+  options: Record<string, string>
   disabled?: (value: string) => boolean
   onChange: (value: T) => void
 }) {
@@ -66,7 +71,19 @@ function Choice<T extends string>(props: {
   )
 }
 
-/** Choose the interview, check the microphone and the speech services, then start. */
+function Check({ ok, pending, children }: { ok: boolean; pending?: boolean; children: string }) {
+  let icon = <CircleAlertIcon className="size-4 text-amber-600" />
+  if (pending) icon = <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+  else if (ok) icon = <CheckCircle2Icon className="size-4 text-emerald-600" />
+  return (
+    <li className="flex items-center gap-2 text-sm">
+      {icon}
+      <span className={ok ? '' : 'text-muted-foreground'}>{children}</span>
+    </li>
+  )
+}
+
+/** Choose the interview, check the microphone and the speech services, then join the call. */
 export function SetupPage() {
   const navigate = useNavigate()
   const audio = useAudio()
@@ -88,120 +105,135 @@ export function SetupPage() {
   })
 
   const voices = speech.data?.voices ?? {}
+  const voice = voices[language]
   const canStart = audio.kit !== null && !create.isPending
 
   return (
-    <div className="mx-auto grid max-w-4xl gap-6 p-6 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>New voice interview</CardTitle>
-          <CardDescription>The interviewer speaks; you answer out loud.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <Choice
-            id="type"
-            label="Interview type"
-            value={type}
-            options={TYPES}
-            onChange={setType}
-          />
-          <Choice
-            id="difficulty"
-            label="Difficulty"
-            value={difficulty}
-            options={DIFFICULTIES}
-            onChange={setDifficulty}
-          />
-          <Choice
-            id="language"
-            label="Language"
-            value={language}
-            options={LANGUAGES}
-            disabled={(value) => !voices[value]}
-            onChange={setLanguage}
-          />
-          <Choice
-            id="minutes"
-            label="Duration"
-            value={minutes}
-            options={Object.fromEntries(DURATIONS.map((m) => [String(m), `${m} minutes`]))}
-            onChange={setMinutes}
-          />
-        </CardContent>
-      </Card>
+    <div className="bg-gradient-to-b from-indigo-50/60 to-background">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+        <div className="flex flex-col gap-2">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            Practise a job interview, out loud
+          </h1>
+          <p className="max-w-2xl text-muted-foreground">
+            An AI interviewer asks the questions and follows up on your answers. Everything runs on
+            this computer: your voice and the transcript stay here.
+          </p>
+        </div>
 
-      <div className="flex flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Microphone check</CardTitle>
-            <CardDescription>Speak: the bar should move with your voice.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {audio.kit ? (
-              <>
-                <div className="text-sm text-muted-foreground">{audio.kit.microphone.label}</div>
-                <LevelMeter dbfs={audio.level} />
-              </>
-            ) : (
-              <Button onClick={() => void audio.enable()} disabled={audio.enabling}>
-                <MicIcon data-icon="inline-start" />
-                {audio.enabling ? 'Enabling…' : 'Enable microphone'}
-              </Button>
-            )}
-            {audio.problem && (
-              <Alert variant="destructive">
-                <AlertTitle>Microphone unavailable</AlertTitle>
-                <AlertDescription>{PROBLEM_TEXT[audio.problem]}</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 md:grid-cols-[3fr_2fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle>Interview</CardTitle>
+              <CardDescription>What kind of interview to practise.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Choice id="type" label="Type" value={type} options={TYPES} onChange={setType} />
+              <Choice
+                id="difficulty"
+                label="Difficulty"
+                value={difficulty}
+                options={DIFFICULTIES}
+                onChange={setDifficulty}
+              />
+              <Choice
+                id="language"
+                label="Language"
+                value={language}
+                options={LANGUAGES}
+                disabled={(value) => !voices[value]}
+                onChange={setLanguage}
+              />
+              <Choice
+                id="minutes"
+                label="Duration"
+                value={minutes}
+                options={Object.fromEntries(DURATIONS.map((m) => [String(m), `${m} minutes`]))}
+                onChange={setMinutes}
+              />
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Speech services</CardTitle>
-            <CardDescription>
-              {speech.data?.ready ? (
-                <Badge variant="secondary">ready</Badge>
+          <Card>
+            <CardHeader>
+              <CardTitle>Check your setup</CardTitle>
+              <CardDescription>Use headphones if you can: it avoids echo.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              {audio.kit ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MicIcon className="size-4 text-emerald-600" />
+                    <span className="truncate">{audio.kit.microphone.label || 'Microphone'}</span>
+                  </div>
+                  <LevelMeter dbfs={audio.level} />
+                  <p className="text-xs text-muted-foreground">
+                    Say something: the bar should move with your voice.
+                  </p>
+                </div>
               ) : (
-                <Badge variant="outline">not ready yet</Badge>
+                <Button
+                  variant="outline"
+                  onClick={() => void audio.enable()}
+                  disabled={audio.enabling}
+                  data-testid="enable-microphone"
+                >
+                  <MicIcon data-icon="inline-start" />
+                  {audio.enabling ? 'Enabling…' : 'Enable microphone'}
+                </Button>
               )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            {speech.data?.problems.map((problem) => (
-              <div key={problem} className="text-muted-foreground">
-                {problem}
-              </div>
-            ))}
-            {speech.error && <div className="text-destructive">The backend is not reachable.</div>}
-            <div className="text-xs text-muted-foreground">
-              Starting waits for services that are still loading.
-            </div>
-          </CardContent>
-        </Card>
+              {audio.problem && (
+                <Alert variant="destructive">
+                  <AlertTitle>Microphone unavailable</AlertTitle>
+                  <AlertDescription>{PROBLEM_TEXT[audio.problem]}</AlertDescription>
+                </Alert>
+              )}
+              <ul className="flex flex-col gap-2" data-testid="speech-status">
+                <Check ok={audio.kit !== null}>Microphone</Check>
+                <Check ok={speech.data?.ready ?? false} pending={speech.isPending}>
+                  Speech recognition and voice
+                </Check>
+                {speech.data?.problems.map((problem) => (
+                  <li key={problem} className="pl-6 text-xs text-muted-foreground">
+                    {problem}
+                  </li>
+                ))}
+                {speech.error && (
+                  <li className="pl-6 text-xs text-destructive">The backend is not reachable.</li>
+                )}
+              </ul>
+              <Button
+                size="lg"
+                className="h-11"
+                disabled={!canStart}
+                data-testid="start-interview"
+                onClick={() => {
+                  create.mutate({
+                    interview_type: type,
+                    difficulty,
+                    language,
+                    modality: 'voice',
+                    duration_minutes: Number(minutes),
+                  })
+                }}
+              >
+                <VideoIcon data-icon="inline-start" />
+                {create.isPending ? 'Creating…' : 'Join the interview'}
+              </Button>
+              {create.error && (
+                <Alert variant="destructive">
+                  <AlertTitle>The interview could not be created</AlertTitle>
+                  <AlertDescription>{create.error.message}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-        <Button
-          size="lg"
-          disabled={!canStart}
-          onClick={() => {
-            create.mutate({
-              interview_type: type,
-              difficulty,
-              language,
-              modality: 'voice',
-              duration_minutes: Number(minutes),
-            })
-          }}
-        >
-          Start interview
-        </Button>
-        {create.error && (
-          <Alert variant="destructive">
-            <AlertTitle>The interview could not be created</AlertTitle>
-            <AlertDescription>{create.error.message}</AlertDescription>
-          </Alert>
-        )}
+        <footer className="text-xs text-muted-foreground">
+          {voice && `Interviewer voice: ${VOICE_CREDITS[voice] ?? voice}. `}
+          Speech synthesis by Piper, recognition by Parakeet, both running locally.
+        </footer>
       </div>
     </div>
   )
