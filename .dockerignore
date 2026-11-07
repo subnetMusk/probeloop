@@ -1,5 +1,6 @@
-# Only the backend sources go into the build context.
+# Only the backend sources and the pinned Piper requirements go into the build context.
 *
+!docker/tts-piper/requirements.txt
 !backend/pyproject.toml
 !backend/uv.lock
 !backend/src

@@ -93,6 +93,20 @@ jobs:
           docker logs stt-smoke
           exit 1
 
+      - name: Build tts-piper image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/tts-piper.Dockerfile
+          tags: probeloop-tts-piper:ci
+          load: true
+          cache-from: type=gha,scope=tts-piper
+          cache-to: type=gha,mode=max,scope=tts-piper
+
+      # CI has no voices, and Piper's server refuses to start without one: check the install.
+      - name: tts-piper smoke test
+        run: docker run --rm --entrypoint python probeloop-tts-piper:ci -c "import piper.http_server"
+
   secrets:
     runs-on: ubuntu-24.04
     steps:

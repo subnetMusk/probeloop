@@ -1,0 +1,4 @@
+# Unmodified Piper and its HTTP server (GPL-3.0-or-later), installed in the tts-piper image.
+# requirements.txt pins it and its dependencies with hashes; regenerate it with the command
+# written at its top.
+piper-tts[http]==1.8.0

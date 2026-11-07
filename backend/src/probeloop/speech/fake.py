@@ -13,6 +13,7 @@ from probeloop.speech.audio import PcmAudio
 from probeloop.speech.ports import (
     RecognizedSegment,
     RecognizedWord,
+    SpeechError,
     TranscribeOptions,
     Transcription,
 )
@@ -65,6 +66,37 @@ def _even_words(text: str, duration_s: float) -> tuple[RecognizedWord, ...]:
         RecognizedWord(round(i * step, 3), round((i + 1) * step, 3), token, 1.0)
         for i, token in enumerate(tokens)
     )
+
+
+@dataclass
+class FakeTextToSpeech:
+    """Answers with a quiet tone whose length grows with the text, and records every call.
+
+    `script` lists, call by call, an exception to raise or None to succeed; later calls succeed.
+    """
+
+    sample_rate: int = 22_050
+    seconds_per_char: float = 0.06
+    delay_s: float = 0.0
+    script: Sequence[Exception | None] = ()
+    calls: list[tuple[str, str]] = field(default_factory=list)
+
+    async def synthesize(self, text: str, voice: str) -> PcmAudio:
+        index = len(self.calls)
+        self.calls.append((text, voice))
+        if self.delay_s:
+            await asyncio.sleep(self.delay_s)
+        error = self.script[index] if index < len(self.script) else None
+        if error is not None:
+            raise error
+        if not text.strip():
+            raise SpeechError("nothing to synthesise")
+        samples = max(1, round(len(text) * self.seconds_per_char * self.sample_rate))
+        step = 2 * math.pi * 220.0 / self.sample_rate
+        tone = array("h", (round(1600 * math.sin(step * i)) for i in range(samples)))
+        if sys.byteorder == "big":
+            tone.byteswap()
+        return PcmAudio(tone.tobytes(), self.sample_rate)
 
 
 @dataclass

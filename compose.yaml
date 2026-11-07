@@ -4,6 +4,7 @@
 # Only the backend is published, on 127.0.0.1. The speech services sit on the `internal`
 # network, which has no route outside Compose: their models are downloaded beforehand with
 #   docker compose --profile setup run --rm stt-models
+#   docker compose --profile setup run --rm tts-voices
 name: probeloop
 
 x-hardening: &hardening
@@ -52,6 +53,18 @@ services:
     cpus: ${PROBELOOP_STT_CPUS:-6}
     restart: unless-stopped
 
+  tts-piper:
+    <<: *hardening
+    image: probeloop-tts-piper:1.8.0
+    build: &tts-build
+      context: .
+      dockerfile: docker/tts-piper.Dockerfile
+    command: ["-m", "${PROBELOOP_TTS_VOICE:-it_IT-serena-medium}"]
+    volumes:
+      - models:/models:ro
+    networks: [internal]
+    restart: unless-stopped
+
   # One-shot: downloads the speech recognition models into the `models` volume.
   stt-models:
     <<: *hardening
@@ -61,6 +74,17 @@ services:
     command: ["python", "-m", "probeloop.speech.worker", "download"]
     environment:
       HF_HUB_OFFLINE: "0"
+    volumes:
+      - models:/models
+
+  # One-shot: downloads Piper voices into the `models` volume. Pass other voice names to add them.
+  tts-voices:
+    <<: *hardening
+    image: probeloop-tts-piper:1.8.0
+    build: *tts-build
+    profiles: [setup]
+    entrypoint: ["python", "-m", "piper.download_voices", "--data-dir", "/models/piper"]
+    command: ["${PROBELOOP_TTS_VOICE:-it_IT-serena-medium}"]
     volumes:
       - models:/models
 

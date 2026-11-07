@@ -125,12 +125,15 @@ source_modules = [
   "probeloop.speech.segmenter",
   "probeloop.speech.filters",
   "probeloop.speech.transcriber",
+  "probeloop.speech.sentences",
+  "probeloop.speech.synthesizer",
 ]
 forbidden_modules = [
   "probeloop.speech.silero",
   "probeloop.speech.parakeet",
   "probeloop.speech.whisper",
   "probeloop.speech.http_stt",
+  "probeloop.speech.piper",
   "probeloop.speech.worker",
   "probeloop.speech.fake",
   "pysilero_vad",

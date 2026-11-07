@@ -11,7 +11,10 @@ VAD_WINDOW_SAMPLES = 512  # 32 ms at 16 kHz: the window size Silero VAD expects
 
 
 class SpeechError(Exception):
-    """A speech engine call failed. The message is safe to log: it never contains audio or text."""
+    """A speech recognition or synthesis call failed.
+
+    The message is safe to log: it never contains audio or text.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +60,15 @@ class SpeechToText(Protocol):
 
     async def transcribe(self, audio: PcmAudio, options: TranscribeOptions) -> Transcription:
         """Transcribe 16 kHz audio. Every failure is raised as `SpeechError`."""
+        ...
+
+
+class TextToSpeech(Protocol):
+    async def synthesize(self, text: str, voice: str) -> PcmAudio:
+        """Speech for one sentence, at the voice's own sample rate.
+
+        Every failure, blank text included, is raised as `SpeechError`.
+        """
         ...
 
 
