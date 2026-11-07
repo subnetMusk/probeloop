@@ -46,6 +46,16 @@ jobs:
       - name: Tests
         run: docker run --rm probeloop-backend:dev pytest -q
 
+      # The frontend's TypeScript types are generated from the backend's API contract.
+      - name: API contract and generated types are up to date
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD/frontend/src/api/contract:/out" probeloop-backend:dev \
+            python -m probeloop.api.contract /out
+          docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim \
+            sh -c "npm ci --no-audit --no-fund && npm run gen:types"
+          git diff --exit-code -- frontend/src/api
+
       - name: Build runtime image
         uses: docker/build-push-action@v6
         with:
@@ -106,6 +116,17 @@ jobs:
       # CI has no voices, and Piper's server refuses to start without one: check the install.
       - name: tts-piper smoke test
         run: docker run --rm --entrypoint python probeloop-tts-piper:ci -c "import piper.http_server"
+
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint, format, type check, unit tests and build
+        run: |
+          docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim sh -c \
+            "npm ci --no-audit --no-fund && npm run lint && npm run format:check \
+             && npm run typecheck && npm test && npm run build"
 
   secrets:
     runs-on: ubuntu-24.04

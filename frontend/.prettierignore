@@ -1,0 +1,6 @@
+dist
+node_modules
+package-lock.json
+src/api/types
+src/api/contract
+src/components/ui

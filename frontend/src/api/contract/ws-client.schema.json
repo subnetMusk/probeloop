@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "JoinMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "client_msg_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Client Msg Id"
+        },
+        "last_seq": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Last Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "session.join",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "JoinMessage",
+      "type": "object"
+    },
+    "SimpleCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "client_msg_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Client Msg Id"
+        },
+        "type": {
+          "enum": [
+            "session.start",
+            "session.pause",
+            "session.resume",
+            "session.end",
+            "playback.finished",
+            "turn.start",
+            "ping"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SimpleCommand",
+      "type": "object"
+    },
+    "TurnEnd": {
+      "additionalProperties": false,
+      "description": "End of answer. Text sessions send the typed answer; voice sessions send no text.",
+      "properties": {
+        "client_msg_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Client Msg Id"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 8000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "type": {
+          "const": "turn.end",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TurnEnd",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "ping": "#/$defs/SimpleCommand",
+      "playback.finished": "#/$defs/SimpleCommand",
+      "session.end": "#/$defs/SimpleCommand",
+      "session.join": "#/$defs/JoinMessage",
+      "session.pause": "#/$defs/SimpleCommand",
+      "session.resume": "#/$defs/SimpleCommand",
+      "session.start": "#/$defs/SimpleCommand",
+      "turn.end": "#/$defs/TurnEnd",
+      "turn.start": "#/$defs/SimpleCommand"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/JoinMessage"
+    },
+    {
+      "$ref": "#/$defs/SimpleCommand"
+    },
+    {
+      "$ref": "#/$defs/TurnEnd"
+    }
+  ],
+  "title": "ClientMessage"
+}

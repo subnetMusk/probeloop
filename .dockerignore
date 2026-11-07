@@ -1,4 +1,5 @@
-# Only the backend sources and the pinned Piper requirements go into the build context.
+# Only the backend sources, the frontend sources and the pinned Piper requirements go into the
+# build context.
 *
 !docker/tts-piper/requirements.txt
 !backend/pyproject.toml
@@ -6,6 +7,9 @@
 !backend/src
 !backend/tests
 !backend/evals
+!frontend
+frontend/node_modules
+frontend/dist
 **/__pycache__
 **/.pytest_cache
 **/.mypy_cache

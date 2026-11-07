@@ -14,12 +14,22 @@ RUN useradd --create-home --uid 1000 app \
     && chown app:app /data
 WORKDIR /app
 
-# Runtime: application dependencies only.
+# The single-page app, built once and served by the backend at runtime.
+FROM node:24.22.0-trixie-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+# Runtime: application dependencies only, plus the built frontend.
 FROM base AS runtime
+ENV PROBELOOP_STATIC_DIR=/app/static
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
 COPY backend/src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
+COPY --from=frontend /frontend/dist ./static
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s \

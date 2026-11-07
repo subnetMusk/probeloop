@@ -1,4 +1,5 @@
-# Development overlay: hot reload with `docker compose -f compose.yaml -f compose.dev.yaml watch`.
+# Development overlay: hot reload with `docker compose -f compose.yaml -f compose.dev.yaml watch`
+# (backend on 127.0.0.1:8000, Vite on 127.0.0.1:5173).
 # Checks run in the same image, e.g.
 #   docker compose -f compose.yaml -f compose.dev.yaml run --rm backend pytest
 # The models volume is mounted read-only so that `pytest -m live` can load the speech engines.
@@ -23,3 +24,27 @@ services:
           target: /app/evals
         - action: rebuild
           path: ./backend/uv.lock
+
+  # Vite with hot module replacement on http://127.0.0.1:5173. It proxies /api and /ws to the
+  # backend, so the browser sees one origin, as in production.
+  frontend-dev:
+    image: probeloop-frontend:dev
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      target: dev
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      PROBELOOP_BACKEND_URL: http://backend:8000
+    depends_on: [backend]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: rebuild
+          path: ./frontend/package-lock.json

@@ -1,0 +1,658 @@
+{
+  "$defs": {
+    "AnswerRecordedMessage": {
+      "properties": {
+        "complete": {
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "candidate.answer.recorded",
+          "default": "candidate.answer.recorded",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "text",
+        "complete"
+      ],
+      "title": "AnswerRecordedMessage",
+      "type": "object"
+    },
+    "AnswerTimeWarningMessage": {
+      "properties": {
+        "remaining_s": {
+          "title": "Remaining S",
+          "type": "number"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "answer.time_warning",
+          "default": "answer.time_warning",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "remaining_s"
+      ],
+      "title": "AnswerTimeWarningMessage",
+      "type": "object"
+    },
+    "EndReason": {
+      "enum": [
+        "completed",
+        "time_limit",
+        "user_ended"
+      ],
+      "title": "EndReason",
+      "type": "string"
+    },
+    "ErrorMessage": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "recoverable": {
+          "title": "Recoverable",
+          "type": "boolean"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "type": {
+          "const": "error",
+          "default": "error",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "code",
+        "message",
+        "recoverable"
+      ],
+      "title": "ErrorMessage",
+      "type": "object"
+    },
+    "MoveAction": {
+      "enum": [
+        "follow_up",
+        "clarify",
+        "new_topic",
+        "present_exercise",
+        "wrap_up",
+        "end"
+      ],
+      "title": "MoveAction",
+      "type": "string"
+    },
+    "MoveCompletedMessage": {
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/MoveAction"
+        },
+        "fallback": {
+          "title": "Fallback",
+          "type": "boolean"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "topic_id": {
+          "title": "Topic Id",
+          "type": "string"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "interviewer.move.completed",
+          "default": "interviewer.move.completed",
+          "title": "Type",
+          "type": "string"
+        },
+        "utterance": {
+          "title": "Utterance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "action",
+        "topic_id",
+        "utterance",
+        "fallback"
+      ],
+      "title": "MoveCompletedMessage",
+      "type": "object"
+    },
+    "Phase": {
+      "enum": [
+        "interviewer_thinking",
+        "interviewer_speaking",
+        "awaiting_candidate",
+        "candidate_speaking",
+        "finalizing_transcript"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "PongMessage": {
+      "properties": {
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "type": {
+          "const": "pong",
+          "default": "pong",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type"
+      ],
+      "title": "PongMessage",
+      "type": "object"
+    },
+    "PreparationStepView": {
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Detail"
+        },
+        "name": {
+          "enum": [
+            "language_model",
+            "speech_recognition",
+            "speech_synthesis"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "loading",
+            "ready",
+            "failed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "state",
+        "detail"
+      ],
+      "title": "PreparationStepView",
+      "type": "object"
+    },
+    "PreparingMessage": {
+      "properties": {
+        "progress": {
+          "title": "Progress",
+          "type": "number"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/PreparationStepView"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "type": {
+          "const": "session.preparing",
+          "default": "session.preparing",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "progress",
+        "steps"
+      ],
+      "title": "PreparingMessage",
+      "type": "object"
+    },
+    "SessionEndedMessage": {
+      "properties": {
+        "failure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failure"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EndReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "type": {
+          "const": "session.ended",
+          "default": "session.ended",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "reason",
+        "failure"
+      ],
+      "title": "SessionEndedMessage",
+      "type": "object"
+    },
+    "SessionStatus": {
+      "enum": [
+        "ready",
+        "in_progress",
+        "paused",
+        "ended",
+        "failed"
+      ],
+      "title": "SessionStatus",
+      "type": "string"
+    },
+    "StateChangedMessage": {
+      "properties": {
+        "elapsed_s": {
+          "title": "Elapsed S",
+          "type": "number"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Phase"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "remaining_s": {
+          "title": "Remaining S",
+          "type": "number"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "status": {
+          "$ref": "#/$defs/SessionStatus"
+        },
+        "type": {
+          "const": "state.changed",
+          "default": "state.changed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "status",
+        "phase",
+        "elapsed_s",
+        "remaining_s"
+      ],
+      "title": "StateChangedMessage",
+      "type": "object"
+    },
+    "TextDeltaMessage": {
+      "properties": {
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "interviewer.text.delta",
+          "default": "interviewer.text.delta",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "text"
+      ],
+      "title": "TextDeltaMessage",
+      "type": "object"
+    },
+    "TranscriptPartialMessage": {
+      "properties": {
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "transcript.partial",
+          "default": "transcript.partial",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "text"
+      ],
+      "title": "TranscriptPartialMessage",
+      "type": "object"
+    },
+    "TtsChunkMessage": {
+      "description": "Followed by one binary frame: `samples` PCM16 samples at `sample_rate`.",
+      "properties": {
+        "duration_s": {
+          "title": "Duration S",
+          "type": "number"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "sample_rate": {
+          "title": "Sample Rate",
+          "type": "integer"
+        },
+        "samples": {
+          "title": "Samples",
+          "type": "integer"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "tts.chunk",
+          "default": "tts.chunk",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "index",
+        "text",
+        "sample_rate",
+        "samples",
+        "duration_s"
+      ],
+      "title": "TtsChunkMessage",
+      "type": "object"
+    },
+    "TtsDoneMessage": {
+      "properties": {
+        "failed": {
+          "title": "Failed",
+          "type": "integer"
+        },
+        "sentences": {
+          "title": "Sentences",
+          "type": "integer"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        },
+        "turn_seq": {
+          "title": "Turn Seq",
+          "type": "integer"
+        },
+        "type": {
+          "const": "tts.done",
+          "default": "tts.done",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "turn_seq",
+        "sentences",
+        "failed"
+      ],
+      "title": "TtsDoneMessage",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "answer.time_warning": "#/$defs/AnswerTimeWarningMessage",
+      "candidate.answer.recorded": "#/$defs/AnswerRecordedMessage",
+      "error": "#/$defs/ErrorMessage",
+      "interviewer.move.completed": "#/$defs/MoveCompletedMessage",
+      "interviewer.text.delta": "#/$defs/TextDeltaMessage",
+      "pong": "#/$defs/PongMessage",
+      "session.ended": "#/$defs/SessionEndedMessage",
+      "session.preparing": "#/$defs/PreparingMessage",
+      "state.changed": "#/$defs/StateChangedMessage",
+      "transcript.partial": "#/$defs/TranscriptPartialMessage",
+      "tts.chunk": "#/$defs/TtsChunkMessage",
+      "tts.done": "#/$defs/TtsDoneMessage"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/StateChangedMessage"
+    },
+    {
+      "$ref": "#/$defs/PreparingMessage"
+    },
+    {
+      "$ref": "#/$defs/TextDeltaMessage"
+    },
+    {
+      "$ref": "#/$defs/MoveCompletedMessage"
+    },
+    {
+      "$ref": "#/$defs/TtsChunkMessage"
+    },
+    {
+      "$ref": "#/$defs/TtsDoneMessage"
+    },
+    {
+      "$ref": "#/$defs/TranscriptPartialMessage"
+    },
+    {
+      "$ref": "#/$defs/AnswerTimeWarningMessage"
+    },
+    {
+      "$ref": "#/$defs/AnswerRecordedMessage"
+    },
+    {
+      "$ref": "#/$defs/SessionEndedMessage"
+    },
+    {
+      "$ref": "#/$defs/ErrorMessage"
+    },
+    {
+      "$ref": "#/$defs/PongMessage"
+    }
+  ],
+  "title": "ServerMessage"
+}
