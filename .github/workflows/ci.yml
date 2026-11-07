@@ -68,6 +68,31 @@ jobs:
           docker logs probeloop-smoke
           exit 1
 
+      - name: Build stt-worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/stt-worker.Dockerfile
+          target: cpu
+          tags: probeloop-stt-worker:cpu
+          load: true
+          cache-from: type=gha,scope=stt-worker
+          cache-to: type=gha,mode=max,scope=stt-worker
+
+      # CI has no speech models: the worker must start, try to load them and report the failure
+      # on /health instead of crashing.
+      - name: stt-worker smoke test
+        run: |
+          docker run -d --name stt-smoke -p 127.0.0.1:8001:8000 --read-only --tmpfs /tmp \
+            probeloop-stt-worker:cpu
+          for i in $(seq 1 90); do
+            status=$(curl -s http://127.0.0.1:8001/health | jq -r .status 2>/dev/null || true)
+            if [ "$status" = "failed" ]; then exit 0; fi
+            sleep 1
+          done
+          docker logs stt-smoke
+          exit 1
+
   secrets:
     runs-on: ubuntu-24.04
     steps:

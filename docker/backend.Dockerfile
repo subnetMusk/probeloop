@@ -26,14 +26,19 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=10s \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
 CMD ["uvicorn", "probeloop.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 
-# Dev: adds the dev dependency group, tests and evals; the source is synced by `compose watch`.
+# Dev: adds the dev dependency group, the speech engines (`stt` extra, for type checks and live
+# tests), tests and evals; the source is synced by `compose watch`.
 # The environment is installed at build time, so `uv run` must not try to modify it.
 FROM base AS dev
-ENV UV_NO_SYNC=1
+ENV UV_NO_SYNC=1 \
+    HF_HOME=/models/hf \
+    HF_HUB_OFFLINE=1 \
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    ORT_DISABLE_TELEMETRY=1
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --all-extras --no-install-project
 COPY --chown=app:app backend/ ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen \
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --all-extras \
     && chown app:app /app
 USER app
 EXPOSE 8000
