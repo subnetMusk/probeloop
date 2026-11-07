@@ -1,8 +1,14 @@
-"""Development client: run a text interview against a running backend.
+"""Command line tools.
 
     probeloop chat --type technical --language it --minutes 15
 
-Type the answer and press Enter. `/pause`, `/resume` and `/end` send the matching commands.
+runs a text interview against a running backend: type the answer and press Enter; `/pause`,
+`/resume` and `/end` send the matching commands.
+
+    probeloop import-sessions
+
+moves the sessions written by the file-based store used before the database (M4) into the
+database. Their audio stays where it is.
 """
 
 from __future__ import annotations
@@ -93,8 +99,37 @@ def main() -> None:
     chat_parser.add_argument("--difficulty", default="medium", choices=["easy", "medium", "hard"])
     chat_parser.add_argument("--language", default="it", choices=["it", "en"])
     chat_parser.add_argument("--minutes", type=int, default=15)
+    sub.add_parser("import-sessions", help="move sessions from the old file store to the database")
     args = parser.parse_args()
+    if args.command == "import-sessions":
+        sys.exit(asyncio.run(import_sessions()))
     sys.exit(asyncio.run(chat(args)))
+
+
+async def import_sessions() -> int:
+    # Imported here: the chat client does not need the database stack.
+    from probeloop.settings import Settings
+    from probeloop.storage.database import create_engine, migrate, sessionmaker
+    from probeloop.storage.legacy_import import import_file_sessions
+    from probeloop.storage.session_files import SessionFiles
+    from probeloop.storage.sql_sessions import SqlSessionStore
+
+    settings = Settings()
+    engine = create_engine(settings.effective_database_url)
+    try:
+        await migrate(engine)
+        root = settings.data_dir / "sessions"
+        store = SqlSessionStore(sessionmaker(engine), SessionFiles(root))
+        result = await import_file_sessions(root, store)
+    finally:
+        await engine.dispose()
+    print(
+        f"imported {len(result.imported)}, already present {len(result.skipped)}, "
+        f"unreadable {len(result.failed)}"
+    )
+    for session_id in result.failed:
+        print(f"  unreadable: {session_id}")
+    return 1 if result.failed else 0
 
 
 if __name__ == "__main__":

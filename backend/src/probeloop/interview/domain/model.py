@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 MAX_CUSTOM_INSTRUCTIONS = 1000
@@ -127,13 +127,72 @@ class InterviewerTurn:
     speaker: Speaker = Speaker.INTERVIEWER
 
 
+class RevisionSource(StrEnum):
+    STT = "stt"  # the live transcript, or the typed answer of a text interview
+    RETRANSCRIPTION = "retranscription"  # a later pass over the stored audio
+    USER_EDIT = "user_edit"
+
+
+@dataclass(frozen=True, slots=True)
+class TranscriptWord:
+    text: str
+    start_s: float
+    end_s: float
+    probability: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TranscriptRevision:
+    number: int
+    text: str
+    source: RevisionSource
+    created_at: float
+    engine_ref: str | None = None
+    words: tuple[TranscriptWord, ...] = ()
+
+
 @dataclass(frozen=True, slots=True)
 class CandidateTurn:
+    """An answer. Its text is the latest revision; earlier ones are kept for provenance."""
+
     seq: int
     at: float
     elapsed_s: float
-    text: str
+    revisions: tuple[TranscriptRevision, ...]
     speaker: Speaker = Speaker.CANDIDATE
+
+    def __post_init__(self) -> None:
+        if not self.revisions:
+            raise InvalidConfigError("an answer needs at least one transcript revision")
+        if [r.number for r in self.revisions] != list(range(1, len(self.revisions) + 1)):
+            raise InvalidConfigError("transcript revisions must be numbered from 1")
+
+    @property
+    def text(self) -> str:
+        return self.revisions[-1].text
+
+    @property
+    def current(self) -> TranscriptRevision:
+        return self.revisions[-1]
+
+    def revised(
+        self,
+        text: str,
+        source: RevisionSource,
+        now: float,
+        *,
+        engine_ref: str | None = None,
+        words: tuple[TranscriptWord, ...] = (),
+    ) -> CandidateTurn:
+        revision = TranscriptRevision(
+            number=len(self.revisions) + 1,
+            text=" ".join(text.split()),
+            source=source,
+            created_at=now,
+            engine_ref=engine_ref,
+            words=words,
+        )
+        return replace(self, revisions=(*self.revisions, revision))
 
 
 type Turn = InterviewerTurn | CandidateTurn
@@ -261,14 +320,55 @@ class InterviewSession:
         self._require_phase(Phase.CANDIDATE_SPEAKING)
         self.phase = Phase.FINALIZING_TRANSCRIPT
 
-    def record_answer(self, text: str, now: float) -> None:
+    def record_answer(
+        self,
+        text: str,
+        now: float,
+        *,
+        engine_ref: str | None = None,
+        words: tuple[TranscriptWord, ...] = (),
+    ) -> None:
         self._require_phase(Phase.FINALIZING_TRANSCRIPT)
+        revision = TranscriptRevision(
+            number=1,
+            text=text.strip(),
+            source=RevisionSource.STT,
+            created_at=now,
+            engine_ref=engine_ref,
+            words=words,
+        )
         self.turns.append(
             CandidateTurn(
-                seq=len(self.turns), at=now, elapsed_s=self.elapsed_s(now), text=text.strip()
+                seq=len(self.turns), at=now, elapsed_s=self.elapsed_s(now), revisions=(revision,)
             )
         )
         self.phase = Phase.INTERVIEWER_THINKING
+
+    def revise_answer(
+        self,
+        seq: int,
+        text: str,
+        source: RevisionSource,
+        now: float,
+        *,
+        engine_ref: str | None = None,
+        words: tuple[TranscriptWord, ...] = (),
+    ) -> CandidateTurn:
+        """Add a transcript revision to an answer of a finished interview."""
+        if not self.is_terminal:
+            raise InvalidTransitionError("answers can be revised only after the interview")
+        if source is RevisionSource.STT:
+            raise InvalidConfigError("the live transcript is always the first revision")
+        if not 0 <= seq < len(self.turns) or not isinstance(self.turns[seq], CandidateTurn):
+            raise InvalidConfigError(f"turn {seq} is not an answer")
+        turn = self.turns[seq]
+        assert isinstance(turn, CandidateTurn)
+        revised = turn.revised(text, source, now, engine_ref=engine_ref, words=words)
+        self.turns[seq] = revised
+        return revised
+
+    def candidate_turns(self) -> list[CandidateTurn]:
+        return [t for t in self.turns if isinstance(t, CandidateTurn)]
 
     def pause(self, now: float, *, partial_move: InterviewerMove | None = None) -> None:
         """Pause the interview. A move cut short while it was being generated may be kept."""

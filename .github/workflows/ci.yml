@@ -46,6 +46,18 @@ jobs:
       - name: Tests
         run: docker run --rm probeloop-backend:dev pytest -q
 
+      # The store and migration tests run again on PostgreSQL, so that SQLite-only constructs
+      # cannot slip in (ADR 0004). A throwaway server without a password, on its own network.
+      - name: Store tests on PostgreSQL
+        run: |
+          docker network create pg
+          docker run -d --name pg --network pg -e POSTGRES_USER=probeloop             -e POSTGRES_DB=probeloop_test -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          for i in $(seq 1 60); do
+            if docker exec pg pg_isready -h 127.0.0.1 -U probeloop; then break; fi
+            sleep 1
+          done
+          docker run --rm --network pg             -e PROBELOOP_TEST_DATABASE_URL=postgresql+asyncpg://probeloop@pg:5432/probeloop_test             probeloop-backend:dev pytest -q tests/storage -k postgresql
+
       # The frontend's TypeScript types are generated from the backend's API contract.
       - name: API contract and generated types are up to date
         run: |

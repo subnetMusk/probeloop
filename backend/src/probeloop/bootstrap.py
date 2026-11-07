@@ -7,20 +7,29 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from sqlalchemy.ext.asyncio import AsyncEngine
+
 from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
+from probeloop.ids import new_id
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
 from probeloop.interview.application.service import SessionService
+from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptService
 from probeloop.interview.application.voice import VoiceServices
-from probeloop.interview.domain.model import Language
+from probeloop.interview.domain.model import InterviewSession, Language, Modality
+from probeloop.platform.jobs import JobRunner
 from probeloop.settings import Settings
 from probeloop.speech.fake import FakeSpeechToText, FakeTextToSpeech
 from probeloop.speech.http_stt import HttpSpeechToText
 from probeloop.speech.piper import PiperTextToSpeech
+from probeloop.speech.ports import SpeechToText
 from probeloop.speech.silero import SileroVad
-from probeloop.storage.file_store import FileSessionStore
+from probeloop.storage.database import create_engine, migrate, sessionmaker
+from probeloop.storage.session_files import SessionFiles
+from probeloop.storage.sql_jobs import SqlJobRepository
+from probeloop.storage.sql_sessions import SqlSessionStore
 
 
 class SystemClock:
@@ -33,6 +42,20 @@ class Container:
     settings: Settings
     model: ChatModel
     sessions: SessionService
+    transcripts: TranscriptService
+    jobs: JobRunner
+    store: SqlSessionStore
+    engine: AsyncEngine
+
+    async def startup(self) -> None:
+        """Bring the schema up to date, then resume the background jobs."""
+        await migrate(self.engine)
+        await self.jobs.start()
+
+    async def shutdown(self) -> None:
+        await self.sessions.shutdown()
+        await self.jobs.stop()
+        await self.engine.dispose()
 
 
 def build_voice(settings: Settings) -> VoiceServices | None:
@@ -109,10 +132,47 @@ def build(
         model = DebugLogChatModel(model, settings.data_dir / "logs" / "llm.jsonl")
     if voice is None:
         voice = build_voice(settings)
+    clock = SystemClock()
+    engine = create_engine(settings.effective_database_url)
+    db = sessionmaker(engine)
+    store = SqlSessionStore(db, SessionFiles(settings.data_dir / "sessions"))
+    transcripts = TranscriptService(store=store, clock=clock, refiner=build_refiner(settings))
+    holder: dict[str, SessionService] = {}
+
+    async def gate() -> None:
+        await holder["sessions"].wait_until_idle()
+
+    jobs = JobRunner(SqlJobRepository(db), now=clock.now, new_id=new_id, gate=gate)
+    jobs.register(REFINE_JOB, transcripts.refine)
+
+    async def on_finished(session: InterviewSession) -> None:
+        if session.config.modality is Modality.VOICE and transcripts.can_refine:
+            await jobs.submit(REFINE_JOB, session.id)
+
     sessions = SessionService(
-        store=FileSessionStore(settings.data_dir / "sessions"),
+        store=store,
         interviewer=LlmInterviewer(model),
-        clock=SystemClock(),
+        clock=clock,
         voice=voice,
+        on_finished=on_finished,
     )
-    return Container(settings=settings, model=model, sessions=sessions)
+    holder["sessions"] = sessions
+    return Container(
+        settings=settings,
+        model=model,
+        sessions=sessions,
+        transcripts=transcripts,
+        jobs=jobs,
+        store=store,
+        engine=engine,
+    )
+
+
+def build_refiner(settings: Settings) -> SpeechToText | None:
+    """The accurate recogniser of the refinement pass after the call."""
+    if settings.speech_fake:
+        return FakeSpeechToText()
+    if settings.stt_url:
+        # The first call loads Whisper in the worker, which takes minutes on a cold start.
+        return HttpSpeechToText(settings.stt_url, engine="refine", timeout_s=900.0)
+    return None

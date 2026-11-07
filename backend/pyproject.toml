@@ -16,6 +16,10 @@ dependencies = [
   "pysilero-vad>=3.4",
   "httpx>=0.28",
   "numpy>=2.3",
+  "sqlalchemy[asyncio]>=2.0.44",
+  "aiosqlite>=0.21",
+  "asyncpg>=0.30",
+  "alembic>=1.17",
 ]
 
 [project.optional-dependencies]
@@ -98,6 +102,8 @@ forbidden_modules = [
   "ollama",
   "jinja2",
   "yaml",
+  "sqlalchemy",
+  "alembic",
   "probeloop.ai",
   "probeloop.speech",
   "probeloop.storage",
@@ -146,4 +152,33 @@ forbidden_modules = [
   "starlette",
   "pydantic",
   "httpx",
+]
+
+[[tool.importlinter.contracts]]
+name = "Interview use cases do not import adapters"
+type = "forbidden"
+source_modules = ["probeloop.interview.application"]
+forbidden_modules = [
+  "probeloop.storage",
+  "probeloop.api",
+  "probeloop.bootstrap",
+  "sqlalchemy",
+  "alembic",
+  "fastapi",
+  "starlette",
+]
+
+[[tool.importlinter.contracts]]
+name = "Platform services do not depend on business modules"
+type = "forbidden"
+source_modules = ["probeloop.platform"]
+forbidden_modules = [
+  "probeloop.interview",
+  "probeloop.speech",
+  "probeloop.ai",
+  "probeloop.storage",
+  "probeloop.api",
+  "probeloop.bootstrap",
+  "sqlalchemy",
+  "fastapi",
 ]

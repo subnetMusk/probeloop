@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+from probeloop.ids import new_id as uuid7_hex
 from probeloop.interview.application.events import SentenceAudio, SessionEvent
 from probeloop.interview.application.orchestrator import SessionOrchestrator
 from probeloop.interview.application.ports import Clock, Interviewer, SessionStore, SessionSummary
@@ -94,9 +94,11 @@ class SessionService:
         interviewer: Interviewer,
         clock: Clock,
         voice: VoiceServices | None = None,
-        new_id: Callable[[], str] = lambda: uuid.uuid4().hex,
+        new_id: Callable[[], str] = uuid7_hex,
+        on_finished: Callable[[InterviewSession], Awaitable[None]] | None = None,
     ) -> None:
         self._store = store
+        self._on_finished = on_finished
         self._interviewer = interviewer
         self._clock = clock
         self._voice = voice
@@ -125,7 +127,8 @@ class SessionService:
 
     async def get(self, session_id: str) -> InterviewSession:
         live = self._live.get(session_id)
-        if live is not None:
+        if live is not None and not live.orchestrator.session.is_terminal:
+            # A finished session may have been revised since; the store has the current state.
             return live.orchestrator.session
         session = await self._store.load(session_id)
         if session is None:
@@ -152,6 +155,16 @@ class SessionService:
     async def resume(self, session_id: str) -> None:
         self._require_no_other_active(session_id)
         await self._live_orchestrator(session_id).resume()
+
+    def any_active(self) -> bool:
+        return any(live.orchestrator.is_active for live in self._live.values())
+
+    async def wait_until_idle(self, poll_s: float = 2.0) -> None:
+        """Return once no interview is starting or in progress (the gate of background jobs)."""
+        # Polling: activity changes inside the orchestrators, which do not signal it, and a
+        # delay of a few seconds before a background job starts does not matter.
+        while self.any_active():  # noqa: ASYNC110
+            await asyncio.sleep(poll_s)
 
     def _require_no_other_active(self, session_id: str) -> None:
         for other_id, live in self._live.items():
@@ -182,6 +195,7 @@ class SessionService:
                     clock=self._clock,
                     sink=log.publish,
                     voice=self._voice,
+                    on_finished=self._on_finished,
                 )
                 live = LiveSession(orchestrator=orchestrator, log=log)
                 self._live[session_id] = live

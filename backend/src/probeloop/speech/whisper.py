@@ -9,6 +9,10 @@ filtering and no conditioning on previous text.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import ctypes
+import gc
+import sys
 import threading
 from typing import Any
 
@@ -45,6 +49,17 @@ class WhisperSpeechToText:
     @property
     def engine_ref(self) -> str:
         return f"faster-whisper/{self._model_name}/{self._compute_type}/beam{self._beam_size}"
+
+    @property
+    def loaded(self) -> bool:
+        return self._model is not None
+
+    def unload(self) -> None:
+        """Release the model's memory. A later call loads it again."""
+        with self._lock:
+            self._model = None
+        gc.collect()
+        _return_freed_memory()
 
     def load(self) -> None:
         """Load the model (downloading it if the Hugging Face cache allows). Idempotent."""
@@ -104,3 +119,10 @@ class WhisperSpeechToText:
                 )
             )
         return out
+
+
+def _return_freed_memory() -> None:
+    """glibc keeps freed memory for reuse; give it back to the system once the model is gone."""
+    if sys.platform == "linux":
+        with contextlib.suppress(OSError):
+            ctypes.CDLL("libc.so.6").malloc_trim(0)

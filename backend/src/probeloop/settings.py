@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PROBELOOP_", env_file=None)
 
     data_dir: Path = Path("/data")
+    # SQLite in the data volume by default; for PostgreSQL, e.g.
+    # postgresql+asyncpg://probeloop:secret@postgres:5432/probeloop
+    database_url: str | None = None
     log_level: str = "INFO"
     static_dir: Path | None = None  # the built SPA; the runtime image sets /app/static
 
@@ -37,3 +40,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+
+    @property
+    def effective_database_url(self) -> str:
+        return self.database_url or f"sqlite+aiosqlite:///{self.data_dir / 'probeloop.db'}"

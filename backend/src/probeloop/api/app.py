@@ -30,6 +30,8 @@ from probeloop.ai.ports import LlmError
 from probeloop.api.schemas import (
     MAX_AUDIO_FRAME_BYTES,
     CreateSession,
+    EditAnswer,
+    JobView,
     JoinMessage,
     SessionSummaryView,
     SessionView,
@@ -48,8 +50,10 @@ from probeloop.interview.application.service import (
     SessionBusyError,
     SessionNotFoundError,
 )
+from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptNotFoundError
 from probeloop.interview.domain.model import (
     InterviewConfig,
+    InterviewSession,
     InvalidConfigError,
     InvalidTransitionError,
     Language,
@@ -73,17 +77,22 @@ def create_app(container: Container | None = None) -> FastAPI:
     settings = container.settings
     sessions = container.sessions
 
+    transcripts = container.transcripts
+    jobs = container.jobs
+    store = container.store
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        await container.startup()
         yield
-        await sessions.shutdown()
+        await container.shutdown()
 
     app = FastAPI(title="ProbeLoop", version="0.1.0", lifespan=lifespan)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
-        allow_methods=["GET", "POST", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Content-Type"],
     )
 
@@ -134,7 +143,7 @@ def create_app(container: Container | None = None) -> FastAPI:
                 candidate_brief=body.candidate_brief,
                 job_brief=body.job_brief,
             )
-            return SessionView.of(await sessions.create(config, context))
+            return session_view(await sessions.create(config, context))
         except InvalidConfigError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -142,12 +151,67 @@ def create_app(container: Container | None = None) -> FastAPI:
     async def list_sessions() -> list[SessionSummaryView]:
         return [SessionSummaryView.of(s) for s in await sessions.summaries()]
 
+    def session_view(session: InterviewSession) -> SessionView:
+        def audio(seq: int, speaker: str) -> str | None:
+            name = f"audio/turn-{seq:04d}-{speaker}.wav"
+            if store.artifact(session.id, name) is None:
+                return None
+            return f"/api/sessions/{session.id}/files/{name}"
+
+        return SessionView.of(session, audio)
+
     @app.get("/api/sessions/{session_id}")
     async def get_session(session_id: str) -> SessionView:
         try:
-            return SessionView.of(await sessions.get(session_id))
+            return session_view(await sessions.get(session_id))
         except (SessionNotFoundError, ValueError) as exc:
             raise HTTPException(status_code=404, detail="session not found") from exc
+
+    @app.put("/api/sessions/{session_id}/answers/{turn_seq}", dependencies=[Depends(require_json)])
+    async def edit_answer(session_id: str, turn_seq: int, body: EditAnswer) -> SessionView:
+        """Correct the transcript of an answer: the text becomes a new revision."""
+        try:
+            await transcripts.edit(session_id, turn_seq, body.text)
+            return session_view(await sessions.get(session_id))
+        except (TranscriptNotFoundError, SessionNotFoundError) as exc:
+            raise HTTPException(status_code=404, detail="session not found") from exc
+        except (InvalidTransitionError, InvalidConfigError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/sessions/{session_id}/refine", status_code=202)
+    async def refine_transcript(session_id: str) -> JobView:
+        """Transcribe the answers again from their audio, with the accurate recogniser."""
+        try:
+            session = await sessions.get(session_id)
+        except (SessionNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail="session not found") from exc
+        if not session.is_terminal:
+            raise HTTPException(status_code=409, detail="the interview is not over")
+        if not transcripts.can_refine:
+            raise HTTPException(status_code=503, detail="speech recognition is not configured")
+        return JobView.of(await jobs.submit(REFINE_JOB, session_id))
+
+    @app.get("/api/sessions/{session_id}/jobs")
+    async def session_jobs(session_id: str) -> list[JobView]:
+        return [JobView.of(j) for j in await jobs.for_subject(session_id)]
+
+    @app.get("/api/sessions/{session_id}/metrics")
+    async def session_metrics(session_id: str) -> list[dict[str, Any]]:
+        return await store.metrics(session_id)
+
+    @app.get("/api/sessions/{session_id}/files/{name:path}")
+    async def session_file(session_id: str, name: str) -> FileResponse:
+        path = store.artifact(session_id, name)
+        if path is None:
+            raise HTTPException(status_code=404, detail="file not found")
+        return FileResponse(path, headers={"Cache-Control": "no-cache"})
+
+    @app.get("/api/jobs/{job_id}")
+    async def get_job(job_id: str) -> JobView:
+        job = await jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        return JobView.of(job)
 
     @app.delete("/api/sessions/{session_id}", status_code=204)
     async def delete_session(session_id: str) -> Response:

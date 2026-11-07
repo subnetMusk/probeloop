@@ -141,8 +141,15 @@ def test_a_voice_interview_over_the_websocket(client: TestClient, tmp_path: Path
     assert stored.data == ANSWER
     question = from_wav((directory / "audio" / "turn-0000-interviewer.wav").read_bytes())
     assert question.sample_rate == 22_050
-    (metrics,) = (directory / "metrics.jsonl").read_text("utf-8").splitlines()
-    assert json.loads(metrics)["answer_turn_seq"] == 1
+    (metrics,) = client.get(f"/api/sessions/{session_id}/metrics").json()
+    assert metrics["answer_turn_seq"] == 1
+    answer = view["turns"][1]
+    assert answer["audio"] == f"/api/sessions/{session_id}/files/audio/turn-0001-candidate.wav"
+    assert [r["source"] for r in answer["revisions"]] == ["stt"]
+    served = client.get(answer["audio"])
+    assert served.status_code == 200
+    assert from_wav(served.content).data == ANSWER
+    assert client.get(f"/api/sessions/{session_id}/files/session.json").status_code == 404
 
     transcript = json.loads((directory / "transcript.json").read_text("utf-8"))
     assert transcript["audio"] == "audio/interview.wav"

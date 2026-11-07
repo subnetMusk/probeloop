@@ -19,7 +19,7 @@ import logging
 import time
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal, Protocol, runtime_checkable
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -60,17 +60,38 @@ class WorkerSettings(BaseSettings):
     refine_compute_type: str = "int8"
     refine_beam_size: int = 1
     preload_refine: bool = False
+    # Whisper takes about 1 GB. It is used after an interview, so it is released once idle
+    # instead of staying in memory during the next one. 0 keeps it loaded.
+    refine_idle_unload_s: float = 120.0
+
+
+@runtime_checkable
+class Unloadable(Protocol):
+    @property
+    def loaded(self) -> bool: ...
+
+    def unload(self) -> None: ...
 
 
 def create_worker_app(
-    engines: Mapping[Engine, SpeechToText], *, preload: Sequence[Engine] = ()
+    engines: Mapping[Engine, SpeechToText],
+    *,
+    preload: Sequence[Engine] = (),
+    idle_unload_s: Mapping[Engine, float] | None = None,
+    idle_check_s: float = 10.0,
 ) -> FastAPI:
     """Serve `engines`. The engines in `preload` are loaded at startup; until then the worker
-    is not healthy, so Compose and the backend can tell a loading worker from a ready one."""
+    is not healthy, so Compose and the backend can tell a loading worker from a ready one.
+
+    An engine listed in `idle_unload_s` is unloaded once it has not been used for that long; the
+    next request loads it again.
+    """
     state: dict[str, Literal["loading", "ready", "failed"]] = {
         "status": "loading" if preload else "ready"
     }
     lock = asyncio.Lock()
+    last_used: dict[Engine, float] = {}
+    unload_after = {k: v for k, v in (idle_unload_s or {}).items() if v > 0}
 
     async def warm_up() -> None:
         for name in preload:
@@ -92,11 +113,28 @@ def create_worker_app(
             )
         state["status"] = "ready"
 
+    async def unload_idle() -> None:
+        while True:
+            await asyncio.sleep(idle_check_s)
+            for name, after_s in unload_after.items():
+                engine = engines.get(name)
+                used = last_used.get(name)
+                if not isinstance(engine, Unloadable) or used is None:
+                    continue
+                if engine.loaded and time.monotonic() - used >= after_s:
+                    async with lock:
+                        await asyncio.to_thread(engine.unload)
+                    logger.info("idle speech engine unloaded", extra={"engine": name})
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        task = asyncio.create_task(warm_up()) if preload else None
+        tasks = []
+        if preload:
+            tasks.append(asyncio.create_task(warm_up()))
+        if unload_after:
+            tasks.append(asyncio.create_task(unload_idle()))
         yield
-        if task is not None:
+        for task in tasks:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
@@ -142,6 +180,7 @@ def create_worker_app(
                 logger.warning("transcription failed", extra={"engine": engine, "error": str(exc)})
                 raise HTTPException(status_code=503, detail="speech recognition failed") from exc
             elapsed = time.perf_counter() - started
+            last_used[engine] = time.monotonic()
         logger.info(
             "audio transcribed",
             extra={
@@ -209,7 +248,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         download(settings)
         return
     preload: list[Engine] = ["live", "refine"] if settings.preload_refine else ["live"]
-    app = create_worker_app(build_engines(settings), preload=preload)
+    app = create_worker_app(
+        build_engines(settings),
+        preload=preload,
+        idle_unload_s={"refine": settings.refine_idle_unload_s},
+    )
     # No access log: query strings carry the vocabulary prompt, which may come from the CV.
     uvicorn.run(app, host=settings.host, port=settings.port, access_log=False, log_config=None)
 

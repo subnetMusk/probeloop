@@ -12,7 +12,7 @@ from typing import Any
 
 from probeloop.interview.domain.model import CandidateTurn, InterviewSession
 
-EXPORT_VERSION = 1
+EXPORT_VERSION = 2  # 2: answers carry the number and source of their transcript revision
 
 
 def _iso(timestamp: float | None) -> str | None:
@@ -39,7 +39,13 @@ def transcript_document(
             "elapsed_s": round(turn.elapsed_s, 1),
         }
         if isinstance(turn, CandidateTurn):
-            entry["text"] = turn.text
+            current = turn.current
+            entry |= {
+                "text": turn.text,
+                "revision": current.number,
+                "revision_source": current.source.value,
+                "engine": current.engine_ref,
+            }
         else:
             move = turn.move
             entry |= {

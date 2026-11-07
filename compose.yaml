@@ -30,6 +30,9 @@ services:
       PROBELOOP_INTERVIEWER_MODEL: ${PROBELOOP_INTERVIEWER_MODEL:-ministral-3:8b}
       PROBELOOP_LLM_DEBUG_LOG: ${PROBELOOP_LLM_DEBUG_LOG:-false}
       PROBELOOP_DATA_DIR: /data
+      # Empty: SQLite in the data volume. With the `postgres` profile, for example
+      # postgresql+asyncpg://probeloop:<password>@postgres:5432/probeloop
+      PROBELOOP_DATABASE_URL: ${PROBELOOP_DATABASE_URL:-}
       PROBELOOP_STT_URL: http://stt-worker:8000
       PROBELOOP_TTS_URL: http://tts-piper:5000
       PROBELOOP_TTS_VOICE_IT: ${PROBELOOP_TTS_VOICE:-it_IT-serena-medium}
@@ -107,6 +110,25 @@ services:
     volumes:
       - ./var/voice-candidate:/io
 
+  # Optional PostgreSQL instead of SQLite:
+  #   PROBELOOP_POSTGRES_PASSWORD=... PROBELOOP_DATABASE_URL=postgresql+asyncpg://probeloop:...@postgres:5432/probeloop   #     docker compose --profile postgres up -d
+  # Sessions are not copied between the two databases.
+  postgres:
+    image: postgres:17-alpine
+    profiles: [postgres]
+    environment:
+      POSTGRES_USER: probeloop
+      POSTGRES_DB: probeloop
+      POSTGRES_PASSWORD: ${PROBELOOP_POSTGRES_PASSWORD:-}  # the server refuses to start without one
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks: [internal]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
 networks:
   internal:
     internal: true
@@ -116,3 +138,5 @@ volumes:
     name: probeloop_data
   models:
     name: probeloop_models
+  postgres:
+    name: probeloop_postgres

@@ -6,6 +6,7 @@ from dataclasses import replace
 import pytest
 
 from probeloop.interview.domain.model import (
+    CandidateTurn,
     EndReason,
     InterviewConfig,
     InterviewContext,
@@ -16,9 +17,11 @@ from probeloop.interview.domain.model import (
     MoveAction,
     MoveStatus,
     Phase,
+    RevisionSource,
     SessionStatus,
     Topic,
     TopicCoverage,
+    TranscriptRevision,
 )
 from tests.conftest import make_config, make_context, make_session
 
@@ -185,6 +188,40 @@ def test_answers_are_recorded_with_sequence_numbers() -> None:
     s.record_answer("  Ho lavorato con FastAPI.  ", 50)
     assert [t.seq for t in s.turns] == [0, 1]
     assert s.turns[-1].text == "Ho lavorato con FastAPI."  # type: ignore[union-attr]
+
+
+def test_answers_get_numbered_revisions_once_the_interview_is_over() -> None:
+    s = in_phase(Phase.FINALIZING_TRANSCRIPT)
+    s.record_answer("Ho lavorato con fast api.", 50, engine_ref="live")
+    with pytest.raises(InvalidTransitionError, match="after the interview"):
+        s.revise_answer(1, "x", RevisionSource.USER_EDIT, 51)
+    s.end(EndReason.USER_ENDED, 60)
+
+    s.revise_answer(1, "Ho lavorato con FastAPI.", RevisionSource.RETRANSCRIPTION, 70)
+    turn = s.revise_answer(1, " Ho  lavorato con FastAPI e Redis. ", RevisionSource.USER_EDIT, 80)
+    assert [(r.number, r.source.value) for r in turn.revisions] == [
+        (1, "stt"),
+        (2, "retranscription"),
+        (3, "user_edit"),
+    ]
+    assert turn.text == "Ho lavorato con FastAPI e Redis."
+    assert turn.revisions[0].engine_ref == "live"
+    assert s.turns[1] is turn
+
+    with pytest.raises(InvalidConfigError, match="not an answer"):
+        s.revise_answer(0, "x", RevisionSource.USER_EDIT, 90)
+    with pytest.raises(InvalidConfigError, match="not an answer"):
+        s.revise_answer(7, "x", RevisionSource.USER_EDIT, 90)
+    with pytest.raises(InvalidConfigError, match="first revision"):
+        s.revise_answer(1, "x", RevisionSource.STT, 90)
+
+
+def test_revisions_must_be_numbered_from_one() -> None:
+    first = TranscriptRevision(1, "a", RevisionSource.STT, 0)
+    with pytest.raises(InvalidConfigError):
+        CandidateTurn(seq=1, at=0, elapsed_s=0, revisions=())
+    with pytest.raises(InvalidConfigError):
+        CandidateTurn(seq=1, at=0, elapsed_s=0, revisions=(first, first))
 
 
 def test_config_validation() -> None:

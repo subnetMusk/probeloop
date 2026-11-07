@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from pathlib import Path
+from typing import Any, Protocol
 
 from probeloop.interview.domain.model import (
     InterviewConfig,
@@ -64,6 +65,7 @@ class SessionSummary:
     status: SessionStatus
     interview_type: str
     language: str
+    ended_at: float | None = None
 
 
 class SessionStore(Protocol):
@@ -81,8 +83,19 @@ class SessionStore(Protocol):
         """Keep the audio of one turn: answers can be transcribed again later."""
         ...
 
+    async def load_turn_audio(
+        self, session_id: str, turn_seq: int, speaker: Speaker
+    ) -> PcmAudio | None: ...
+
     async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None: ...
 
-    async def export(self, session: InterviewSession) -> None:
-        """Write what a finished interview leaves: the full transcript and the whole audio."""
+    async def metrics(self, session_id: str) -> list[dict[str, Any]]: ...
+
+    async def export(self, session: InterviewSession, *, audio: bool = True) -> None:
+        """Write what a finished interview leaves: the full transcript and, with `audio`, the
+        whole conversation in one audio file. Written again when an answer is revised."""
+        ...
+
+    def artifact(self, session_id: str, name: str) -> Path | None:
+        """A downloadable file of the session (an export or a turn's audio), if it exists."""
         ...

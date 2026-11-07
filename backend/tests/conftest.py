@@ -6,6 +6,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pytest
 
@@ -78,11 +79,21 @@ class MemoryStore:
         self.audio[(session_id, turn_seq)] = audio
         self.speakers[(session_id, turn_seq)] = speaker.value
 
-    async def export(self, session: InterviewSession) -> None:
+    async def load_turn_audio(
+        self, session_id: str, turn_seq: int, speaker: Speaker
+    ) -> PcmAudio | None:
+        if self.speakers.get((session_id, turn_seq)) != speaker.value:
+            return None
+        return self.audio.get((session_id, turn_seq))
+
+    async def export(self, session: InterviewSession, *, audio: bool = True) -> None:
         self.exports.append(session.id)
 
     async def append_metrics(self, session_id: str, record: Mapping[str, object]) -> None:
         self.metrics.append(dict(record))
+
+    def artifact(self, session_id: str, name: str) -> Path | None:
+        return None
 
 
 @dataclass

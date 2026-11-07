@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -20,7 +21,12 @@ ORIGIN = "http://127.0.0.1:8000"
 
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
-    settings = Settings(data_dir=tmp_path, allowed_hosts=["testserver", "127.0.0.1"])
+    settings = Settings(
+        data_dir=tmp_path,
+        allowed_hosts=["testserver", "127.0.0.1"],
+        stt_url=None,  # no speech services, whatever the environment says
+        tts_url=None,
+    )
     model = FakeChatModel(
         [
             "{",  # warm-up request
@@ -111,6 +117,72 @@ def test_text_interview_over_websocket(client: TestClient) -> None:
     assert [t["speaker"] for t in view["turns"]] == ["interviewer", "candidate", "interviewer"]
 
 
+def finish_text_interview(client: TestClient) -> str:
+    session_id = create(client)
+    with client.websocket_connect(f"/ws/sessions/{session_id}") as ws:
+        send(ws, "session.join")
+        send(ws, "session.start")
+        receive_until(ws, "state.changed", phase="interviewer_speaking")
+        send(ws, "playback.finished")
+        receive_until(ws, "state.changed", phase="awaiting_candidate")
+        send(ws, "turn.start")
+        send(ws, "turn.end", text="Uso fast api.")
+        receive_until(ws, "state.changed", phase="interviewer_speaking")
+        send(ws, "playback.finished")
+        receive_until(ws, "session.ended")
+    return session_id
+
+
+def test_answers_are_corrected_as_new_revisions(client: TestClient, tmp_path: Path) -> None:
+    session_id = finish_text_interview(client)
+    response = client.put(f"/api/sessions/{session_id}/answers/1", json={"text": "Uso FastAPI."})
+    assert response.status_code == 200, response.text
+    answer = response.json()["turns"][1]
+    assert answer["text"] == "Uso FastAPI."
+    assert [(r["number"], r["source"]) for r in answer["revisions"]] == [
+        (1, "stt"),
+        (2, "user_edit"),
+    ]
+    exported = (tmp_path / "sessions" / session_id / "transcript.md").read_text("utf-8")
+    assert "> Uso FastAPI." in exported
+
+    assert (
+        client.put(f"/api/sessions/{session_id}/answers/0", json={"text": "x"}).status_code == 422
+    )
+    assert client.put(f"/api/sessions/{'0' * 32}/answers/1", json={"text": "x"}).status_code == 404
+    long_text = {"text": "x" * 8001}
+    assert client.put(f"/api/sessions/{session_id}/answers/1", json=long_text).status_code == 422
+
+
+def test_refinement_needs_a_recogniser(client: TestClient) -> None:
+    session_id = finish_text_interview(client)
+    assert client.post(f"/api/sessions/{session_id}/refine").status_code == 503
+    assert client.get(f"/api/sessions/{session_id}/jobs").json() == []
+    assert client.get(f"/api/jobs/{'0' * 32}").status_code == 404
+    running = create(client)
+    assert client.post(f"/api/sessions/{running}/refine").status_code == 409
+
+
+def test_refinement_runs_as_a_polled_job(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path, allowed_hosts=["testserver"], speech_fake=True)
+    model = FakeChatModel(
+        ["{", move_json("new_topic", "t1", "Mi parli di lei?"), move_json("end", "t6", "Grazie.")]
+    )
+    with TestClient(create_app(build(settings, model=model))) as client:
+        session_id = finish_text_interview(client)
+        job = client.post(f"/api/sessions/{session_id}/refine")
+        assert job.status_code == 202
+        for _ in range(100):
+            polled = client.get(f"/api/jobs/{job.json()['id']}").json()
+            if polled["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.02)
+        assert polled["status"] == "succeeded", polled
+        assert polled["result"] == {"revised": 0, "skipped": 1, "vocabulary": False}
+        jobs = client.get(f"/api/sessions/{session_id}/jobs").json()
+        assert [j["kind"] for j in jobs] == ["refine_transcript"]
+
+
 def test_invalid_commands_are_reported(client: TestClient) -> None:
     session_id = create(client)
     with client.websocket_connect(f"/ws/sessions/{session_id}") as ws:
@@ -142,6 +214,11 @@ def test_disconnect_pauses_and_reconnect_replays(client: TestClient) -> None:
         send(ws, "session.join")
         send(ws, "session.start")
         last = receive_until(ws, "interviewer.move.completed")["seq"]
+    # The server pauses the session when it notices the disconnection, in the background.
+    for _ in range(100):
+        if client.get(f"/api/sessions/{session_id}").json()["status"] == "paused":
+            break
+        time.sleep(0.02)
     assert client.get(f"/api/sessions/{session_id}").json()["status"] == "paused"
 
     with client.websocket_connect(f"/ws/sessions/{session_id}") as ws:

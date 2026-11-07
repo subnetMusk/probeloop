@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -34,6 +35,7 @@ from probeloop.interview.domain.model import (
     Phase,
     SessionStatus,
 )
+from probeloop.platform.jobs import Job
 
 MAX_BRIEF = 4000
 MAX_ANSWER = 8000
@@ -58,6 +60,21 @@ class CreateSession(Strict):
     job_brief: str | None = Field(default=None, max_length=MAX_BRIEF)
 
 
+class WordView(BaseModel):
+    text: str
+    start_s: float
+    end_s: float
+    probability: float | None
+
+
+class RevisionView(BaseModel):
+    number: int
+    text: str
+    source: str
+    created_at: float
+    engine_ref: str | None
+
+
 class TurnView(BaseModel):
     seq: int
     speaker: Literal["interviewer", "candidate"]
@@ -66,6 +83,45 @@ class TurnView(BaseModel):
     action: str | None = None
     topic_id: str | None = None
     status: str | None = None
+    # Answers only: every transcript revision, and the words of the current one when the
+    # recogniser reported them (with their probability, to highlight doubtful words).
+    revisions: list[RevisionView]
+    words: list[WordView]
+    audio: str | None  # URL of the turn's audio, when it was kept
+
+
+class EditAnswer(Strict):
+    text: str = Field(max_length=MAX_ANSWER)
+
+
+class JobView(BaseModel):
+    id: str
+    kind: str
+    subject_id: str
+    status: str
+    progress: float
+    message: str | None
+    error: str | None
+    result: dict[str, Any] | None
+    created_at: float
+    started_at: float | None
+    finished_at: float | None
+
+    @classmethod
+    def of(cls, job: Job) -> JobView:
+        return cls(
+            id=job.id,
+            kind=job.kind,
+            subject_id=job.subject_id,
+            status=job.status.value,
+            progress=round(job.progress, 3),
+            message=job.message,
+            error=job.error,
+            result=dict(job.result) if job.result is not None else None,
+            created_at=job.created_at,
+            started_at=job.started_at,
+            finished_at=job.finished_at,
+        )
 
 
 class SessionView(BaseModel):
@@ -85,12 +141,40 @@ class SessionView(BaseModel):
     turns: list[TurnView]
 
     @classmethod
-    def of(cls, s: InterviewSession) -> SessionView:
+    def of(
+        cls, s: InterviewSession, audio: Callable[[int, str], str | None] = lambda _s, _p: None
+    ) -> SessionView:
+        """`audio(seq, speaker)` gives the URL of a turn's audio, if it was kept."""
         turns = []
         for t in s.turns:
             if isinstance(t, CandidateTurn):
                 turns.append(
-                    TurnView(seq=t.seq, speaker="candidate", elapsed_s=t.elapsed_s, text=t.text)
+                    TurnView(
+                        seq=t.seq,
+                        speaker="candidate",
+                        elapsed_s=t.elapsed_s,
+                        text=t.text,
+                        revisions=[
+                            RevisionView(
+                                number=r.number,
+                                text=r.text,
+                                source=r.source.value,
+                                created_at=r.created_at,
+                                engine_ref=r.engine_ref,
+                            )
+                            for r in t.revisions
+                        ],
+                        words=[
+                            WordView(
+                                text=w.text,
+                                start_s=w.start_s,
+                                end_s=w.end_s,
+                                probability=w.probability,
+                            )
+                            for w in t.current.words
+                        ],
+                        audio=audio(t.seq, "candidate"),
+                    )
                 )
             else:
                 turns.append(
@@ -102,6 +186,9 @@ class SessionView(BaseModel):
                         action=t.move.action.value,
                         topic_id=t.move.topic_id,
                         status=t.move.status.value,
+                        revisions=[],
+                        words=[],
+                        audio=audio(t.seq, "interviewer"),
                     )
                 )
         return cls(
@@ -134,6 +221,7 @@ class SessionSummaryView(BaseModel):
     status: str
     interview_type: str
     language: str
+    ended_at: float | None
 
     @classmethod
     def of(cls, s: SessionSummary) -> SessionSummaryView:
@@ -143,6 +231,7 @@ class SessionSummaryView(BaseModel):
             status=s.status.value,
             interview_type=s.interview_type,
             language=s.language,
+            ended_at=s.ended_at,
         )
 
 

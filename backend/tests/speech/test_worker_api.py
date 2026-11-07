@@ -218,3 +218,48 @@ def test_wire_format_round_trip() -> None:
     body = TranscriptionBody.of(transcription, processing_s=0.4)
     restored = TranscriptionBody.model_validate_json(body.model_dump_json()).to_transcription()
     assert restored == transcription
+
+
+@dataclass
+class UnloadableEngine:
+    loads: int = 0
+    unloads: int = 0
+    loaded: bool = False
+
+    @property
+    def engine_ref(self) -> str:
+        return "test:unloadable"
+
+    def unload(self) -> None:
+        self.loaded = False
+        self.unloads += 1
+
+    async def transcribe(self, audio: PcmAudio, options: TranscribeOptions) -> Transcription:
+        if not self.loaded:
+            self.loaded = True
+            self.loads += 1
+        return Transcription((), options.language, self.engine_ref)
+
+
+def test_an_idle_engine_is_unloaded_and_loaded_again_on_demand() -> None:
+    engine = UnloadableEngine()
+    app = create_worker_app({"refine": engine}, idle_unload_s={"refine": 0.05}, idle_check_s=0.02)
+    params = {"language": "it", "engine": "refine"}
+    headers = {"content-type": "application/octet-stream"}
+    with TestClient(app) as client:
+
+        def transcribe() -> bool:
+            response = client.post(
+                "/transcribe", params=params, content=bytes(320), headers=headers
+            )
+            return response.is_success
+
+        assert transcribe()
+        assert engine.loaded
+        for _ in range(100):
+            if not engine.loaded:
+                break
+            time.sleep(0.01)
+        assert (engine.loaded, engine.unloads) == (False, 1)
+        assert transcribe()
+        assert engine.loads == 2

@@ -104,10 +104,12 @@ class SessionOrchestrator:
         clock: Clock,
         sink: EventSink,
         voice: VoiceServices | None = None,
+        on_finished: Callable[[InterviewSession], Awaitable[None]] | None = None,
         llm_attempts: int = 2,
         timer: Callable[[], float] = time.perf_counter,
     ) -> None:
         self.session = session
+        self._on_finished = on_finished
         self._interviewer = interviewer
         self._store = store
         self._clock = clock
@@ -202,13 +204,15 @@ class SessionOrchestrator:
             now = self._clock.now()
             self.session.finish_answer(now)
             timing = None
+            engine_ref = None
             if text is None:
                 timing = await self._finish_spoken_answer()
                 text = timing.transcript.text
                 complete = timing.transcript.complete
+                engine_ref = timing.transcript.engine_ref
             else:
                 text, complete = text.strip(), True
-            self.session.record_answer(text, self._clock.now())
+            self.session.record_answer(text, self._clock.now(), engine_ref=engine_ref)
             turn = self.session.turns[-1]
             await self._emit(AnswerRecorded(turn_seq=turn.seq, text=text, complete=complete))
             await self._commit()
@@ -674,6 +678,13 @@ class SessionOrchestrator:
             await self._store.export(self.session)
         except Exception:  # the session itself is saved; only the export is missing
             logger.exception("interview export failed", extra={"session_id": self.session.id})
+        if self._on_finished is not None:
+            try:
+                await self._on_finished(self.session)
+            except Exception:  # follow-up work (refinement) can be started again by hand
+                logger.exception(
+                    "after-interview hook failed", extra={"session_id": self.session.id}
+                )
 
     async def _emit(self, event: SessionEvent) -> None:
         try:
