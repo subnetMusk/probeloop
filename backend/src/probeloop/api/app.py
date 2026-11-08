@@ -27,6 +27,7 @@ from pydantic import ValidationError
 
 from probeloop import logging_setup
 from probeloop.ai.ports import LlmError
+from probeloop.ai.profiles import using_profile
 from probeloop.api.assessment_routes import assessment_router
 from probeloop.api.context_routes import context_router
 from probeloop.api.data_routes import data_router
@@ -120,6 +121,13 @@ def create_app(container: Container | None = None) -> FastAPI:
         allow_headers=["Content-Type"],
     )
 
+    def execution_for(requested: str | None) -> str:
+        """The execution profile of new work: the requested one or the default (ADR 0015)."""
+        profile = requested or container.profiles.current
+        if profile == "cloud" and not container.account.status().plan_usage:
+            raise HTTPException(409, "sign in with ChatGPT first")
+        return profile
+
     async def require_json(request: Request) -> None:
         if not request.headers.get("content-type", "").startswith("application/json"):
             raise HTTPException(status_code=415, detail="content type must be application/json")
@@ -162,6 +170,7 @@ def create_app(container: Container | None = None) -> FastAPI:
                 custom_instructions=body.custom_instructions,
                 modality=body.modality,
             )
+            profile = execution_for(body.execution_profile)
             if body.snapshot_id is None:
                 context = default_context(
                     body.interview_type,
@@ -169,9 +178,16 @@ def create_app(container: Container | None = None) -> FastAPI:
                     job_brief=body.job_brief,
                 )
             else:
-                context = await prepared_context(config, body.snapshot_id)
+                with using_profile(profile):
+                    context = await prepared_context(config, body.snapshot_id)
             return session_view(
-                await sessions.create(config, context, snapshot_id=body.snapshot_id)
+                await sessions.create(
+                    config,
+                    context,
+                    snapshot_id=body.snapshot_id,
+                    execution_profile=profile,
+                    profile_id=body.profile_id,
+                )
             )
         except InvalidConfigError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -371,8 +387,10 @@ def create_app(container: Container | None = None) -> FastAPI:
             except (InvalidTransitionError, ValueError) as exc:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
 
-    app.include_router(context_router(container.context, jobs))
-    app.include_router(assessment_router(container.assessment, jobs, container.export_report))
+    app.include_router(context_router(container.context, jobs, execution_for))
+    app.include_router(
+        assessment_router(container.assessment, jobs, container.export_report, execution_for)
+    )
     app.include_router(data_router(container.data))
     app.include_router(
         settings_router(

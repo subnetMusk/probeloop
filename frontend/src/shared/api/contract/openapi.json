@@ -207,6 +207,21 @@
             "title": "Duration Minutes",
             "type": "integer"
           },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "cloud"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
+          },
           "interview_type": {
             "$ref": "#/components/schemas/InterviewType"
           },
@@ -229,6 +244,18 @@
           "modality": {
             "$ref": "#/components/schemas/Modality",
             "default": "text"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
           },
           "snapshot_id": {
             "anyOf": [
@@ -457,6 +484,21 @@
             "minLength": 10,
             "title": "Description",
             "type": "string"
+          },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "cloud"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
           },
           "language": {
             "default": "it",
@@ -959,6 +1001,10 @@
               }
             ]
           },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
           "documents": {
             "items": {
               "$ref": "#/components/schemas/DocumentView"
@@ -976,6 +1022,17 @@
               }
             ],
             "title": "Error"
+          },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
           },
           "facts": {
             "items": {
@@ -1002,6 +1059,17 @@
             },
             "title": "Matches",
             "type": "array"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
           },
           "snapshot_id": {
             "anyOf": [
@@ -1038,6 +1106,9 @@
           "vocabulary",
           "error",
           "snapshot_id",
+          "created_at",
+          "profile_id",
+          "execution_profile",
           "analysis"
         ],
         "title": "PreparationView",
@@ -1057,6 +1128,21 @@
               }
             ],
             "title": "Cv Id"
+          },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "cloud"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
           },
           "job_mode": {
             "$ref": "#/components/schemas/JobMode"
@@ -1620,6 +1706,21 @@
       "ReviewRequest": {
         "additionalProperties": false,
         "properties": {
+          "execution_profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "cloud"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
+          },
           "language": {
             "default": "it",
             "enum": [
@@ -1751,6 +1852,17 @@
             ],
             "title": "Ended At"
           },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -1763,6 +1875,17 @@
             "title": "Language",
             "type": "string"
           },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -1774,7 +1897,9 @@
           "status",
           "interview_type",
           "language",
-          "ended_at"
+          "ended_at",
+          "execution_profile",
+          "profile_id"
         ],
         "title": "SessionSummaryView",
         "type": "object"
@@ -1806,6 +1931,17 @@
               }
             ],
             "title": "End Reason"
+          },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
           },
           "failure": {
             "anyOf": [
@@ -1844,6 +1980,17 @@
               }
             ],
             "title": "Phase"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
           },
           "snapshot_id": {
             "anyOf": [
@@ -1897,7 +2044,9 @@
           "topics",
           "coverage",
           "turns",
-          "snapshot_id"
+          "snapshot_id",
+          "execution_profile",
+          "profile_id"
         ],
         "title": "SessionView",
         "type": "object"

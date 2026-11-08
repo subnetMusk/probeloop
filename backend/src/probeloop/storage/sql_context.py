@@ -134,6 +134,7 @@ class SqlContextStore:
             row.error = preparation.error
             row.profile_id = preparation.profile_id
             row.snapshot_id = preparation.snapshot_id
+            row.execution_profile = preparation.execution_profile
 
     async def preparation(self, preparation_id: str) -> Preparation | None:
         async with self._sessions() as db:
@@ -155,6 +156,7 @@ class SqlContextStore:
             error=row.error,
             profile_id=row.profile_id,
             snapshot_id=row.snapshot_id,
+            execution_profile=row.execution_profile,
         )
 
     async def save_snapshot(self, snapshot: ContextSnapshot) -> None:

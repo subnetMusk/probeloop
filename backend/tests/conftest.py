@@ -128,6 +128,11 @@ class ScriptedInterviewer:
     requests: list[MoveRequest] = field(default_factory=list)
     prepared: int = 0
     prepare_errors: list[Exception] = field(default_factory=list)  # raised by the next warm-ups
+    check_errors: list[Exception] = field(default_factory=list)  # raised by the next checks
+
+    async def check(self) -> None:
+        if self.check_errors:
+            raise self.check_errors.pop(0)
 
     async def prepare(self, request: MoveRequest) -> None:
         self.prepared += 1

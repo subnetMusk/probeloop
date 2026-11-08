@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated, Literal
 from urllib.parse import quote
 
@@ -9,6 +10,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.ai.ports import LlmError
+from probeloop.ai.profiles import using_profile
 from probeloop.api.schemas import JobView
 from probeloop.context.application.ports import ExtractionError
 from probeloop.context.application.service import (
@@ -88,6 +90,7 @@ class DocumentTextView(BaseModel):
 class DraftRequest(Strict):
     description: str = Field(min_length=10, max_length=3000)
     language: Literal["it", "en"] = "it"
+    execution_profile: Literal["local", "cloud"] | None = None
 
 
 class DraftView(BaseModel):
@@ -146,6 +149,7 @@ class PrepareIn(Strict):
     job_offer_id: str | None = Field(default=None, max_length=32)
     resources: list[ResourceIn] = Field(default=[], max_length=MAX_RESOURCES)
     profile_id: str | None = Field(default=None, max_length=32)
+    execution_profile: Literal["local", "cloud"] | None = None
 
 
 class FactView(BaseModel):
@@ -202,6 +206,9 @@ class PreparationView(BaseModel):
     vocabulary: list[str]
     error: str | None
     snapshot_id: str | None
+    created_at: float
+    profile_id: str | None
+    execution_profile: str | None
     analysis: JobView | None
 
     @classmethod
@@ -236,6 +243,9 @@ class PreparationView(BaseModel):
             vocabulary=list(p.vocabulary),
             error=p.error,
             snapshot_id=p.snapshot_id,
+            created_at=p.created_at,
+            profile_id=p.profile_id,
+            execution_profile=p.execution_profile,
             analysis=analysis,
         )
 
@@ -280,7 +290,11 @@ def _resources(items: list[ResourceIn]) -> list[ResourceInput]:
     return [ResourceInput(title=r.title, document_id=r.document_id) for r in items]
 
 
-def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
+def context_router(
+    context: ContextService,
+    jobs: JobRunner,
+    execution: Callable[[str | None], str] = lambda requested: requested or "local",
+) -> APIRouter:
     router = APIRouter(prefix="/api")
 
     async def view(preparation: Preparation) -> PreparationView:
@@ -325,7 +339,9 @@ def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
     async def draft_job_offer(body: DraftRequest) -> DraftView:
         """A plausible job offer written from a short description, for the user to edit."""
         try:
-            return DraftView(text=await context.draft_job_offer(body.description, body.language))
+            with using_profile(execution(body.execution_profile)):
+                text = await context.draft_job_offer(body.description, body.language)
+            return DraftView(text=text)
         except ContextError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except LlmError as exc:
@@ -430,6 +446,7 @@ def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
                 job_offer_id=body.job_offer_id,
                 resources=_resources(body.resources),
                 profile_id=body.profile_id,
+                execution_profile=execution(body.execution_profile),
             )
         except ContextNotFoundError as exc:
             raise HTTPException(status_code=404, detail="document not found") from exc

@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from probeloop.ai.ports import LlmError
+from probeloop.ai.ports import LlmError, UserActionRequiredError
 from probeloop.interview.application.events import (
     AnswerRecorded,
     ErrorRaised,
@@ -291,3 +291,18 @@ async def test_broken_event_sink_does_not_break_the_session(
     await o.start()
     await o.wait_for_move()
     assert o.session.phase is Phase.INTERVIEWER_SPEAKING
+
+
+async def test_resuming_waits_until_the_interviewer_can_be_used(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    o, interviewer = orchestrator(clock, store, recorder)
+    await o.start()
+    await o.wait_for_move()
+    await o.pause()
+    interviewer.check_errors.append(UserActionRequiredError("sign in with ChatGPT again"))
+    await o.resume()
+    assert o.session.status is SessionStatus.PAUSED
+    assert recorder.of(ErrorRaised)[-1].message == "sign in with ChatGPT again"
+    await o.resume()
+    assert o.session.status is SessionStatus.IN_PROGRESS

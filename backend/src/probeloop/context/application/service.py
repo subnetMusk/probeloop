@@ -55,7 +55,7 @@ class ContextService:
         store: ContextStore,
         analyser: ContextAnalyser,
         extractor: TextExtraction,
-        submit: Callable[[str, str], Awaitable[Job]],
+        submit: Callable[[str, str, Mapping[str, Any] | None], Awaitable[Job]],
         now: Callable[[], float],
         new_id: Callable[[], str],
     ) -> None:
@@ -212,6 +212,7 @@ class ContextService:
         job_offer_id: str | None,
         resources: Sequence[ResourceInput],
         profile_id: str | None = None,
+        execution_profile: str | None = None,
     ) -> Preparation:
         documents: list[Document] = []
         for document_id, kind in ((cv_id, DocumentKind.CV), (job_offer_id, DocumentKind.JOB_OFFER)):
@@ -231,9 +232,11 @@ class ContextService:
             job_mode=job_mode,
             documents=documents,
             profile_id=profile_id,
+            execution_profile=execution_profile,
         )
         await self._store.save_preparation(preparation)
-        await self._submit(ANALYSE_JOB, preparation.id)
+        payload = {"execution": execution_profile} if execution_profile else None
+        await self._submit(ANALYSE_JOB, preparation.id, payload)
         return preparation
 
     async def preparation(self, preparation_id: str) -> Preparation:

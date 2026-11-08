@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -16,7 +17,7 @@ from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.fake import FakeChatGptAccount, FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
-from probeloop.ai.profiles import ProfiledChatModel
+from probeloop.ai.profiles import ProfiledChatModel, using_profile
 from probeloop.ai.scheduled import ScheduledChatModel
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
@@ -42,7 +43,7 @@ from probeloop.interview.application.service import SessionService
 from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptService
 from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import InterviewSession, Language, Modality
-from probeloop.platform.jobs import JobRunner
+from probeloop.platform.jobs import Handler, Job, JobRunner, Progress
 from probeloop.platform.model_access import BackgroundModelAccess
 from probeloop.settings import Settings
 from probeloop.speech.fake import FakeSpeechToText, FakeTextToSpeech
@@ -265,7 +266,7 @@ def build(
         now=clock.now,
         new_id=new_id,
     )
-    jobs.register(ANALYSE_JOB, context.analyse)
+    jobs.register(ANALYSE_JOB, with_job_profile(context.analyse))
     assessment_model = ScheduledChatModel(assessment_model, access.acquire)
     assessment = AssessmentService(
         store=SqlReportStore(db),
@@ -280,14 +281,22 @@ def build(
         now=clock.now,
         new_id=new_id,
     )
-    jobs.register(CV_REVIEW_JOB, assessment.review_cv)
-    jobs.register(INTERVIEW_REVIEW_JOB, assessment.review_interview)
+    jobs.register(CV_REVIEW_JOB, with_job_profile(assessment.review_cv))
+    jobs.register(INTERVIEW_REVIEW_JOB, with_job_profile(assessment.review_interview))
 
     async def on_finished(session: InterviewSession) -> None:
         if session.config.modality is Modality.VOICE and transcripts.can_refine:
             await jobs.submit(REFINE_JOB, session.id)
 
+    def interviewer_for(session: InterviewSession) -> LlmInterviewer:
+        # The interviewer stays on the session's profile even if the default changes (ADR 0015).
+        pinned = roles["interviewer"].pinned(session.execution_profile or profiles.current)
+        if settings.llm_debug_log:
+            pinned = DebugLogChatModel(pinned, settings.data_dir / "logs" / "llm.jsonl")
+        return LlmInterviewer(pinned)
+
     sessions = SessionService(
+        interviewer_for=interviewer_for,
         store=store,
         interviewer=LlmInterviewer(model),
         clock=clock,
@@ -351,6 +360,20 @@ def build_cloud(
         "analysis": cloud_model(settings.cloud_analysis_model, 300.0),
         "evaluation": cloud_model(settings.cloud_evaluation_model, 600.0),
     }
+
+
+def with_job_profile(handler: Handler) -> Handler:
+    """Run a job's model calls on the execution profile stored in its payload (ADR 0015).
+
+    Jobs run one at a time in a single worker task, so the scope covers exactly this job.
+    """
+
+    async def run(job: Job, progress: Progress) -> Mapping[str, Any] | None:
+        profile = job.payload.get("execution")
+        with using_profile(profile if isinstance(profile, str) else None):
+            return await handler(job, progress)
+
+    return run
 
 
 def build_refiner(settings: Settings) -> SpeechToText | None:

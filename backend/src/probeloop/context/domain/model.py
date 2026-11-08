@@ -194,6 +194,7 @@ class Preparation:
     error: str | None = None
     profile_id: str | None = None
     snapshot_id: str | None = None
+    execution_profile: str | None = None  # where the analysis runs (ADR 0015)
 
     def __post_init__(self) -> None:
         kinds = [d.kind for d in self.documents]

@@ -60,6 +60,8 @@ class SessionRow(Base):
     paused_phase: Mapped[str | None] = mapped_column(String(32))
     final_question_asked: Mapped[bool]
     snapshot_id: Mapped[str | None] = mapped_column(String(32))
+    execution_profile: Mapped[str | None] = mapped_column(String(16))
+    profile_id: Mapped[str | None] = mapped_column(String(32))
 
     turns: Mapped[list[TurnRow]] = relationship(
         order_by="TurnRow.seq", cascade="all, delete-orphan", passive_deletes=True
@@ -174,6 +176,7 @@ class PreparationRow(Base):
     error: Mapped[str | None] = mapped_column(Text)
     profile_id: Mapped[str | None] = mapped_column(String(32))
     snapshot_id: Mapped[str | None] = mapped_column(String(32))
+    execution_profile: Mapped[str | None] = mapped_column(String(16))
 
 
 class SnapshotRow(Base):

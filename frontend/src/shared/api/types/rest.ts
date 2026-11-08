@@ -823,6 +823,8 @@ export interface components {
              * @default 15
              */
             duration_minutes?: number;
+            /** Execution Profile */
+            execution_profile?: ("local" | "cloud") | null;
             interview_type: components["schemas"]["InterviewType"];
             /** Job Brief */
             job_brief?: string | null;
@@ -830,6 +832,8 @@ export interface components {
             language?: components["schemas"]["Language"];
             /** @default text */
             modality?: components["schemas"]["Modality"];
+            /** Profile Id */
+            profile_id?: string | null;
             /** Snapshot Id */
             snapshot_id?: string | null;
         };
@@ -907,6 +911,8 @@ export interface components {
         DraftRequest: {
             /** Description */
             description: string;
+            /** Execution Profile */
+            execution_profile?: ("local" | "cloud") | null;
             /**
              * Language
              * @default it
@@ -1066,10 +1072,14 @@ export interface components {
         PreparationView: {
             analysis: components["schemas"]["JobView"] | null;
             area: components["schemas"]["AreaView"] | null;
+            /** Created At */
+            created_at: number;
             /** Documents */
             documents: components["schemas"]["DocumentView"][];
             /** Error */
             error: string | null;
+            /** Execution Profile */
+            execution_profile: string | null;
             /** Facts */
             facts: components["schemas"]["FactView"][];
             /** Id */
@@ -1080,6 +1090,8 @@ export interface components {
             language: string;
             /** Matches */
             matches: components["schemas"]["MatchView"][];
+            /** Profile Id */
+            profile_id: string | null;
             /** Snapshot Id */
             snapshot_id: string | null;
             /** Status */
@@ -1091,6 +1103,8 @@ export interface components {
         PrepareIn: {
             /** Cv Id */
             cv_id?: string | null;
+            /** Execution Profile */
+            execution_profile?: ("local" | "cloud") | null;
             job_mode: components["schemas"]["JobMode"];
             /** Job Offer Id */
             job_offer_id?: string | null;
@@ -1265,6 +1279,8 @@ export interface components {
         };
         /** ReviewRequest */
         ReviewRequest: {
+            /** Execution Profile */
+            execution_profile?: ("local" | "cloud") | null;
             /**
              * Language
              * @default it
@@ -1308,12 +1324,16 @@ export interface components {
             created_at: number;
             /** Ended At */
             ended_at: number | null;
+            /** Execution Profile */
+            execution_profile: string | null;
             /** Id */
             id: string;
             /** Interview Type */
             interview_type: string;
             /** Language */
             language: string;
+            /** Profile Id */
+            profile_id: string | null;
             /** Status */
             status: string;
         };
@@ -1329,6 +1349,8 @@ export interface components {
             difficulty: string;
             /** End Reason */
             end_reason: string | null;
+            /** Execution Profile */
+            execution_profile: string | null;
             /** Failure */
             failure: string | null;
             /** Id */
@@ -1341,6 +1363,8 @@ export interface components {
             modality: string;
             /** Phase */
             phase: string | null;
+            /** Profile Id */
+            profile_id: string | null;
             /** Snapshot Id */
             snapshot_id: string | null;
             /** Status */

@@ -106,7 +106,8 @@ def settings_router(
             return view()
         if choice.profile == "cloud" and not account.status().plan_usage:
             raise HTTPException(409, "sign in with ChatGPT first")
-        await ensure_idle()
+        # The default applies to new work only: preparations and interviews keep their own
+        # profile (ADR 0015), so changing it needs no idle guard.
         try:
             await profiles.select(choice.profile)
         except ProfileUnavailableError as exc:

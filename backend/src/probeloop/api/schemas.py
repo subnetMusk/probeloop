@@ -61,6 +61,9 @@ class CreateSession(Strict):
     # An approved context (from /api/preparations/{id}/approve): the briefs, the topic plan and
     # the vocabulary come from it instead of the sample brief.
     snapshot_id: str | None = Field(default=None, max_length=32)
+    # Where the interviewer and the reports run (ADR 0015); None uses the default.
+    execution_profile: Literal["local", "cloud"] | None = None
+    profile_id: str | None = Field(default=None, max_length=32)
 
 
 class WordView(BaseModel):
@@ -143,6 +146,8 @@ class SessionView(BaseModel):
     coverage: dict[str, str]
     turns: list[TurnView]
     snapshot_id: str | None
+    execution_profile: str | None
+    profile_id: str | None
 
     @classmethod
     def of(
@@ -211,6 +216,8 @@ class SessionView(BaseModel):
             coverage={k: v.value for k, v in s.coverage.items()},
             turns=turns,
             snapshot_id=s.snapshot_id,
+            execution_profile=s.execution_profile,
+            profile_id=s.profile_id,
         )
 
 
@@ -227,6 +234,8 @@ class SessionSummaryView(BaseModel):
     interview_type: str
     language: str
     ended_at: float | None
+    execution_profile: str | None
+    profile_id: str | None
 
     @classmethod
     def of(cls, s: SessionSummary) -> SessionSummaryView:
@@ -237,6 +246,8 @@ class SessionSummaryView(BaseModel):
             interview_type=s.interview_type,
             language=s.language,
             ended_at=s.ended_at,
+            execution_profile=s.execution_profile,
+            profile_id=s.profile_id,
         )
 
 

@@ -237,6 +237,15 @@ class SessionOrchestrator:
             await self._commit()
 
     async def resume(self) -> None:
+        # The interviewer may have become unusable while paused (a cloud sign-out); resuming then
+        # would fail at the next move, so the user is told now and the interview stays paused.
+        try:
+            await self._interviewer.check()
+        except UserActionRequiredError as exc:
+            await self._emit(
+                ErrorRaised(code="llm_unavailable", message=str(exc), recoverable=True)
+            )
+            return
         async with self._lock:
             self.session.resume(self._clock.now())
             await self._commit()

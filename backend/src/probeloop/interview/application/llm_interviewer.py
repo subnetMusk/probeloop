@@ -83,6 +83,9 @@ class LlmInterviewer:
         self._top_p = top_p
         self._max_output_tokens = max_output_tokens
 
+    async def check(self) -> None:
+        await self._model.capabilities()
+
     async def prepare(self, request: MoveRequest) -> None:
         """Send the opening prompt for a single token: loads the model and fills its KV cache.
 

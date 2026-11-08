@@ -80,15 +80,22 @@ class AssessmentService:
         if not session.candidate_turns():
             raise ValueError("the interview has no answers to assess")
         revisions = {str(t.seq): t.current.number for t in session.candidate_turns()}
-        return await self._submit(
-            INTERVIEW_REVIEW_JOB, session_id, {"language": language, "revisions": revisions}
-        )
+        payload: dict[str, object] = {"language": language, "revisions": revisions}
+        if session.execution_profile:
+            # The reports of an interview use the interview's profile (ADR 0015).
+            payload["execution"] = session.execution_profile
+        return await self._submit(INTERVIEW_REVIEW_JOB, session_id, payload)
 
-    async def submit_cv(self, snapshot_id: str, language: str) -> Job:
+    async def submit_cv(
+        self, snapshot_id: str, language: str, execution_profile: str | None = None
+    ) -> Job:
         snapshot = await self._snapshot(snapshot_id)
         if not any(d.kind is DocumentKind.CV for d in snapshot.documents):
             raise ValueError("the approved context has no CV")
-        return await self._submit(CV_REVIEW_JOB, snapshot_id, {"language": language})
+        payload: dict[str, object] = {"language": language}
+        if execution_profile:
+            payload["execution"] = execution_profile
+        return await self._submit(CV_REVIEW_JOB, snapshot_id, payload)
 
     async def reports(self, kind: ReportKind, subject_id: str) -> list[Report]:
         return await self.store.reports(kind, subject_id)

@@ -21,6 +21,8 @@ from probeloop.platform.jobs import JobRunner
 class ReviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     language: Literal["it", "en"] = "it"
+    # CV checks only: interview reports always use the interview's profile (ADR 0015).
+    execution_profile: Literal["local", "cloud"] | None = None
 
 
 class ProgressPointView(BaseModel):
@@ -49,6 +51,7 @@ def assessment_router(
     assessment: AssessmentService,
     jobs: JobRunner,
     export: Callable[[Report, str], bytes],
+    execution: Callable[[str | None], str] = lambda requested: requested or "local",
 ) -> APIRouter:
     router = APIRouter(prefix="/api")
 
@@ -65,7 +68,8 @@ def assessment_router(
     @router.post("/snapshots/{snapshot_id}/cv-reviews", status_code=202)
     async def review_cv(snapshot_id: str, body: ReviewRequest) -> JobView:
         try:
-            return JobView.of(await assessment.submit_cv(snapshot_id, body.language))
+            profile = execution(body.execution_profile)
+            return JobView.of(await assessment.submit_cv(snapshot_id, body.language, profile))
         except ContextNotFoundError as exc:
             raise HTTPException(404, "approved context not found") from exc
         except ValueError as exc:

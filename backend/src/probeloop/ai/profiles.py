@@ -1,10 +1,29 @@
-"""Route each model call to the execution profile selected when the call starts."""
+"""Route each model call to the execution profile selected when the call starts (ADR 0015).
+
+The profile comes from the innermost `using_profile` scope, or else from the default selection.
+Requests and jobs open a scope with the profile of their preparation or interview; the
+interviewer of a session is pinned to its profile instead.
+"""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from probeloop.ai.ports import ChatChunk, ChatModel, ChatRequest, ChatResult, ModelCapabilities
+
+_scope: ContextVar[str | None] = ContextVar("execution_profile", default=None)
+
+
+@contextmanager
+def using_profile(profile: str | None) -> Iterator[None]:
+    """Model calls made inside use `profile`; None keeps the enclosing choice."""
+    token = _scope.set(profile or _scope.get())
+    try:
+        yield
+    finally:
+        _scope.reset(token)
 
 
 class ProfiledChatModel:
@@ -24,6 +43,10 @@ class ProfiledChatModel:
     def model_refs(self) -> dict[str, str]:
         return {name: model.model_ref for name, model in self._models.items()}
 
+    def pinned(self, profile: str) -> ChatModel:
+        """The model of `profile`, regardless of later changes to the selection."""
+        return self._models[profile]
+
     async def capabilities(self) -> ModelCapabilities:
         return await self._model().capabilities()
 
@@ -35,4 +58,4 @@ class ProfiledChatModel:
             yield chunk
 
     def _model(self) -> ChatModel:
-        return self._models[self._current()]
+        return self._models[_scope.get() or self._current()]

@@ -105,6 +105,8 @@ class SqlSessionStore:
             SessionRow.interview_type,
             SessionRow.language,
             SessionRow.ended_at,
+            SessionRow.execution_profile,
+            SessionRow.profile_id,
         ).order_by(SessionRow.created_at.desc())
         async with self._sessions() as db:
             rows = (await db.execute(query)).all()
@@ -116,6 +118,8 @@ class SqlSessionStore:
                 interview_type=r.interview_type,
                 language=r.language,
                 ended_at=r.ended_at,
+                execution_profile=r.execution_profile,
+                profile_id=r.profile_id,
             )
             for r in rows
         ]
@@ -192,6 +196,8 @@ def _fill_session(row: SessionRow, s: InterviewSession) -> None:
     row.paused_phase = s.paused_phase.value if s.paused_phase else None
     row.final_question_asked = s.final_question_asked
     row.snapshot_id = s.snapshot_id
+    row.execution_profile = s.execution_profile
+    row.profile_id = s.profile_id
 
 
 def _turn_row(session_id: str, turn: Turn) -> TurnRow:
@@ -264,6 +270,8 @@ def _session(row: SessionRow) -> InterviewSession:
         paused_phase=Phase(row.paused_phase) if row.paused_phase else None,
         final_question_asked=row.final_question_asked,
         snapshot_id=row.snapshot_id,
+        execution_profile=row.execution_profile,
+        profile_id=row.profile_id,
     )
 
 

@@ -97,8 +97,11 @@ class SessionService:
         new_id: Callable[[], str] = uuid7_hex,
         on_finished: Callable[[InterviewSession], Awaitable[None]] | None = None,
         background_busy: Callable[[], bool] = lambda: False,
+        interviewer_for: Callable[[InterviewSession], Interviewer] | None = None,
     ) -> None:
         self._store = store
+        # The interviewer of a session, bound to its execution profile (ADR 0015).
+        self._interviewer_for = interviewer_for or (lambda _session: interviewer)
         self._on_finished = on_finished
         self._background_busy = background_busy
         self._interviewer = interviewer
@@ -128,6 +131,8 @@ class SessionService:
         context: InterviewContext,
         *,
         snapshot_id: str | None = None,
+        execution_profile: str | None = None,
+        profile_id: str | None = None,
     ) -> InterviewSession:
         if config.modality is Modality.VOICE:
             if self._voice is None:
@@ -142,6 +147,8 @@ class SessionService:
             context=context,
             created_at=self._clock.now(),
             snapshot_id=snapshot_id,
+            execution_profile=execution_profile,
+            profile_id=profile_id,
         )
         await self._store.save(session)
         return session
@@ -227,7 +234,7 @@ class SessionService:
                 log = EventLog()
                 orchestrator = SessionOrchestrator(
                     session,
-                    interviewer=self._interviewer,
+                    interviewer=self._interviewer_for(session),
                     store=self._store,
                     clock=self._clock,
                     sink=log.publish,

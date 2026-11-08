@@ -51,6 +51,10 @@ class Interviewer(Protocol):
         """Load the model and warm its prompt cache before the interview starts."""
         ...
 
+    async def check(self) -> None:
+        """Raise when the model cannot be used now, for example after a sign-out."""
+        ...
+
     def next_move(self, request: MoveRequest) -> AsyncIterator[MoveDelta | MoveDone]: ...
 
 
@@ -66,6 +70,8 @@ class SessionSummary:
     interview_type: str
     language: str
     ended_at: float | None = None
+    execution_profile: str | None = None
+    profile_id: str | None = None
 
 
 class SessionStore(Protocol):

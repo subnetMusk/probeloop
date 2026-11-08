@@ -257,6 +257,10 @@ class InterviewSession:
     paused_phase: Phase | None = None
     final_question_asked: bool = False
     snapshot_id: str | None = None  # the approved context the interview was prepared from
+    # Where its language models run ("local" or "cloud", ADR 0015); None for interviews created
+    # before the choice was stored, which use the default.
+    execution_profile: str | None = None
+    profile_id: str | None = None  # the resource profile it was prepared with
 
     def __post_init__(self) -> None:
         for topic in self.context.topics:
