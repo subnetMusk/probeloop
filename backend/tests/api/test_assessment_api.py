@@ -5,6 +5,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from probeloop.ai.chatgpt import USAGE_LIMIT
+from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.ports import UserActionRequiredError
 from probeloop.api.app import create_app
 from probeloop.bootstrap import build
 from probeloop.interview.domain.model import RevisionSource
@@ -103,3 +106,24 @@ def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path:
         assert len(client.get(f"/api/sessions/{session.id}/reports").json()) == 2
         assert client.delete(f"/api/sessions/{session.id}").status_code == 204
         assert client.get(f"/api/reports/{original['id']}").status_code == 404
+
+
+def test_a_refusal_the_user_can_resolve_is_reported_as_is(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path, allowed_hosts=["testserver"])
+    model = FakeChatModel(["x"])
+    analysis = FakeChatModel([UserActionRequiredError(USAGE_LIMIT)])
+    container = build(settings, model=model, analysis_model=analysis, assessment_model=model)
+    with TestClient(create_app(container)) as client:
+        document = client.post(
+            "/api/documents/text", json={"kind": "cv", "title": "CV", "text": CV.read_text()}
+        ).json()
+        preparation = client.post(
+            "/api/preparations", json={"job_mode": "none", "cv_id": document["id"]}
+        ).json()
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            view = client.get(f"/api/preparations/{preparation['id']}").json()
+            if view["status"] == "failed":
+                break
+            time.sleep(0.02)
+        assert view["error"] == USAGE_LIMIT

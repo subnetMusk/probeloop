@@ -17,6 +17,11 @@ class ContextOverflowError(LlmError):
     """The prompt does not fit in the configured context window."""
 
 
+class UserActionRequiredError(LlmError):
+    """A provider refused for a reason the user can resolve, such as an expired sign-in or a
+    reached usage limit. The message is written for the user and safe to show."""
+
+
 @dataclass(frozen=True, slots=True)
 class ChatMessage:
     role: Role
@@ -80,6 +85,9 @@ class ModelCapabilities:
     vision: bool = False
     sampling_params: bool = True
     system_role: bool = True
+    # Loading the model and its prompt cache ahead of use shortens the first reply (local
+    # models). A hosted model gains nothing from a warm-up call.
+    preload: bool = True
 
 
 class ChatModel(Protocol):

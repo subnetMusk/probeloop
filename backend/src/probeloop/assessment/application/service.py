@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import asdict, replace
 from typing import Any
 
-from probeloop.ai.ports import ContextOverflowError
+from probeloop.ai.ports import ContextOverflowError, UserActionRequiredError
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
 from probeloop.assessment.application.interview_review import CallTrace, InterviewReviewer
@@ -119,6 +119,8 @@ class AssessmentService:
             scores, observations, checks, dropped = await self.reviewer.review(
                 snapshot, language, progress
             )
+        except UserActionRequiredError as exc:
+            raise JobError(str(exc)) from None
         except Exception as exc:
             # Provider/schema exceptions may carry excerpts: never log their contents or causes.
             logger.error("CV review failed", extra={"error_type": type(exc).__name__})
@@ -171,6 +173,8 @@ class AssessmentService:
         try:
             result = await self.interviewer.review(session, snapshot, language, progress)
             delivery = await self.delivery.measure(session, language)
+        except UserActionRequiredError as exc:
+            raise JobError(str(exc)) from None
         except ContextOverflowError:
             raise JobError(
                 "documents or answers exceed the evaluator context; "

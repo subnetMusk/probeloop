@@ -84,7 +84,13 @@ class LlmInterviewer:
         self._max_output_tokens = max_output_tokens
 
     async def prepare(self, request: MoveRequest) -> None:
-        """Send the opening prompt for a single token: loads the model and fills its KV cache."""
+        """Send the opening prompt for a single token: loads the model and fills its KV cache.
+
+        A hosted model gains nothing from this; asking for its capabilities still checks that it
+        can be used (for example that the user is signed in).
+        """
+        if not (await self._model.capabilities()).preload:
+            return
         chat_request, _ = self.build_request(request)
         await self._model.complete(
             replace(

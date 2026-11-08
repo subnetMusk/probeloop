@@ -24,6 +24,8 @@ dependencies = [
   "pdfplumber>=0.11.7",
   "python-docx>=1.2",
   "rapidfuzz>=3.14",
+  # Verifies the signature of ChatGPT sign-in ID tokens (ADR 0013).
+  "cryptography>=50",
   "weasyprint>=70,<71",
 ]
 

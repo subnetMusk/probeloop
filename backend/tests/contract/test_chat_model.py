@@ -1,6 +1,7 @@
 """The same contract for every ChatModel adapter.
 
-Live adapters need `-m live`: Ollama, and for OpenAI `PROBELOOP_CLOUD_API_KEY` (billed).
+Live adapters need `-m live`: Ollama, and for ChatGPT a sign-in stored in the data directory
+(calls count against the ChatGPT plan).
 """
 
 from __future__ import annotations
@@ -8,13 +9,15 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import httpx
 import pytest
 
+from probeloop.ai.chatgpt import ChatGptChatModel, TokenSource
+from probeloop.ai.chatgpt_auth import ChatGptAuth
 from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
-from probeloop.ai.openai import OpenAIChatModel
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, ContextOverflowError
 
 SCHEMA = {
@@ -39,22 +42,30 @@ def ollama_model() -> OllamaChatModel:
     )
 
 
-def scripted_openai(request: httpx.Request) -> httpx.Response:
-    """A Chat Completions stream as the provider sends it, for the offline contract run."""
+def scripted_responses(request: httpx.Request) -> httpx.Response:
+    """A Responses API stream as the provider sends it, for the offline contract run."""
     events = [
-        {"choices": [{"index": 0, "delta": {"content": '{"answer": '}}]},
-        {"choices": [{"index": 0, "delta": {"content": '"ok", "n": 3}'}}]},
-        {"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]},
-        {"choices": [], "usage": {"prompt_tokens": 30, "completion_tokens": 9}},
+        {"type": "response.output_text.delta", "delta": '{"answer": '},
+        {"type": "response.output_text.delta", "delta": '"ok", "n": 3}'},
+        {
+            "type": "response.completed",
+            "response": {"status": "completed", "usage": {"input_tokens": 30, "output_tokens": 9}},
+        },
     ]
-    body = "".join(f"data: {json.dumps(e)}\n\n" for e in events) + "data: [DONE]\n\n"
+    body = "".join(f"event: {e['type']}\ndata: {json.dumps(e)}\n\n" for e in events)
     return httpx.Response(200, content=body.encode())
 
 
-def openai_model(transport: httpx.AsyncBaseTransport | None = None) -> OpenAIChatModel:
-    return OpenAIChatModel(
+async def offline_token(*, refresh: bool = False) -> str:
+    return "offline"
+
+
+def chatgpt_model(
+    token: TokenSource = offline_token, transport: httpx.AsyncBaseTransport | None = None
+) -> ChatGptChatModel:
+    return ChatGptChatModel(
         model=os.environ.get("PROBELOOP_CLOUD_INTERVIEWER_MODEL", "gpt-6.1-terra"),
-        api_key=os.environ.get("PROBELOOP_CLOUD_API_KEY", "offline"),
+        token=token,
         transport=transport,
     )
 
@@ -62,20 +73,22 @@ def openai_model(transport: httpx.AsyncBaseTransport | None = None) -> OpenAICha
 @pytest.fixture(
     params=[
         pytest.param("fake", id="fake"),
-        pytest.param("openai-offline", id="openai-offline"),
+        pytest.param("chatgpt-offline", id="chatgpt-offline"),
         pytest.param("ollama", id="ollama", marks=pytest.mark.live),
-        pytest.param("openai", id="openai", marks=pytest.mark.live),
+        pytest.param("chatgpt", id="chatgpt", marks=pytest.mark.live),
     ]
 )
 async def model(request: pytest.FixtureRequest) -> AsyncIterator[ChatModel]:
     if request.param == "fake":
         yield FakeChatModel(['{"answer": "ok", "n": 3}'])
-    elif request.param == "openai-offline":
-        yield openai_model(httpx.MockTransport(scripted_openai))
-    elif request.param == "openai":
-        if "PROBELOOP_CLOUD_API_KEY" not in os.environ:
-            pytest.skip("PROBELOOP_CLOUD_API_KEY is not set")
-        yield openai_model()
+    elif request.param == "chatgpt-offline":
+        yield chatgpt_model(transport=httpx.MockTransport(scripted_responses))
+    elif request.param == "chatgpt":
+        # Uses the sign-in stored by the application in its data directory.
+        account = ChatGptAuth(Path(os.environ.get("PROBELOOP_DATA_DIR", "/data")) / "chatgpt")
+        if not account.status().plan_usage:
+            pytest.skip("not signed in with ChatGPT plan usage")
+        yield chatgpt_model(account.access_token)
     else:
         yield ollama_model()
 

@@ -70,6 +70,12 @@ export const api = {
   executionProfile: () => request<ExecutionView>('/api/settings/execution'),
   selectExecutionProfile: (profile: ExecutionProfile) =>
     request<ExecutionView>('/api/settings/execution', json('PUT', { profile })),
+  chatGptSignIn: () =>
+    request<components['schemas']['SignInStart']>(
+      '/api/settings/chatgpt/sign-in',
+      json('POST', {}),
+    ),
+  chatGptSignOut: () => request<ExecutionView>('/api/settings/chatgpt/sign-out', json('POST', {})),
   interviewReports: (id: string) => request<ReportData[]>(`${sessionPath(id)}/reports`),
   reviewInterview: (id: string, language: 'it' | 'en') =>
     request<JobView>(`${sessionPath(id)}/reports`, json('POST', { language })),

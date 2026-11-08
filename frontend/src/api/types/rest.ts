@@ -565,6 +565,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/chatgpt/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign In */
+        post: operations["sign_in_api_settings_chatgpt_sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/chatgpt/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign Out */
+        post: operations["sign_out_api_settings_chatgpt_sign_out_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/execution": {
         parameters: {
             query?: never;
@@ -714,6 +748,15 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** ChatGptView */
+        ChatGptView: {
+            /** Email */
+            email: string | null;
+            /** Plan Usage */
+            plan_usage: boolean;
+            /** Signed In */
+            signed_in: boolean;
+        };
         /** CheckData */
         CheckData: {
             /** Detail */
@@ -855,13 +898,12 @@ export interface components {
         };
         /** ExecutionProfileView */
         ExecutionProfileView: {
-            /** Available */
-            available: boolean;
             id: components["schemas"]["Profile"];
-            models: components["schemas"]["ExecutionModels"] | null;
+            models: components["schemas"]["ExecutionModels"];
         };
         /** ExecutionView */
         ExecutionView: {
+            chatgpt: components["schemas"]["ChatGptView"];
             profile: components["schemas"]["Profile"];
             /** Profiles */
             profiles: components["schemas"]["ExecutionProfileView"][];
@@ -1249,6 +1291,11 @@ export interface components {
             }[];
             /** Turns */
             turns: components["schemas"]["TurnView"][];
+        };
+        /** SignInStart */
+        SignInStart: {
+            /** Url */
+            url: string;
         };
         /** SnapshotView */
         SnapshotView: {
@@ -2459,6 +2506,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_in_api_settings_chatgpt_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInStart"];
+                };
+            };
+        };
+    };
+    sign_out_api_settings_chatgpt_sign_out_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
                 };
             };
         };

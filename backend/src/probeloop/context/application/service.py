@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Any
 
+from probeloop.ai.ports import UserActionRequiredError
 from probeloop.context.application.analysis import ContextAnalyser
 from probeloop.context.application.ports import ContextStore, ExtractedText, TextExtraction
 from probeloop.context.application.snapshots import snapshot_of
@@ -219,9 +220,19 @@ class ContextService:
                 "context analysis failed",
                 extra={"preparation_id": preparation.id, "error_type": type(exc).__name__},
             )
-            preparation.failed("the documents could not be analysed; try again")
+            # A provider refusal the user can resolve (sign-in, usage limit) is shown as is.
+            reason = (
+                str(exc)
+                if isinstance(exc, UserActionRequiredError)
+                else "the documents could not be analysed; try again"
+            )
+            preparation.failed(reason)
             await self._store.save_preparation(preparation)
-            raise JobError("the documents could not be analysed") from exc
+            raise JobError(
+                reason
+                if isinstance(exc, UserActionRequiredError)
+                else "the documents could not be analysed"
+            ) from exc
         preparation.analysed(result.facts, result.matches, result.area, result.vocabulary)
         await self._store.save_preparation(preparation)
         return {

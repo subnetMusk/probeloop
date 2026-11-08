@@ -29,31 +29,46 @@ test('language, keyboard volume and system theme persist across reloads', async 
   )
 })
 
-// The test backend scripts every model, and its cloud profile reuses the scripted models.
-test('the cloud execution profile is selected only after confirmation', async ({ page }) => {
+// The test backend scripts every model; its cloud profile reuses the scripted models, and its
+// ChatGPT account signs in by returning straight to the callback.
+test('the ChatGPT plan profile needs a sign-in and a confirmation', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
   })
-  const reset = await page.request.put('/api/settings/execution', { data: { profile: 'local' } })
+  const local = page.getByRole('radio', { name: /^Local/ })
+  const cloud = page.getByRole('radio', { name: /^ChatGPT plan/ })
+  const account = page.getByRole('region', { name: 'ChatGPT account' })
+  const reset = await page.request.post('/api/settings/chatgpt/sign-out', { data: {} })
   expect(reset.ok()).toBe(true)
   await page.goto('/settings')
-  const local = page.getByRole('radio', { name: /^Local/ })
-  const cloud = page.getByRole('radio', { name: /^Cloud/ })
   await expect(local).toBeChecked()
+  await expect(cloud).toBeDisabled()
+  await expect(account).toContainText('Use your ChatGPT plan')
+
+  await account.getByRole('button', { name: 'Continue with ChatGPT' }).click()
+  await expect(page).toHaveURL(/\/settings\?chatgpt=connected$/)
+  await expect(page.getByRole('status')).toContainText('Signed in with ChatGPT')
+  await expect(account).toContainText('synthetic@example.test')
+  await page.getByRole('button', { name: 'Got it' }).click()
+  await expect(page.getByRole('status')).toHaveCount(0)
+
   page.once('dialog', (dialog) => void dialog.dismiss())
   await cloud.click()
   await expect(local).toBeChecked()
   page.once('dialog', (dialog) => {
-    expect(dialog.message()).toContain('sent to the cloud provider')
+    expect(dialog.message()).toContain('sent to OpenAI')
     void dialog.accept()
   })
   await cloud.click()
   await expect(cloud).toBeChecked()
-  await expect(page.getByRole('note')).toContainText('Cloud profile active')
+  await expect(page.getByRole('note')).toContainText('Using ChatGPT plan')
   await page.reload()
   await expect(cloud).toBeChecked()
-  await local.click()
+
+  // Signing out returns to the local profile.
+  await account.getByRole('button', { name: 'Sign out of ChatGPT' }).click()
   await expect(local).toBeChecked()
+  await expect(cloud).toBeDisabled()
   await expect(page.getByRole('note')).toHaveCount(0)
 })
 

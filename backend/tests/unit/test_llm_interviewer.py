@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.ports import ModelCapabilities
 from probeloop.interview.application.llm_interviewer import LlmInterviewer, MoveOutput
 from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
 from probeloop.interview.domain.model import (
@@ -181,3 +182,13 @@ async def test_the_farewell_is_never_cut() -> None:
     done = items[-1]
     assert isinstance(done, MoveDone)
     assert done.move.utterance == utterance
+
+
+async def test_a_hosted_model_is_not_warmed_up() -> None:
+    class Hosted(FakeChatModel):
+        async def capabilities(self) -> ModelCapabilities:
+            return ModelCapabilities(context_window=8192, preload=False)
+
+    model = Hosted(["{"])
+    await LlmInterviewer(model).prepare(request_for(make_session()))
+    assert model.requests == []

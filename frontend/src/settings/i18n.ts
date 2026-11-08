@@ -270,6 +270,16 @@ export const IT: Readonly<Record<string, string>> = {
     'Chiudi i colloqui in corso e attendi la fine delle elaborazioni',
   'backup no longer available': 'Backup non più disponibile',
   'the cloud profile is not configured': 'Il profilo cloud non è configurato',
+  'sign in with ChatGPT first': 'Accedi prima con ChatGPT',
+  'sign in with ChatGPT again in Settings': 'Accedi di nuovo con ChatGPT nelle Impostazioni',
+  'allow ProbeLoop to use your ChatGPT plan in Settings':
+    'Consenti a ProbeLoop di usare il tuo piano ChatGPT nelle Impostazioni',
+  'ChatGPT sign-in could not be renewed; try again':
+    'Non è stato possibile rinnovare l’accesso a ChatGPT; riprova',
+  'ChatGPT plan usage limit reached; see your ChatGPT usage settings':
+    'Limite di utilizzo del piano ChatGPT raggiunto; controlla l’utilizzo nelle impostazioni di ChatGPT',
+  'this ChatGPT account cannot use its plan in ProbeLoop':
+    'Questo account ChatGPT non può usare il suo piano in ProbeLoop',
   'unknown job kind': 'Tipo di elaborazione sconosciuto',
   'report not found': 'Report non trovato',
   'session not found': 'Colloquio non trovato',

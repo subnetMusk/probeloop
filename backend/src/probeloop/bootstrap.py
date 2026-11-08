@@ -10,10 +10,11 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from probeloop.ai.chatgpt import ChatGptChatModel
+from probeloop.ai.chatgpt_auth import ChatGptAccount, ChatGptAuth
 from probeloop.ai.debuglog import DebugLogChatModel
-from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.fake import FakeChatGptAccount, FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
-from probeloop.ai.openai import OpenAIChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
 from probeloop.ai.profiles import ProfiledChatModel
 from probeloop.ai.scheduled import ScheduledChatModel
@@ -83,6 +84,7 @@ class Container:
     profiles: ExecutionProfiles
     # The interviewer, analysis and evaluation roles, each with a model per profile.
     roles: Mapping[str, ProfiledChatModel]
+    account: ChatGptAccount
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
@@ -209,13 +211,15 @@ def build(
             )
         )
     local = {"interviewer": model, "analysis": analysis_model, "evaluation": assessment_model}
-    cloud = build_cloud(settings, local)
-    available: tuple[Profile, ...] = ("local", "cloud") if cloud else ("local",)
+    account: ChatGptAccount = (
+        FakeChatGptAccount() if settings.llm_fake else ChatGptAuth(settings.data_dir / "chatgpt")
+    )
+    cloud = build_cloud(settings, local, account)
+    available: tuple[Profile, ...] = ("local", "cloud")
     profiles = ExecutionProfiles(settings.data_dir / "execution-profile.json", available)
     roles = {
         role: ProfiledChatModel(
-            {"local": local[role]} | ({"cloud": cloud[role]} if cloud else {}),
-            lambda: profiles.current,
+            {"local": local[role], "cloud": cloud[role]}, lambda: profiles.current
         )
         for role in local
     }
@@ -318,26 +322,25 @@ def build(
         data=data,
         profiles=profiles,
         roles=roles,
+        account=account,
     )
 
 
-def build_cloud(settings: Settings, local: Mapping[str, ChatModel]) -> dict[str, ChatModel] | None:
-    """The models of the cloud profile per role, or None when the profile is not configured.
+def build_cloud(
+    settings: Settings, local: Mapping[str, ChatModel], account: ChatGptAccount
+) -> dict[str, ChatModel]:
+    """The models of the cloud profile per role, used through the signed-in ChatGPT plan.
 
     With scripted models (`llm_fake`) the cloud profile reuses them, so that selecting a profile
     can be tested end to end without a provider.
     """
     if settings.llm_fake:
         return dict(local)
-    if settings.cloud_api_key is None:
-        return None
-    api_key = settings.cloud_api_key.get_secret_value()
 
-    def cloud_model(name: str, timeout_s: float) -> OpenAIChatModel:
-        return OpenAIChatModel(
+    def cloud_model(name: str, timeout_s: float) -> ChatGptChatModel:
+        return ChatGptChatModel(
             model=name,
-            api_key=api_key,
-            base_url=settings.cloud_base_url,
+            token=account.access_token,
             context_window=settings.cloud_context_window,
             reasoning_off=settings.cloud_reasoning_off,
             timeout_s=timeout_s,

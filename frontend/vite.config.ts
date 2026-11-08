@@ -20,6 +20,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: backend },
       '/health': { target: backend },
+      // The Sign in with ChatGPT callback (http://127.0.0.1:<port>/auth/callback).
+      '/auth': { target: backend },
       '/ws': { target: backend, ws: true },
     },
   },

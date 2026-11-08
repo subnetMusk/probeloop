@@ -374,7 +374,15 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(context_router(container.context, jobs))
     app.include_router(assessment_router(container.assessment, jobs, container.export_report))
     app.include_router(data_router(container.data))
-    app.include_router(settings_router(container.profiles, container.roles, container.data))
+    app.include_router(
+        settings_router(
+            container.profiles,
+            container.roles,
+            container.data,
+            container.account,
+            settings.allowed_origins,
+        )
+    )
 
     if settings.static_dir is not None:
         _serve_spa(app, settings.static_dir)

@@ -113,6 +113,36 @@
         "title": "Body_upload_document_api_documents_post",
         "type": "object"
       },
+      "ChatGptView": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "plan_usage": {
+            "title": "Plan Usage",
+            "type": "boolean"
+          },
+          "signed_in": {
+            "title": "Signed In",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "signed_in",
+          "email",
+          "plan_usage"
+        ],
+        "title": "ChatGptView",
+        "type": "object"
+      },
       "CheckData": {
         "additionalProperties": false,
         "properties": {
@@ -505,27 +535,15 @@
       },
       "ExecutionProfileView": {
         "properties": {
-          "available": {
-            "title": "Available",
-            "type": "boolean"
-          },
           "id": {
             "$ref": "#/components/schemas/Profile"
           },
           "models": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ExecutionModels"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ExecutionModels"
           }
         },
         "required": [
           "id",
-          "available",
           "models"
         ],
         "title": "ExecutionProfileView",
@@ -533,6 +551,9 @@
       },
       "ExecutionView": {
         "properties": {
+          "chatgpt": {
+            "$ref": "#/components/schemas/ChatGptView"
+          },
           "profile": {
             "$ref": "#/components/schemas/Profile"
           },
@@ -546,7 +567,8 @@
         },
         "required": [
           "profile",
-          "profiles"
+          "profiles",
+          "chatgpt"
         ],
         "title": "ExecutionView",
         "type": "object"
@@ -1774,6 +1796,19 @@
           "snapshot_id"
         ],
         "title": "SessionView",
+        "type": "object"
+      },
+      "SignInStart": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "SignInStart",
         "type": "object"
       },
       "SnapshotView": {
@@ -3479,6 +3514,42 @@
           }
         },
         "summary": "Review Interview"
+      }
+    },
+    "/api/settings/chatgpt/sign-in": {
+      "post": {
+        "operationId": "sign_in_api_settings_chatgpt_sign_in_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInStart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign In"
+      }
+    },
+    "/api/settings/chatgpt/sign-out": {
+      "post": {
+        "operationId": "sign_out_api_settings_chatgpt_sign_out_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign Out"
       }
     },
     "/api/settings/execution": {

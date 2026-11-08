@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
-from probeloop.ai.ports import ChatChunk, ChatRequest, ChatResult, ChatUsage, ModelCapabilities
+from probeloop.ai.chatgpt_auth import SIGN_IN_AGAIN, AccountStatus
+from probeloop.ai.ports import (
+    ChatChunk,
+    ChatRequest,
+    ChatResult,
+    ChatUsage,
+    ModelCapabilities,
+    UserActionRequiredError,
+)
 
 type Script = str | Exception | Callable[[ChatRequest], str]
 
@@ -48,3 +56,29 @@ class FakeChatModel:
         yield ChatChunk(
             text="", done=True, usage=ChatUsage(prompt_tokens=0, output_tokens=len(text))
         )
+
+
+@dataclass
+class FakeChatGptAccount:
+    """A ChatGPT account for end-to-end tests: signing in returns straight to the callback."""
+
+    signed_in: bool = True
+
+    def status(self) -> AccountStatus:
+        email = "synthetic@example.test" if self.signed_in else None
+        return AccountStatus(self.signed_in, email, self.signed_in)
+
+    def begin(self, redirect_uri: str) -> str:
+        return f"{redirect_uri}?code=synthetic&state=synthetic"
+
+    async def complete(self, query: Mapping[str, str]) -> AccountStatus:
+        self.signed_in = True
+        return self.status()
+
+    async def access_token(self, *, refresh: bool = False) -> str:
+        if not self.signed_in:
+            raise UserActionRequiredError(SIGN_IN_AGAIN)
+        return "synthetic-token"
+
+    async def sign_out(self) -> None:
+        self.signed_in = False

@@ -19,7 +19,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 
-from probeloop.ai.ports import LlmError
+from probeloop.ai.ports import LlmError, UserActionRequiredError
 from probeloop.interview.application.events import (
     AnswerRecorded,
     AnswerTimeWarning,
@@ -377,6 +377,8 @@ class SessionOrchestrator:
         """Load the model and fill its prompt cache with the stable part of the prompt."""
         try:
             await self._interviewer.prepare(self._request(TimeDirective.NORMAL, 0.0))
+        except UserActionRequiredError as exc:
+            return str(exc)
         except LlmError as exc:
             logger.warning(
                 "model warm-up failed", extra={"session_id": self.session.id, "error": str(exc)}

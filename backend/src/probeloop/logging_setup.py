@@ -29,7 +29,27 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+class RedactSignInCallback(logging.Filter):
+    """Remove the query of the sign-in callback, which carries an authorization code, from
+    uvicorn's access log."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if (
+            isinstance(args, tuple)
+            and len(args) >= 3
+            and isinstance(args[2], str)
+            and args[2].startswith("/auth/callback?")
+        ):
+            record.args = (*args[:2], "/auth/callback?[redacted]", *args[3:])
+        return True
+
+
+_REDACT = RedactSignInCallback()
+
+
 def configure(level: str) -> None:
+    logging.getLogger("uvicorn.access").addFilter(_REDACT)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     root = logging.getLogger()

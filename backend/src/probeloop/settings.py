@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,11 +32,9 @@ class Settings(BaseSettings):
     evaluation_judge_reasoning: Literal["off", "default"] = "off"
     keep_alive: str = "30m"
 
-    # Cloud execution profile (docs/adr/0013-cloud-execution-profile.md). Without an API key the
-    # profile is not offered. The interviewer, document analysis and evaluation then run on a
-    # Chat Completions endpoint; speech recognition and synthesis always stay local.
-    cloud_api_key: SecretStr | None = None
-    cloud_base_url: str = "https://api.openai.com/v1"
+    # Cloud execution profile (docs/adr/0013-cloud-execution-profile.md): the interviewer,
+    # document analysis and evaluation use the signed-in user's ChatGPT plan through Sign in with
+    # ChatGPT. Speech recognition and synthesis always stay local.
     cloud_interviewer_model: str = "gpt-6.1-terra"
     cloud_analysis_model: str = "gpt-6.1-terra"
     cloud_evaluation_model: str = "gpt-6.1-terra"
@@ -64,7 +62,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
-    @field_validator("cloud_api_key", "cloud_reasoning_off", mode="before")
+    @field_validator("cloud_reasoning_off", mode="before")
     @classmethod
     def _empty_is_unset(cls, value: object) -> object:
         return None if value == "" else value

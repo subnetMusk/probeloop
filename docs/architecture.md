@@ -132,7 +132,7 @@ showed four problems:
 │  Fact/Evidence, ContextSnapshot, Rubric, Report, TimePolicy, EvidencePolicy        │
 ├────────────────────────────────────────────────────────────────────────────────────┤
 │ Ports (typing.Protocol) ← Adapters (infrastructure)                                │
-│  ChatModel/ModelCatalog → Ollama | OpenAI-compat. | Fake                           │
+│  ChatModel/ModelCatalog → Ollama | ChatGPT plan   | Fake                           │
 │  SpeechToText → HTTP → stt-worker (faster-whisper CPU|CUDA, Parakeet) | Fake      │
 │  TextToSpeech → Piper (separate process, HTTP) | browser Web Speech (later) | Fake │
 │  DocumentTextExtractor → pypdf/pdfplumber in a process pool                        │
@@ -976,8 +976,8 @@ code paths.
 `base_url`, `model`, `num_ctx` and `reasoning`.
 
 **Execution profiles** ([ADR 0013](adr/0013-cloud-execution-profile.md)) choose between the local
-models and an OpenAI-compatible cloud endpoint for the interviewer, analysis and evaluation roles,
-from Settings. Speech always stays local.
+models and ChatGPT models used through the user's ChatGPT plan (Sign in with ChatGPT) for the
+interviewer, analysis and evaluation roles, from Settings. Speech always stays local.
 
 - On a Mac, pointing `base_url` at the PC's Ollama is enough.
 - Roles sharing the same Ollama model must use the same `num_ctx`. Configuration validation
@@ -1111,7 +1111,7 @@ milestone starts.
 | [0010](adr/0010-speech-synthesis.md) | Piper in its own container; default voice pending a listening test | M1 |
 | [0011](adr/0011-interviewer-move-format.md) | Constrained JSON for the interviewer move, parsed incrementally | M1 |
 | [0012](adr/0012-interview-evaluation-pipeline.md) | Evidence-first interview judging without thinking; both anchor orders kept | M7 |
-| [0013](adr/0013-cloud-execution-profile.md) | Optional cloud execution profile through an OpenAI-compatible adapter; speech stays local | M7 |
+| [0013](adr/0013-cloud-execution-profile.md) | Optional cloud execution profile through Sign in with ChatGPT (plan usage); speech stays local | M7 |
 | (planned) | In-process job runner with database-backed jobs | M5 |
 | (planned) | Prompts and rubrics as versioned files | M2 / M7 |
 | (planned) | Evidence-grounded evaluation with score aggregation in code | M7 |
