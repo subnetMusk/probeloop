@@ -19,6 +19,7 @@ import json
 import sys
 import urllib.request
 import uuid
+from pathlib import Path
 from typing import Any
 
 from websockets.asyncio.client import ClientConnection, connect
@@ -100,10 +101,30 @@ def main() -> None:
     chat_parser.add_argument("--language", default="it", choices=["it", "en"])
     chat_parser.add_argument("--minutes", type=int, default=15)
     sub.add_parser("import-sessions", help="move sessions from the old file store to the database")
+    restore_parser = sub.add_parser(
+        "restore-backup",
+        help="restore a portable backup into an empty database; stop the backend first",
+    )
+    restore_parser.add_argument("archive", type=Path)
     args = parser.parse_args()
+    if args.command == "restore-backup":
+        sys.exit(asyncio.run(restore_backup(args.archive)))
     if args.command == "import-sessions":
         sys.exit(asyncio.run(import_sessions()))
     sys.exit(asyncio.run(chat(args)))
+
+
+async def restore_backup(archive: Path) -> int:
+    from probeloop.bootstrap import build
+    from probeloop.settings import Settings
+
+    container = build(Settings())
+    try:
+        await container.restore_backup(archive)
+    finally:
+        await container.shutdown()
+    print("backup restored")
+    return 0
 
 
 async def import_sessions() -> int:

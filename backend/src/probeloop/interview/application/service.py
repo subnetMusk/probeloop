@@ -118,6 +118,10 @@ class SessionService:
     def background_busy(self) -> bool:
         return self._background_busy()
 
+    @property
+    def has_connections(self) -> bool:
+        return bool(self._connected)
+
     async def create(
         self,
         config: InterviewConfig,

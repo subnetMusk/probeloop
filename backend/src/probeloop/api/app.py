@@ -29,6 +29,7 @@ from probeloop import logging_setup
 from probeloop.ai.ports import LlmError
 from probeloop.api.assessment_routes import assessment_router
 from probeloop.api.context_routes import context_router
+from probeloop.api.data_routes import data_router
 from probeloop.api.schemas import (
     MAX_AUDIO_FRAME_BYTES,
     CreateSession,
@@ -93,6 +94,22 @@ def create_app(container: Container | None = None) -> FastAPI:
         await container.shutdown()
 
     app = FastAPI(title="ProbeLoop", version="0.1.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def serialise_mutations(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        if (
+            request.method in ("POST", "PUT", "PATCH", "DELETE")
+            and request.url.path.startswith("/api/")
+            and not request.url.path.startswith("/api/data/")
+        ):
+            if container.data.busy:
+                return Response("data maintenance is running", status_code=409)
+            async with container.data.write_lock:
+                return await call_next(request)
+        return await call_next(request)
 
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(
@@ -279,7 +296,8 @@ def create_app(container: Container | None = None) -> FastAPI:
                     outbox.put_nowait(frame)
 
             try:
-                live = await sessions.connect(session_id, listener)
+                async with container.data.write_lock:
+                    live = await sessions.connect(session_id, listener)
             except SessionBusyError:
                 await websocket.close(code=WS_SESSION_BUSY)
                 return
@@ -354,6 +372,7 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     app.include_router(context_router(container.context, jobs))
     app.include_router(assessment_router(container.assessment, jobs, container.export_report))
+    app.include_router(data_router(container.data))
 
     if settings.static_dir is not None:
         _serve_spa(app, settings.static_dir)

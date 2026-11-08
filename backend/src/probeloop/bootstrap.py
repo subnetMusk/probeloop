@@ -6,6 +6,7 @@ import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -46,12 +47,14 @@ from probeloop.speech.http_stt import HttpSpeechToText
 from probeloop.speech.piper import PiperTextToSpeech
 from probeloop.speech.ports import SpeechToText
 from probeloop.speech.silero import SileroVad
+from probeloop.storage.data import SqlDataStore
 from probeloop.storage.database import create_engine, migrate, sessionmaker
 from probeloop.storage.session_files import SessionFiles
 from probeloop.storage.sql_context import SqlContextStore
 from probeloop.storage.sql_jobs import SqlJobRepository
 from probeloop.storage.sql_reports import SqlReportStore
 from probeloop.storage.sql_sessions import SqlSessionStore
+from probeloop.workspace.service import DataService
 
 
 class SystemClock:
@@ -73,6 +76,7 @@ class Container:
     extractor: TextExtractor
     assessment: AssessmentService
     export_report: Callable[[Report, str], bytes]
+    data: DataService
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
@@ -82,8 +86,13 @@ class Container:
     async def shutdown(self) -> None:
         await self.sessions.shutdown()
         await self.jobs.stop()
+        await self.data.close()
         await self.engine.dispose()
         self.extractor.close()
+
+    async def restore_backup(self, archive: Path) -> None:
+        await migrate(self.engine)
+        await self.data.restore(archive)
 
 
 def build_voice(settings: Settings) -> VoiceServices | None:
@@ -260,10 +269,19 @@ def build(
         clock=clock,
         voice=voice,
         on_finished=on_finished,
-        background_busy=lambda: jobs.running or access.busy,
+        background_busy=lambda: jobs.running or access.busy or data.busy,
     )
     holder["sessions"] = sessions
 
+    async def pending_jobs() -> bool:
+        return bool(await jobs.pending())
+
+    data = DataService(
+        SqlDataStore(db, settings.data_dir),
+        connected=lambda: sessions.has_connections or sessions.any_active(),
+        pending=pending_jobs,
+        clear_live=sessions.shutdown,
+    )
     return Container(
         settings=settings,
         model=model,
@@ -277,6 +295,7 @@ def build(
         extractor=extractor,
         assessment=assessment,
         export_report=export_report,
+        data=data,
     )
 
 
