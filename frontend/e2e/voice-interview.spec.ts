@@ -1,10 +1,32 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+const syntheticCV = readFileSync(
+  new URL('../../backend/evals/fixtures/synthetic/context/backend-it.txt', import.meta.url),
+  'utf8',
+)
 
 // The backend runs with a scripted interviewer and fake speech engines (compose.test.yaml): the
 // recogniser answers "Segmento di prova di N secondi." for every segment that the real voice
 // activity detector cuts from the fake microphone.
 test('a voice interview from the setup page to the end of the call', async ({ page }) => {
   await page.goto('/')
+  await page.getByLabel('CV text', { exact: true }).fill(syntheticCV)
+  await page.getByRole('button', { name: 'Continue to resources' }).click()
+  await page.getByRole('button', { name: 'Analyse documents', exact: true }).click()
+  await expect(page.getByTestId('context-review')).toBeVisible({ timeout: 30_000 })
+  const inferred = page
+    .getByTestId('context-fact')
+    .filter({ hasText: 'Unverified model interpretation.' })
+  await inferred.getByRole('button', { name: 'Exclude', exact: true }).click()
+  await expect(inferred).toContainText('excluded')
+  await page.getByLabel('Professional area', { exact: true }).fill('Backend APIs')
+  await page.getByRole('button', { name: 'Confirm area', exact: true }).click()
+  await expect(page.getByText('Area confirmed', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Approve context and continue' }).click()
+  await expect(page.getByRole('combobox', { name: 'Type', exact: true })).toContainText(
+    'HR screening',
+  )
   await page.getByTestId('enable-microphone').click()
   await expect(page.getByText('Say something')).toBeVisible()
   await expect(page.getByTestId('speech-status')).toContainText('Speech recognition and voice')

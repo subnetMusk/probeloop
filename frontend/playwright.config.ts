@@ -14,6 +14,7 @@ const fakeMicrophone = path.resolve(
  */
 export default defineConfig({
   testDir: 'e2e',
+  workers: 1,
   timeout: 120_000,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
