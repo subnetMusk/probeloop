@@ -13,6 +13,8 @@ from probeloop.assessment.domain.model import Evidence, Observation, Score
 from probeloop.context.application.analysis import normalise
 
 _WORD = re.compile(r"\w")
+_ELISION = re.compile(r"\.{3,}|…")
+_MIN_QUOTE_CHARS = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,20 +51,33 @@ def source_span(quote: str, text: str) -> str | None:
     return text[origin[start] : origin[start + len(needle) - 1] + 1]
 
 
+def _verified_parts(quote: str, text: str) -> list[tuple[str, str]] | None:
+    """The normalised parts of a quotation and their source passages, or None if any part fails.
+
+    An elision ("..." or "…") marks omitted words: each part around it must still be
+    verbatim and long enough on its own, so one unverifiable part rejects the whole quotation.
+    """
+    parts: list[tuple[str, str]] = []
+    for fragment in _ELISION.split(quote):
+        needle = normalise(fragment)
+        if not needle:
+            continue
+        span = source_span(fragment, text)
+        if span is None or len(needle) < _MIN_QUOTE_CHARS:
+            return None
+        parts.append((needle, span))
+    return parts or None
+
+
 def checked_evidence(items: list[EvidenceData], sources: dict[str, Source]) -> tuple[Evidence, ...]:
     verified: dict[tuple[str, str], Evidence] = {}
     for item in items:
         source = sources.get(item.source_id)
-        quote = normalise(item.quote)
-        span = source_span(item.quote, source.text) if source is not None else None
-        if (
-            source is not None
-            and span is not None
-            and item.turn_seq in (None, source.turn_seq)
-            and len(quote) >= 8
-        ):
-            # The source registry owns turn identity. An omitted redundant turn number is
-            # resolved from it; an explicitly conflicting number is rejected.
+        # The source registry owns turn identity. An omitted redundant turn number is resolved
+        # from it; an explicitly conflicting number is rejected.
+        if source is None or item.turn_seq not in (None, source.turn_seq):
+            continue
+        for quote, span in _verified_parts(item.quote, source.text) or ():
             verified[(item.source_id, quote)] = Evidence(item.source_id, span, source.turn_seq)
     return tuple(verified.values())
 

@@ -305,3 +305,23 @@ def test_verified_quotations_are_shown_as_the_source_writes_them() -> None:
     ]
     assert source_span("plans and write load", "Plans, and write-load.") == "Plans, and write-load"
     assert source_span("not in the text at all", text) is None
+
+
+def test_an_elided_quotation_is_kept_only_when_every_part_is_verbatim() -> None:
+    text = (
+        "The team decided to introduce a partial index on the status column. Then, after a "
+        "week of tests, the team opted for GiST because lookups were composite."
+    )
+    sources = {"turn-1": Source(text, 1)}
+
+    def quoted(quote: str) -> list[str]:
+        items = [EvidenceData(source_id="turn-1", quote=quote)]
+        return [e.quote for e in checked_evidence(items, sources)]
+
+    assert quoted("introduce a partial index... the team opted for GiST…") == [
+        "introduce a partial index",
+        "the team opted for GiST",
+    ]
+    # An invented part, or a part too short to locate, rejects the whole quotation.
+    assert quoted("introduce a partial index... the team chose BRIN") == []
+    assert quoted("introduce a partial index... GiST") == []
