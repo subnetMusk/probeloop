@@ -46,7 +46,7 @@ function Row({ session, onDelete }: { session: SessionSummary; onDelete: () => v
         <Trash2Icon />
       </Button>
       <Button asChild variant="outline">
-        <Link to="/sessions/$sessionId" params={{ sessionId: session.id }}>
+        <Link to="/interviews/$sessionId" params={{ sessionId: session.id }}>
           <T text={'Open'} />
           <ChevronRightIcon data-icon="inline-end" />
         </Link>
@@ -76,7 +76,7 @@ export function SessionsPage() {
           </p>
         </div>
         <Button asChild>
-          <Link to="/">
+          <Link to="/new-interview">
             <PlusIcon data-icon="inline-start" />
             <T text={'New interview'} />
           </Link>

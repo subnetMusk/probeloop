@@ -277,7 +277,7 @@ function Refinement({ session, job }: { session: SessionView; job: JobView | und
 
 /** A past interview: its recording, the transcript to review and correct, the downloads. */
 export function SessionPage() {
-  const { sessionId } = useParams({ from: '/sessions/$sessionId' })
+  const { sessionId } = useParams({ from: '/interviews/$sessionId/' })
   const queryClient = useQueryClient()
   const session = useQuery({
     queryKey: ['session', sessionId],
@@ -318,7 +318,7 @@ export function SessionPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
       <Button asChild variant="ghost" className="self-start">
-        <Link to="/sessions">
+        <Link to="/interviews">
           <ArrowLeftIcon data-icon="inline-start" />
           <T text={'All interviews'} />
         </Link>

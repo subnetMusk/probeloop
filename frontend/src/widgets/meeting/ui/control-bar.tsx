@@ -91,7 +91,7 @@ export function ControlBar(props: ControlBarProps) {
             onClick={props.onAnswer}
             disabled={!props.canAnswer}
             data-testid="answer"
-            className="flex h-12 items-center gap-2 rounded-full bg-emerald-500 px-5 font-medium text-white transition-colors hover:bg-emerald-600 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+            className="flex h-12 items-center gap-2 rounded-full bg-brand px-5 font-medium text-brand-foreground transition-colors hover:bg-brand/85 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
           >
             <MicIcon className="size-5" />
             <T text={'Answer'} />

@@ -16,8 +16,8 @@ interface ParticipantTileProps {
 }
 
 const AVATAR: Record<ParticipantTileProps['tone'], string> = {
-  interviewer: 'from-indigo-500 to-violet-600',
-  candidate: 'from-emerald-500 to-teal-600',
+  interviewer: 'from-brand to-highlight',
+  candidate: 'from-zinc-500 to-zinc-700',
 }
 
 /** A participant in the call: avatar, speaking rings, name plate and microphone state. */
@@ -29,8 +29,7 @@ export function ParticipantTile(props: ParticipantTileProps) {
       data-speaking={props.speaking}
       className={cn(
         'relative flex min-h-56 items-center justify-center overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5 transition-shadow duration-300',
-        props.speaking &&
-          'ring-2 ring-emerald-400/80 shadow-[0_0_40px_-10px] shadow-emerald-400/40',
+        props.speaking && 'ring-2 ring-brand-text/80 shadow-[0_0_40px_-10px] shadow-brand-text/40',
       )}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent" />

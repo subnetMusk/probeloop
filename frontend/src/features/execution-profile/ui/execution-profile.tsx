@@ -134,7 +134,7 @@ export function ExecutionProfileSettings() {
                   key={profile.id}
                   className={`flex gap-3 rounded-lg border p-3 ${
                     available ? 'cursor-pointer' : ''
-                  } ${checked ? 'border-indigo-600' : ''}`}
+                  } ${checked ? 'border-brand' : ''}`}
                 >
                   <input
                     type="radio"
@@ -145,7 +145,7 @@ export function ExecutionProfileSettings() {
                     onChange={() => {
                       choose(profile.id)
                     }}
-                    className="mt-1 accent-indigo-600"
+                    className="mt-1 accent-brand"
                   />
                   <span className="flex flex-col gap-1">
                     <span className="font-medium">
@@ -220,7 +220,7 @@ export function ExecutionProfileSettings() {
           </section>
         )}
         {view?.profile === 'cloud' && (
-          <p role="note" className="rounded-lg border border-amber-500/60 p-3 text-sm">
+          <p role="note" className="rounded-lg border border-highlight/60 p-3 text-sm">
             {it ? 'Piano ChatGPT in uso' : 'Using ChatGPT plan'}:{' '}
             {it
               ? 'CV, documenti, trascritti e risposte vengono inviati a OpenAI. I report generati con modelli diversi non si confrontano nei progressi. '

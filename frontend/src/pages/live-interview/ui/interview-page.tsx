@@ -10,6 +10,7 @@ import { Dots, ParticipantTile } from '@/widgets/meeting'
 import { TranscriptPanel } from '@/widgets/meeting'
 import { Button } from '@/shared/ui/button'
 import { Progress } from '@/shared/ui/progress'
+import { Wordmark } from '@/shared/ui/wordmark'
 import { micLevel, useAnimatedLevel } from '@/shared/lib/hooks'
 import { useHotkey } from '@/shared/lib/hooks'
 import { STEP_TEXT, formatClock, remainingSeconds } from '@/features/live-interview'
@@ -69,7 +70,7 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
               {step.state === 'loading' && (
                 <Loader2Icon className="size-4 animate-spin text-zinc-400" />
               )}
-              {step.state === 'ready' && <CheckIcon className="size-4 text-emerald-400" />}
+              {step.state === 'ready' && <CheckIcon className="size-4 text-success" />}
               {step.state === 'failed' && <XIcon className="size-4 text-red-400" />}
               <span className="flex-1">
                 <T text={STEP_TEXT[step.name]} />
@@ -91,7 +92,7 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
             <Dots />
           </p>
         )}
-        {state.notice && <p className="text-sm text-amber-300">{state.notice}</p>}
+        {state.notice && <p className="text-sm text-highlight-text">{state.notice}</p>}
         {(failed || state.notice) && (
           <Button onClick={onRetry}>
             <RotateCcwIcon data-icon="inline-start" />
@@ -132,7 +133,7 @@ function Ended({ state, sessionId }: { state: InterviewState; sessionId: string 
           <div className="flex gap-2">
             <Button asChild>
               <Link
-                to="/sessions/$sessionId"
+                to="/interviews/$sessionId"
                 params={{ sessionId }}
                 data-testid="review-transcript"
               >
@@ -140,7 +141,7 @@ function Ended({ state, sessionId }: { state: InterviewState; sessionId: string 
               </Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link to="/">
+              <Link to="/new-interview">
                 <T text={'New interview'} />
               </Link>
             </Button>
@@ -166,7 +167,7 @@ function lastOf(entries: Entry[], speaker: Entry['speaker']): Entry | undefined 
 
 /** The meeting, laid out like a video call. */
 export function InterviewPage() {
-  const { sessionId } = useParams({ from: '/interview/$sessionId' })
+  const { sessionId } = useParams({ from: '/live-interview/$sessionId' })
   const audio = useAudio()
   const kit = audio.kit
   const { state, answer, endAnswer, endCall, resume, retryStart, dismissNotice } = useInterview(
@@ -265,9 +266,7 @@ export function InterviewPage() {
     <Stage>
       <header className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500 font-heading font-semibold text-white">
-            P
-          </span>
+          <Wordmark className="text-base" />
           <span className="font-medium">
             <T text={'Mock interview'} />
           </span>
@@ -317,7 +316,7 @@ export function InterviewPage() {
             />
           </div>
           {state.notice && (
-            <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-amber-500/15 px-4 py-2 text-sm text-amber-200 ring-1 ring-amber-400/30 backdrop-blur">
+            <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-highlight/15 px-4 py-2 text-sm text-highlight-text ring-1 ring-highlight/30 backdrop-blur">
               {state.notice}
             </div>
           )}

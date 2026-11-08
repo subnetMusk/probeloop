@@ -120,7 +120,7 @@ export function InterviewSetup({
     mutationFn: api.createSession,
     onSuccess: (session) => {
       sessionStorage.removeItem(PREPARATION_KEY)
-      void navigate({ to: '/interview/$sessionId', params: { sessionId: session.id } })
+      void navigate({ to: '/live-interview/$sessionId', params: { sessionId: session.id } })
     },
   })
 

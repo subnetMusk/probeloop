@@ -53,7 +53,7 @@ export function SettingsPage() {
               onChange={(event) => {
                 setVolume(Number(event.target.value) / 100)
               }}
-              className="w-full accent-indigo-600"
+              className="w-full accent-brand"
             />
           </div>
           <div className="flex flex-col gap-2">

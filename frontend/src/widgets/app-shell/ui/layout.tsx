@@ -1,54 +1,74 @@
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { Link, Outlet, useMatches } from '@tanstack/react-router'
+import { useEffect } from 'react'
 
+import { useMessages } from '@/shared/i18n'
 import { TooltipProvider } from '@/shared/ui/tooltip'
+import { Wordmark } from '@/shared/ui/wordmark'
+import { pageSlug, tabTitle } from '../model/crumbs'
+import { Breadcrumbs } from './breadcrumbs'
+import { Footer } from './footer'
+import { shellMessages } from './messages'
 import { ReportNotifications } from './report-notifications'
-import { useLanguage } from '@/shared/lib/preferences'
-import { T } from '@/shared/i18n'
 
-/** The app shell. The interview is full screen, like a video call, so it has no header. */
+const NAV_LINK = 'rounded-md px-3 py-1.5 hover:bg-muted'
+const NAV_ACTIVE = { className: 'font-medium text-foreground bg-muted' }
+
+/**
+ * The app shell: header, breadcrumbs, page and footer. Routes marked `chrome: 'none'` (the
+ * interview call, full screen like a video call) get the page alone.
+ */
 export function Layout() {
-  const it = useLanguage() === 'it'
-  const inCall = useRouterState({ select: (s) => s.location.pathname.startsWith('/interview/') })
+  const t = useMessages(shellMessages)
+  const matches = useMatches()
+  const chromeless = matches.some((match) => match.staticData.chrome === 'none')
+  const slug = pageSlug(matches)
+  useEffect(() => {
+    // Pages without a route slug (not found) name the tab themselves.
+    if (slug) document.title = tabTitle(slug)
+  }, [slug])
+  if (chromeless)
+    return (
+      <TooltipProvider delayDuration={300}>
+        <div className="min-h-svh bg-background text-foreground">
+          <Outlet />
+        </div>
+      </TooltipProvider>
+    )
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="min-h-svh bg-background text-foreground">
-        {!inCall && (
-          <header className="border-b bg-background/80 backdrop-blur">
-            <div className="mx-auto flex max-w-5xl items-center gap-2 px-6 py-3">
-              <Link to="/" className="flex items-center gap-2">
-                <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500 font-heading font-semibold text-white">
-                  P
-                </span>
-                <span className="font-heading text-lg font-semibold">ProbeLoop</span>
+      <div className="flex min-h-svh flex-col bg-background text-foreground">
+        <header className="border-b bg-background/80 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-6 py-3">
+            <Link to="/dashboard" aria-label="ProbeLoop, dashboard">
+              <Wordmark />
+            </Link>
+            <nav
+              aria-label={t.nav.label}
+              className="ml-auto flex flex-wrap items-center gap-1 text-sm"
+            >
+              <Link to="/dashboard" className={NAV_LINK} activeProps={NAV_ACTIVE}>
+                {t.nav.dashboard}
               </Link>
-              <span className="ml-2 hidden text-sm text-muted-foreground sm:inline">
-                <T text={'interview practice, out loud'} />
-              </span>
-              <nav className="ml-auto flex items-center gap-1 text-sm">
-                <Link
-                  to="/"
-                  className="rounded-md px-3 py-1.5 hover:bg-muted"
-                  activeProps={{ className: 'font-medium text-foreground' }}
-                  activeOptions={{ exact: true }}
-                >
-                  <T text={it ? 'Nuovo colloquio' : 'New interview'} />
-                </Link>
-                <Link
-                  to="/sessions"
-                  className="rounded-md px-3 py-1.5 hover:bg-muted"
-                  activeProps={{ className: 'font-medium text-foreground' }}
-                >
-                  <T text={it ? 'I tuoi colloqui' : 'Your interviews'} />
-                </Link>
-              </nav>
-              <Link to="/settings" className="rounded-md px-3 py-1.5 text-sm hover:bg-muted">
-                {it ? 'Impostazioni' : 'Settings'}
+              <Link to="/new-interview" className={NAV_LINK} activeProps={NAV_ACTIVE}>
+                {t.nav.newInterview}
               </Link>
-            </div>
-          </header>
-        )}
-        <Outlet />
-        {!inCall && <ReportNotifications />}
+              <Link to="/interviews" className={NAV_LINK} activeProps={NAV_ACTIVE}>
+                {t.nav.interviews}
+              </Link>
+              <Link to="/settings" className={NAV_LINK} activeProps={NAV_ACTIVE}>
+                {t.nav.settings}
+              </Link>
+            </nav>
+          </div>
+        </header>
+        <div className="mx-auto w-full max-w-5xl px-6 pt-4">
+          <Breadcrumbs />
+        </div>
+        <div className="flex-1">
+          <Outlet />
+        </div>
+        <ReportNotifications />
+        <Footer />
       </div>
     </TooltipProvider>
   )

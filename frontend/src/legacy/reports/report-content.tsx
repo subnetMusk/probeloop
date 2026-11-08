@@ -36,7 +36,7 @@ export function ReportContent({ report }: { report: ReportData }) {
             <>
               <a
                 className="ml-2 text-indigo-600 underline"
-                href={`/sessions/${report.session_id}#turn-${item.turn_seq}`}
+                href={`/interviews/${report.session_id}#turn-${item.turn_seq}`}
               >
                 {it ? 'Turno' : 'Turn'} {item.turn_seq}
               </a>

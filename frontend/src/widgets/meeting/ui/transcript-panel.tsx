@@ -57,7 +57,7 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
                 className={cn(
                   'rounded-2xl px-3 py-2 text-sm leading-relaxed',
                   mine
-                    ? 'rounded-br-md bg-emerald-600/90 text-white'
+                    ? 'rounded-br-md bg-brand/90 text-brand-foreground'
                     : 'rounded-bl-md bg-zinc-800 text-zinc-100',
                   !entry.final && 'opacity-70 italic',
                 )}

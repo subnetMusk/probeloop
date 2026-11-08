@@ -79,7 +79,11 @@ export function InterviewReportPanel({ sessionId, jobs }: { sessionId: string; j
         <ul>
           {reports.data?.toReversed().map((report) => (
             <li key={report.id}>
-              <Link className="underline" to="/reports/$reportId" params={{ reportId: report.id }}>
+              <Link
+                className="underline"
+                to="/interviews/$sessionId/reports/$reportId"
+                params={{ sessionId, reportId: report.id }}
+              >
                 {it ? 'Apri report' : 'Open report'} v{report.version} ·{' '}
                 {report.language.toUpperCase()} · {report.overall ?? 'NA'} / 5
               </Link>

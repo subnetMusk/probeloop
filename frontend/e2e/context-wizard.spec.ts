@@ -13,14 +13,14 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('quick start keeps the microphone setup available', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/new-interview')
   await page.getByRole('button', { name: 'Quick start without documents' }).click()
   await expect(page.getByTestId('enable-microphone')).toBeVisible()
   await expect(page.getByTestId('start-interview')).toBeDisabled()
 })
 
 test('an uploaded CV and an edited generated offer reach approval', async ({ page }, testInfo) => {
-  await page.goto('/')
+  await page.goto('/new-interview')
   await page.getByLabel('Or upload a text document').setInputFiles(cvPath)
   await page.getByRole('combobox', { name: 'Job offer source' }).click()
   await page.getByRole('option', { name: 'Describe a role', exact: true }).click()
@@ -56,11 +56,18 @@ test('an uploaded CV and an edited generated offer reach approval', async ({ pag
   const review = page.getByTestId('cv-review-panel')
   await review.getByRole('combobox', { name: 'Report language', exact: true }).click()
   await page.getByRole('option', { name: 'Italiano', exact: true }).click()
+  // The same documents give the same approved context, so earlier runs may have left versions.
+  const versions = review.getByRole('link', { name: /^Apri revisione v\d+ ·/ })
+  await expect(page.getByRole('button', { name: 'Genera revisione CV' })).toBeEnabled()
+  const before = await versions.count()
   await review.getByRole('button', { name: 'Genera revisione CV' }).click()
-  const first = review.getByRole('link', { name: /Apri revisione v1/ })
-  await expect(first).toBeVisible({ timeout: 30_000 })
+  await expect(versions).toHaveCount(before + 1, { timeout: 30_000 })
   await review.getByRole('button', { name: 'Genera revisione CV' }).click()
-  await expect(review.getByRole('link', { name: /Apri revisione v2/ })).toBeVisible()
+  await expect(versions).toHaveCount(before + 2, { timeout: 30_000 })
+  const first = review.getByRole('link', {
+    name: new RegExp(`^Apri revisione v${String(before + 1)} ·`),
+  })
+  await expect(first).toBeVisible()
   await first.click()
   await expect(page.getByRole('heading', { name: 'Revisione del CV', exact: true })).toBeVisible()
   await expect(page.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
@@ -72,7 +79,7 @@ test('resource profiles can be created, overwritten, copied or used once', async
 }) => {
   const name = `Synthetic profile ${Date.now()}`
   const begin = async () => {
-    await page.goto('/')
+    await page.goto('/new-interview')
     await page.evaluate(() => {
       sessionStorage.clear()
     })

@@ -15,7 +15,7 @@ const syntheticCV = readFileSync(
 // recogniser answers "Segmento di prova di N secondi." for every segment that the real voice
 // activity detector cuts from the fake microphone.
 test('a voice interview from the setup page to the end of the call', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/new-interview')
   await page.getByLabel('CV text', { exact: true }).fill(syntheticCV)
   await page.getByRole('button', { name: 'Continue to resources' }).click()
   await page.getByRole('button', { name: 'Analyse documents', exact: true }).click()
