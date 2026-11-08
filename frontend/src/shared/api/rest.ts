@@ -1,5 +1,6 @@
 import type { components } from '@/shared/api/types/rest'
-import { localise } from '@/shared/i18n'
+import { getPreferences } from '@/shared/lib/preferences'
+import { localizeProblem } from './problem-messages'
 
 export type CreateSession = components['schemas']['CreateSession']
 export type SessionView = components['schemas']['SessionView']
@@ -25,10 +26,11 @@ export type ExecutionProfile = ExecutionView['profile']
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    message: string,
+    /** The backend's problem detail, in English. */
+    readonly detail: string,
   ) {
-    // Problem details from the backend are English; known messages are shown localised.
-    super(localise(message))
+    // Known problem details are shown in the interface language.
+    super(localizeProblem(detail, getPreferences().language))
   }
 }
 
