@@ -664,8 +664,9 @@ export function ContextWizard() {
                             setSaveChoice('overwrite')
                           }}
                         />
-                        <T text={'Overwrite'} />
-                        {profile.name}
+                        <span>
+                          <T text={'Overwrite'} /> {profile.name}
+                        </span>
                       </label>
                     )}
                     <label className="flex gap-2">

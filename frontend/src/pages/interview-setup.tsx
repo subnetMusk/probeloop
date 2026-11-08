@@ -185,7 +185,7 @@ export function InterviewSetup({
               />
               <Choice
                 id="language"
-                label="Language"
+                label="Interview language"
                 value={language}
                 options={LANGUAGES}
                 disabled={(value) => !voices[value]}
