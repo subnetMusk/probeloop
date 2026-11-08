@@ -50,6 +50,12 @@ export const PROBLEMS_IT: Readonly<Record<string, string>> = {
   'approved context not found': 'Contesto approvato non trovato',
   'profile not found': 'Profilo non trovato',
   'document not found': 'Documento non trovato',
+  'original file not available': 'File originale non disponibile',
+  'the resources of a profile must be resource documents':
+    'Le risorse di un profilo devono essere documenti di tipo risorsa',
+  'the CV of a profile must be a CV document': 'Il CV di un profilo deve essere un documento CV',
+  'the job offer of a profile must be a job offer document':
+    'L’offerta di un profilo deve essere un documento di tipo offerta',
   'not found': 'Non trovato',
 }
 

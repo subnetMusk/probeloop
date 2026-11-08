@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.ai.ports import LlmError
@@ -377,6 +378,29 @@ def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
         except ContextError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @router.get("/documents/{document_id}/original")
+    async def document_original(document_id: str) -> Response:
+        """The uploaded file, or the text of a typed document. Only PDFs are shown inline: other
+        types, HTML included, are always downloaded so they never run on the app's origin."""
+        try:
+            document, data = await context.original(document_id)
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="document not found") from exc
+        if document.has_original:
+            if data is None:
+                raise HTTPException(status_code=404, detail="original file not available")
+            inline = document.media_type == "application/pdf"
+            return Response(
+                data,
+                media_type=document.media_type,
+                headers=_file_headers(document.filename or document.title, inline=inline),
+            )
+        return Response(
+            document.text.encode(),
+            media_type="text/plain; charset=utf-8",
+            headers=_file_headers(f"{document.title}.txt", inline=False),
+        )
+
     @router.post("/documents/{document_id}/revisions", status_code=201)
     async def revise_document(document_id: str, body: DocumentRevision) -> DocumentView:
         try:
@@ -471,3 +495,18 @@ def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
             raise HTTPException(status_code=404, detail="not found") from exc
 
     return router
+
+
+def _file_headers(filename: str, *, inline: bool) -> dict[str, str]:
+    """Download headers with an ASCII fallback name and the UTF-8 name (RFC 6266 and 5987)."""
+    fallback = "".join(
+        c if c.isascii() and c.isprintable() and c not in '"\\' else "_" for c in filename
+    )
+    disposition = "inline" if inline else "attachment"
+    return {
+        "Content-Disposition": (
+            f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+        ),
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-cache",
+    }

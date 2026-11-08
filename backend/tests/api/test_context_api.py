@@ -241,3 +241,45 @@ def test_identical_documents_reuse_the_approved_snapshot(client: TestClient) -> 
         assert snapshot.status_code == 200, snapshot.text
         snapshots.append(snapshot.json()["id"])
     assert snapshots[0] == snapshots[1]
+
+
+def test_original_files_are_served_safely(client: TestClient, tmp_path: Path) -> None:
+    pdf_bytes = text_pdf(["Giulia Neri", "Backend developer"])
+    pdf = client.post(
+        "/api/documents",
+        data={"kind": "cv", "title": "CV"},
+        files={"file": ("Curriculum è.pdf", pdf_bytes, "application/pdf")},
+    ).json()
+    shown = client.get(f"/api/documents/{pdf['id']}/original")
+    assert shown.status_code == 200
+    assert shown.content == pdf_bytes
+    assert shown.headers["content-type"] == "application/pdf"
+    assert shown.headers["content-disposition"].startswith('inline; filename="Curriculum _.pdf"')
+    assert "filename*=UTF-8''Curriculum%20%C3%A8.pdf" in shown.headers["content-disposition"]
+    assert shown.headers["x-content-type-options"] == "nosniff"
+
+    page = client.post(
+        "/api/documents",
+        data={"kind": "resource", "title": "Pagina"},
+        files={"file": ("page.html", b"<p>Progetto di routing in Python.</p>", "text/html")},
+    ).json()
+    downloaded = client.get(f"/api/documents/{page['id']}/original")
+    assert downloaded.headers["content-disposition"].startswith("attachment;")
+
+    edited = client.post(
+        f"/api/documents/{pdf['id']}/revisions", json={"text": "Giulia Neri, backend."}
+    ).json()
+    assert client.get(f"/api/documents/{edited['id']}/original").content == pdf_bytes
+
+    notes = typed(client, "resource", "Note", "Progetto di routing in Python.")
+    text = client.get(f"/api/documents/{notes}/original")
+    assert text.headers["content-type"] == "text/plain; charset=utf-8"
+    assert text.headers["content-disposition"].startswith('attachment; filename="Note.txt"')
+    assert text.text == "Progetto di routing in Python."
+
+    for blob in (tmp_path / "blobs").rglob("*"):
+        if blob.is_file():
+            blob.unlink()
+    lost = client.get(f"/api/documents/{pdf['id']}/original")
+    assert (lost.status_code, lost.json()["detail"]) == (404, "original file not available")
+    assert client.get("/api/documents/missing/original").status_code == 404

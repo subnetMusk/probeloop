@@ -72,6 +72,13 @@ class ContextService:
         (document,) = await self._documents([document_id])
         return document
 
+    async def original(self, document_id: str) -> tuple[Document, bytes | None]:
+        """A document with the bytes of its uploaded file, or None when it has no stored file."""
+        document = await self.document(document_id)
+        if not document.has_original or document.sha256 is None:
+            return document, None
+        return document, await self._store.original(document.sha256)
+
     async def upload(self, kind: DocumentKind, title: str, filename: str, data: bytes) -> Document:
         key = hashlib.sha256(
             b"text.v1\0" + PurePath(filename).suffix.lower().encode() + b"\0" + data

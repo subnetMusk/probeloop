@@ -2507,6 +2507,44 @@
         "summary": "Document Text"
       }
     },
+    "/api/documents/{document_id}/original": {
+      "get": {
+        "description": "The uploaded file, or the text of a typed document. Only PDFs are shown inline: other\ntypes, HTML included, are always downloaded so they never run on the app's origin.",
+        "operationId": "document_original_api_documents__document_id__original_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Document Original"
+      }
+    },
     "/api/documents/{document_id}/revisions": {
       "post": {
         "operationId": "revise_document_api_documents__document_id__revisions_post",

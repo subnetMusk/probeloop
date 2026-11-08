@@ -59,6 +59,15 @@ class SqlContextStore:
         async with self._sessions.begin() as db:
             db.add(_document_row(document))
 
+    async def original(self, sha256: str) -> bytes | None:
+        path = self._blobs / sha256[:2] / sha256
+        if len(sha256) != 64 or not all(c in "0123456789abcdef" for c in sha256):
+            return None  # never build a path from anything but a stored digest
+        try:
+            return await asyncio.to_thread(path.read_bytes)
+        except FileNotFoundError:
+            return None
+
     async def documents(self, ids: list[str]) -> list[Document]:
         async with self._sessions() as db:
             rows = (await db.scalars(select(DocumentRow).where(DocumentRow.id.in_(ids)))).all()
