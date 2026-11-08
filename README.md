@@ -5,10 +5,10 @@ interviewer. The interview is a spoken conversation. The interviewer asks follow
 based on your answers, your CV and the job offer. After the call you get a detailed report, and
 you can track your progress across sessions.
 
-> **Status: early development (milestone M3).** A spoken interview runs end to end in the
-> browser: the interviewer speaks, you answer out loud, and the transcript and the audio of the
-> whole conversation are kept. Document analysis, evaluation and reports come in later milestones
-> (see the [roadmap](docs/roadmap.md)).
+> **Status: early development (milestone M5).** Prepare an interview from a CV, an optional job
+> offer and reusable resources, review the extracted facts, then take a spoken interview.
+> Transcripts and audio are persisted and reviewable. CV reviews and interview evaluation reports
+> are the next milestones (see the [roadmap](docs/roadmap.md)).
 
 ## Goals
 
@@ -20,7 +20,7 @@ you can track your progress across sessions.
 - **Honest, verifiable feedback.** The evaluator is separate from the interviewer and applies
   versioned, interview-type-specific rubrics. Every judgement cites the transcript. Scores are
   formative measures, not predictions of hiring outcomes.
-- **Traceable context.** Information extracted from your CV, the job offer and public sources
+- **Traceable context.** Information extracted from your CV, the job offer and supplied resources
   keeps its provenance (declared, observed or inferred). You review and approve it before the
   interview starts.
 - **Local first.** Inference runs on local models through [Ollama](https://ollama.com). No
@@ -73,6 +73,15 @@ Then open <http://127.0.0.1:8000>, check the microphone, and join. Joining loads
 model and the speech engines first, which can take a minute the first time. Use headphones if you
 can: the microphone only records between "Answer" and "End of answer" (or the space bar), but
 headphones keep the interviewer's voice out of the room.
+
+**Prepare the context first.** Upload or paste your CV and, optionally, a job offer. You can also
+describe a role, edit the generated offer, or choose a getting-to-know interview without an offer.
+Add titled resources (text, Markdown, JSON, XML, HTML, DOCX or PDF), choosing an existing profile
+or saving a new one. Changed profiles can be overwritten, copied or used for this interview only.
+Documents are analysed asynchronously with `qwen3.5:9b` (download it with `ollama pull qwen3.5:9b`).
+Review, correct or exclude the extracted facts and confirm the inferred area without an offer.
+Approval freezes the context used by the interviewer and the refinement vocabulary. No document
+link is followed. A quick start without documents remains available.
 
 **After the call** your answers are transcribed again from their recordings with Whisper, a
 slower but more accurate recogniser (a few minutes for a 10-minute interview; the first run also
@@ -171,6 +180,11 @@ and the reply latency of every turn:
 docker compose --profile tools run --rm voice-candidate --minutes 10
 ```
 
+The synthetic candidate uses the male `it_IT-riccardo-x_low` voice; download it with
+`docker compose --profile setup run --rm tts-voices it_IT-riccardo-x_low` first. Pass
+`--snapshot-id <approved-id>` for a document-based interview, and `--voice` to choose another
+downloaded candidate voice. [Voice credits and licences](docs/voices.md).
+
 **Configuration** uses `PROBELOOP_*` environment variables
 (see [settings.py](backend/src/probeloop/settings.py)). For example,
 `PROBELOOP_INTERVIEWER_MODEL=qwen3.5:9b` switches the model, and `PROBELOOP_TTS_VOICE` the
@@ -195,7 +209,9 @@ ProbeLoop processes personal data: CVs, job offers, voice recordings and transcr
 
 - All of it is stored locally in Docker volumes.
 - Audio retention is configurable per session.
-- Sessions and profiles can be deleted completely.
+- Deleting an interview removes its rows and recordings. Removing a resource profile removes the
+  reusable set; documents and extraction caches remain stored locally. Global data deletion is
+  planned in M9.
 
 Never commit real personal data to this repository. Test material must be synthetic.
 

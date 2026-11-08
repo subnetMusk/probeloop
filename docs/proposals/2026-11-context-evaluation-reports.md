@@ -2,9 +2,10 @@
 
 - Status: reviewed by the owner; decisions recorded in [section 9](#9-decisions)
 - Date: 2026-11-07
-- Scope: M4, M5 and M7 of the [roadmap](../roadmap.md), plus a CV review that the roadmap does
-  not have yet. Nothing here is implemented; this is the design to follow when those milestones
-  start.
+- Scope: M4, M5 and M7 of the [roadmap](../roadmap.md), plus CV review.
+- Implementation status (2026-11-08): M4 is complete; M5 is implemented and verified locally with
+  live extraction measurements and the browser flow. CV review, M7 reports and application
+  settings remain pending. The decisions below govern their implementation.
 
 ## 1. Starting point and proposed order
 

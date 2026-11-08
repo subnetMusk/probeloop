@@ -17,7 +17,9 @@ from evals.voice_candidate import (
     Question,
     Run,
     TurnRecord,
+    create_session,
     handle,
+    parse_args,
     percentile,
     report_markdown,
     summarise,
@@ -78,6 +80,23 @@ def test_word_error_rate() -> None:
     assert word_error_rate("Ho usato PostgreSQL.", "ho usato postgresql") == 0.0
     assert word_error_rate("uno due tre quattro", "uno tre quattro cinque") == 0.5
     assert word_error_rate("", "") == 0.0
+
+
+async def test_candidate_creates_the_session_with_approved_context() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/sessions"
+        body = json.loads(request.content)
+        assert body["snapshot_id"] == "a" * 32
+        assert body["interview_type"] == "hr"
+        assert body["modality"] == "voice"
+        return httpx.Response(201, json={"id": "session-id"})
+
+    args = parse_args(["--snapshot-id", "a" * 32, "--type", "hr"])
+    assert args.voice == "it_IT-riccardo-x_low"
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url="http://app"
+    ) as api:
+        assert await create_session(api, args) == "session-id"
 
 
 def test_summary_and_report() -> None:

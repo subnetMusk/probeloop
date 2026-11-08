@@ -6,15 +6,21 @@
 - **Related:** [roadmap](roadmap.md), [initial research](research/2026-11-initial-research.md),
   [ADRs](adr/).
 
+**Context and assessment update (2026-11-07).** The approved
+[context proposal](proposals/2026-11-context-evaluation-reports.md#9-decisions) supersedes the
+original web-enrichment, context-input and rubric plans below. M8 is dropped: CVs, offers and
+titled resources are uploaded or typed; links are never followed. Resources are reused through
+profiles. M5 implements this revised context flow; CV review precedes M7 and UI polish follows it.
+
 ## 1. Purpose
 
 ProbeLoop is a self-hosted platform for spoken mock job interviews with an AI interviewer. The
 user moves through seven phases:
 
-1. **Preparation.** Upload a CV, a job offer and extra links, then choose the interview type,
+1. **Preparation.** Upload or paste a CV, an optional job offer and titled resources, then choose the interview type,
    difficulty, duration, language, model and custom instructions.
-2. **Analysis.** The system extracts structured information, enriches it from GitHub and the web,
-   and matches it against the job requirements.
+2. **Analysis.** The system extracts structured information with verified quotes and matches it
+   against the job requirements, or infers an area that the user confirms without an offer.
 3. **Human review.** Every fact is shown with its provenance and epistemic status. The user
    confirms, corrects or excludes it. The approved result is frozen into an immutable context
    snapshot.

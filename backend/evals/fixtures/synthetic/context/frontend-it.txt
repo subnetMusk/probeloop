@@ -1,0 +1,14 @@
+Paolo Blu - synthetic candidate
+Frontend developer junior
+
+Experience
+2023-2025 Sviluppatore frontend presso Studio Interfacce.
+Ho implementato un catalogo accessibile con React e TypeScript.
+Ho aggiunto 35 test con Vitest e ridotto del 20% i difetti segnalati.
+
+Skills
+React, TypeScript, CSS, Vitest, Playwright.
+Education
+2023 Diploma di tecnico informatico presso Istituto Esempio.
+Languages
+Italiano madrelingua, inglese B1.

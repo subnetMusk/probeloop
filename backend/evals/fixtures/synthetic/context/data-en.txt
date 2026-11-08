@@ -1,0 +1,14 @@
+Alex Green - synthetic candidate
+Data analyst
+
+Experience
+2020-2025 Data analyst at Example Markets.
+Built revenue dashboards with SQL and Power BI for six regional teams.
+Automated monthly reconciliation with Python, saving 18 hours per month.
+
+Skills
+SQL, Python, pandas, Power BI, Excel.
+Education
+2020 BSc Statistics at Example University.
+Languages
+English native, Italian B1.

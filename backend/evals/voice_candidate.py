@@ -208,6 +208,22 @@ async def synthesize(client: httpx.AsyncClient, text: str, voice: str) -> bytes:
     return resample(from_wav(response.content), SAMPLE_RATE).data
 
 
+async def create_session(api: httpx.AsyncClient, args: argparse.Namespace) -> str:
+    created = await api.post(
+        "/api/sessions",
+        json={
+            "interview_type": args.type,
+            "difficulty": args.difficulty,
+            "language": args.language,
+            "modality": "voice",
+            "duration_minutes": args.minutes,
+            "snapshot_id": args.snapshot_id,
+        },
+    )
+    created.raise_for_status()
+    return str(created.json()["id"])
+
+
 async def send(ws: ClientConnection, kind: str, **fields: Any) -> None:
     await ws.send(json.dumps({"type": kind, "client_msg_id": uuid.uuid4().hex, **fields}))
 
@@ -311,21 +327,10 @@ async def main_async(args: argparse.Namespace) -> int:
 
     base = args.url.rstrip("/")
     async with (
-        httpx.AsyncClient(base_url=base, timeout=30) as api,
+        httpx.AsyncClient(base_url=base, timeout=180) as api,
         httpx.AsyncClient(base_url=args.piper_url, timeout=60) as piper,
     ):
-        created = await api.post(
-            "/api/sessions",
-            json={
-                "interview_type": args.type,
-                "difficulty": args.difficulty,
-                "language": args.language,
-                "modality": "voice",
-                "duration_minutes": args.minutes,
-            },
-        )
-        created.raise_for_status()
-        run.session_id = created.json()["id"]
+        run.session_id = await create_session(api, args)
         print(f"session {run.session_id}; questions and answers in {directory}", flush=True)
         ws_url = base.replace("http", "ws", 1) + f"/ws/sessions/{run.session_id}"
         async with connect(ws_url, max_size=None) as ws:
@@ -342,6 +347,7 @@ async def main_async(args: argparse.Namespace) -> int:
         "interview_type": args.type,
         "minutes": args.minutes,
         "voice": args.voice,
+        "snapshot_id": args.snapshot_id,
         "end_reason": run.end_reason,
     }
     summary = summarise(run.turns)
@@ -355,13 +361,14 @@ async def main_async(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="evals.voice_candidate", description=__doc__.split("\n\n")[0]
     )
     parser.add_argument("--url", default="http://127.0.0.1:8000", help="the backend")
     parser.add_argument("--piper-url", default="http://tts-piper:5000")
-    parser.add_argument("--voice", default="it_IT-paola-medium", help="the candidate's voice")
+    parser.add_argument("--voice", default="it_IT-riccardo-x_low", help="the candidate's voice")
+    parser.add_argument("--snapshot-id", help="approved context from the document wizard")
     parser.add_argument(
         "--type", default="technical", choices=["hr", "behavioral", "technical", "mixed"]
     )
@@ -375,7 +382,11 @@ def main() -> None:
         action="store_false",
         help="report playback as finished at once instead of after the audio's duration",
     )
-    raise SystemExit(asyncio.run(main_async(parser.parse_args())))
+    return parser.parse_args(argv)
+
+
+def main() -> None:
+    raise SystemExit(asyncio.run(main_async(parse_args())))
 
 
 if __name__ == "__main__":

@@ -6,20 +6,19 @@ browser audio behaviour.
 
 ## Ordering
 
-The vertical slice comes first (M1–M3). It is followed by document analysis, the final UI,
-evaluation and history. Three deliberate adjustments:
+The vertical slice comes first (M1–M3). The approved order is persistence, document analysis,
+CV review, interview evaluation, UI polish and history:
 
 1. **Foundations and the text interview loop form a single milestone (M2).** It builds a minimal
    end-to-end path rather than horizontal plumbing with no consumer.
 2. **Database persistence (M4) comes before document analysis**, which depends on it. Until then a
    deletable per-session file store is enough.
-3. **Web and GitHub enrichment (M8) is split from CV and job-offer extraction (M5) and postponed.**
-   The agentic crawler is the riskiest component and the least needed for the core loop.
+3. **M8 is dropped.** Documents and titled resources are supplied by the user; links are never
+   followed. The decisions in [the context proposal](proposals/2026-11-context-evaluation-reports.md#9-decisions)
+   supersede the earlier web-enrichment design.
 
 ```
-M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
-                        │       └─► M8
-                        └─► M7 (needs M4; richer with M5) ─► M9          M10 later
+M0 → M1 → M2 → M3 → M4 → M5 → CV review → M7 → M6 → M9       M10 later
 ```
 
 **Priorities:**
@@ -28,7 +27,7 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
 |---|---|
 | P0 | M0–M3 (the vertical slice) |
 | P1 | M4–M7 |
-| P2 | M8–M9 |
+| P2 | M9 |
 | P3 | M10 |
 
 ## M0 — Repository bootstrap and design documentation · 0.5–1 day
@@ -294,15 +293,34 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
 
 ## M5 — Document analysis and context review · 8–12 days
 
+> **Status (2026-11-08): implemented and verified locally.**
+>
+> Documents, reusable resource profiles, asynchronous analysis, review and immutable snapshots
+> are connected to the interview planner and Whisper vocabulary. A quick start without documents
+> remains available. Generated offers are labelled in the API and UI; the area must be confirmed
+> before approving a preparation without an offer.
+>
+> **Live extraction evaluation:** `qwen3.5:9b`, five labelled synthetic CVs (three Italian,
+> two English), 52/52 facts with verified quotes (100%, target ≥90%), 29/30 labelled facts
+> recovered with their identifying details (96.7%), hidden text detected and excluded. Evidence
+> span coverage alone was 30/30; it is reported separately from fact recall. See
+> [the measurements and limitations](research/context-extraction-results.md).
+>
+> **Checks:** 388 backend tests, 22 PostgreSQL contracts, 25 frontend tests and four Playwright
+> flows, plus ruff, mypy, seven import contracts, ESLint, TypeScript, formatting and builds.
+> Generated contracts are reproducible. The rebuilt runtime completed document analysis with
+> the real model and produced an approved snapshot; the real speech services report ready.
+
 - **Deliverables**
-  - CV upload as PDF; job offer as PDF, text or URL (a single page via `UrlGuard`).
+  - CV and job offer as files or pasted text; editable generated offers from a role description.
+  - Titled text/file resources in reusable profiles, with overwrite / save new / use once choices.
   - Text extraction in a process pool.
   - Section-by-section extraction with quote verification and invisible-text flagging.
   - `Fact` with origin and review status; the requirement matrix.
   - **The review UI.**
   - `ContextSnapshot` with its brief.
   - An LLM `Planner` fed by the snapshot.
-  - Persisted `Activity`.
+  - The existing persisted session and turns remain the single conversation activity.
   - `JobRunner` with polling.
   - Extraction reuse by hash.
 - **Dependencies.** M4.
@@ -310,7 +328,7 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
 - **Tests**
   - `evals/` with at least 5 labelled synthetic CVs in Italian and English.
   - Quote verification, and a hidden-text fixture.
-  - `UrlGuard`: private IPs, redirects, DNS rebinding, limits.
+  - No URL input or network fetching; HTML/XML resources are reduced to text.
   - Snapshot immutability and hashing.
   - `JobRunner` recovery after a restart.
 - **Done when**
@@ -319,6 +337,12 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
   - hidden text is flagged;
   - identical inputs reuse the snapshot;
   - the interviewer receives only non-excluded facts.
+
+## CV review — after M5, before M7
+
+The approved scope is [proposal section 3](proposals/2026-11-context-evaluation-reports.md#3-cv-review-new):
+versioned rubric YAML, deterministic checks, evidence-verified model judgements, a background job
+and a report page. This milestone is not implemented yet.
 
 ## M6 — Final UI · 6–10 days
 
@@ -360,26 +384,10 @@ M0 → M1 → M2 → M3 → M4 ─┬─► M5 ─┬─► M6
   - regeneration works;
   - the generation time on machine A is measured and documented.
 
-## M8 — GitHub and web enrichment · 8–12 days
+## M8 — GitHub and web enrichment
 
-- **Deliverables**
-  - A rate-limit-aware async `GitHubClient`, deterministic GitHub facts, README summaries with
-    quotes.
-  - A crawler built on `UrlGuard`, robots handling and trafilatura.
-  - A budgeted agent with a single constrained tool.
-  - Source statuses and injection signals.
-  - Optionally, the fetcher as a separate egress-only service.
-- **Dependencies.** M5.
-- **Risks.** Prompt injection, site terms of use, rate limits.
-- **Tests**
-  - `respx` fixtures for GitHub.
-  - A local server for robots, redirects to private IPs and limits.
-  - A fake agent that tries links outside the allowlist, which must be refused.
-  - Injection pages.
-- **Done when**
-  - every fact has a source;
-  - no request leaves the allowlist (asserted at the transport level);
-  - unavailable sources are shown with a reason.
+**Dropped by the approved context proposal.** Resources are uploaded or typed by the user.
+No crawler, GitHub client, enrichment job or URL fetcher is planned.
 
 ## M9 — History and progress · 3–5 days
 

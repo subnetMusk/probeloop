@@ -1,0 +1,245 @@
+[
+  {
+    "file": "backend-it.txt",
+    "language": "it",
+    "facts": [
+      {
+        "quote": "2021-2024 Backend developer presso Logistica Veloce",
+        "statement_terms": [
+          "2021",
+          "2024",
+          "Logistica Veloce"
+        ]
+      },
+      {
+        "quote": "servizio di ottimizzazione dei percorsi in Python",
+        "statement_terms": [
+          "ottimizzazione",
+          "Python"
+        ]
+      },
+      {
+        "quote": "12%",
+        "statement_terms": [
+          "12"
+        ]
+      },
+      {
+        "quote": "2018-2021 Sviluppatrice junior",
+        "statement_terms": [
+          "2018",
+          "2021",
+          "Studio Web Rossi"
+        ]
+      },
+      {
+        "quote": "Kubernetes di base",
+        "statement_terms": [
+          "Kubernetes",
+          "base"
+        ]
+      },
+      {
+        "quote": "2018 Laurea in Informatica",
+        "statement_terms": [
+          "2018",
+          "Informatica"
+        ]
+      },
+      {
+        "quote": "inglese B2",
+        "statement_terms": [
+          "inglese",
+          "B2"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "frontend-it.txt",
+    "language": "it",
+    "facts": [
+      {
+        "quote": "2023-2025 Sviluppatore frontend",
+        "statement_terms": [
+          "2023",
+          "2025",
+          "Studio Interfacce"
+        ]
+      },
+      {
+        "quote": "catalogo accessibile con React e TypeScript",
+        "statement_terms": [
+          "catalogo",
+          "React",
+          "TypeScript"
+        ]
+      },
+      {
+        "quote": "35 test con Vitest",
+        "statement_terms": [
+          "35",
+          "Vitest"
+        ]
+      },
+      {
+        "quote": "20%",
+        "statement_terms": [
+          "20"
+        ]
+      },
+      {
+        "quote": "2023 Diploma di tecnico informatico",
+        "statement_terms": [
+          "2023",
+          "diploma"
+        ]
+      },
+      {
+        "quote": "inglese B1",
+        "statement_terms": [
+          "inglese",
+          "B1"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "data-en.txt",
+    "language": "en",
+    "facts": [
+      {
+        "quote": "2020-2025 Data analyst at Example Markets",
+        "statement_terms": [
+          "2020",
+          "2025",
+          "Example Markets"
+        ]
+      },
+      {
+        "quote": "SQL and Power BI",
+        "statement_terms": [
+          "SQL",
+          "Power BI"
+        ]
+      },
+      {
+        "quote": "six regional teams",
+        "statement_terms": [
+          "six",
+          "regional teams"
+        ]
+      },
+      {
+        "quote": "18 hours per month",
+        "statement_terms": [
+          "18",
+          "hours"
+        ]
+      },
+      {
+        "quote": "2020 BSc Statistics",
+        "statement_terms": [
+          "2020",
+          "Statistics"
+        ]
+      },
+      {
+        "quote": "Italian B1",
+        "statement_terms": [
+          "Italian",
+          "B1"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "support-en.txt",
+    "language": "en",
+    "facts": [
+      {
+        "quote": "2019-2024 IT support specialist",
+        "statement_terms": [
+          "2019",
+          "2024",
+          "Example Services"
+        ]
+      },
+      {
+        "quote": "150 users",
+        "statement_terms": [
+          "150",
+          "users"
+        ]
+      },
+      {
+        "quote": "15%",
+        "statement_terms": [
+          "15"
+        ]
+      },
+      {
+        "quote": "CompTIA A+ certified in 2022",
+        "statement_terms": [
+          "CompTIA",
+          "2022"
+        ]
+      },
+      {
+        "quote": "2019 Diploma in Information Technology",
+        "statement_terms": [
+          "2019",
+          "Diploma"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "operations-it.txt",
+    "language": "it",
+    "facts": [
+      {
+        "quote": "2017-2024 Coordinatrice logistica",
+        "statement_terms": [
+          "2017",
+          "2024",
+          "Magazzini Esempio"
+        ]
+      },
+      {
+        "quote": "otto operatori",
+        "statement_terms": [
+          "otto",
+          "operatori"
+        ]
+      },
+      {
+        "quote": "200 ordini al giorno",
+        "statement_terms": [
+          "200",
+          "ordini"
+        ]
+      },
+      {
+        "quote": "10%",
+        "statement_terms": [
+          "10"
+        ]
+      },
+      {
+        "quote": "2017 Laurea in Economia",
+        "statement_terms": [
+          "2017",
+          "Economia"
+        ]
+      },
+      {
+        "quote": "inglese B2",
+        "statement_terms": [
+          "inglese",
+          "B2"
+        ]
+      }
+    ]
+  }
+]
