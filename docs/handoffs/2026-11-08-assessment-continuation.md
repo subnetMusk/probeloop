@@ -161,7 +161,7 @@ PowerShell commands, from the repository root (host source mounts are slow):
 docker compose -f compose.yaml -f compose.dev.yaml build backend
 docker run --rm -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/backend:/app' probeloop-backend:dev sh -c 'ruff check src tests evals && ruff format --check src tests evals && mypy && lint-imports && pytest -q'
 docker run --rm --network pgtest -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/backend:/app' -e PROBELOOP_TEST_DATABASE_URL=postgresql+asyncpg://probeloop@pgtest:5432/probeloop_test probeloop-backend:dev pytest -q tests/storage -k postgresql
-docker run --rm --user 0 -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/backend:/app' -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/frontend/src/api/contract:/out' probeloop-backend:dev python -m probeloop.api.contract /out
+docker run --rm --user 0 -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/backend:/app' -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/frontend/src/shared/api/contract:/out' probeloop-backend:dev python -m probeloop.api.contract /out
 docker run --rm -v 'C:/Users/SOS/Desktop/git_projects/ProbeLoop/frontend:/work' -w /work node:24.22.0-trixie-slim sh -c 'npm run gen:types && npm run lint && npm run typecheck && npm test && npm run build'
 ```
 

@@ -178,7 +178,7 @@ docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim sh -c
 and the JSON Schema of the WebSocket messages); CI fails when they are out of date:
 
 ```bash
-docker run --rm -v "$PWD/frontend/src/api/contract:/out" probeloop-backend:dev python -m probeloop.api.contract /out
+docker run --rm -v "$PWD/frontend/src/shared/api/contract:/out" probeloop-backend:dev python -m probeloop.api.contract /out
 ```
 
 ```bash

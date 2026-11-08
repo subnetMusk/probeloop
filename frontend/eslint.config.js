@@ -5,7 +5,16 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'src/api/types', 'src/components/ui', 'test-results', 'playwright-report'] },
+  {
+    ignores: [
+      'dist',
+      'steiger.config.ts',
+      'src/shared/api/types',
+      'src/shared/ui/*.tsx',
+      'test-results',
+      'playwright-report',
+    ],
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
@@ -19,6 +28,23 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+    },
+  },
+  {
+    // Screens that the redesign replaces live in src/legacy; only app and pages may use them.
+    files: ['src/{shared,entities,features,widgets}/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/legacy/*'],
+              message: 'Only app and pages may import legacy screens (ADR 0014).',
+            },
+          ],
+        },
+      ],
     },
   },
   {

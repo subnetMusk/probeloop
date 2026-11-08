@@ -50,6 +50,20 @@ Testing Library and MSW. Several of these were never adopted.
 - **Wizard steps.** Each step is a route, so back and forward work. Back is always allowed.
   Forward requires the step's required fields, which are marked with an asterisk.
 
+**Navigation names.**
+- Every route has an English slug that is unique across the app and identical in three places:
+  the URL segment, the breadcrumb label and the tab title, written `<slug> | ProbeLoop`.
+- **Static pages.** The landing page is `dashboard`; the others are `new-interview` (with the
+  step slugs `interview-settings`, `resource-profile`, `documents`, `fact-review` and
+  `final-check`), `interviews`, `cv-checks`, `profiles`, `settings` and `accessibility`.
+- **Detail pages.** Pages that inspect one user resource use a generic slug instead of a
+  per-item name: `interview-detail`, `interview-report`, `cv-check-detail`, `cv-report` and
+  `profile-detail`. The URL keeps the resource id.
+
+**Footer.** Every page except the call shows a footer with the author's attribution
+(<https://github.com/subnetMusk/>) and a link to the WCAG accessibility self-assessment on the
+`accessibility` page.
+
 **Forms.** react-hook-form with zod schemas.
 
 **Text.**
@@ -63,6 +77,8 @@ Testing Library and MSW. Several of these were never adopted.
 **Identity.**
 - **Logo.** The wordmark is "ProbeLoop" set in Space Grotesk, with "Loop" in the accent colour.
   There is no symbol logo.
+- **Favicon.** The favicon is "PL" on a rounded square filled with a violet-to-orange gradient,
+  drawn as SVG paths.
 - **Fonts.** Space Grotesk for headings and Inter for text, from the `@fontsource` packages,
   served by the app with no request to a font CDN.
 - **Colours.** Black and white are the primary colours. Violet `#7C3AED` and orange `#EA580C`

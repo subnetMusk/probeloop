@@ -62,11 +62,11 @@ jobs:
       - name: API contract and generated types are up to date
         run: |
           docker run --rm --user "$(id -u):$(id -g)" \
-            -v "$PWD/frontend/src/api/contract:/out" probeloop-backend:dev \
+            -v "$PWD/frontend/src/shared/api/contract:/out" probeloop-backend:dev \
             python -m probeloop.api.contract /out
           docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim \
             sh -c "npm ci --no-audit --no-fund && npm run gen:types"
-          git diff --exit-code -- frontend/src/api
+          git diff --exit-code -- frontend/src/shared/api
 
       - name: Build runtime image
         uses: docker/build-push-action@v6
@@ -137,7 +137,7 @@ jobs:
       - name: Lint, format, type check, unit tests and build
         run: |
           docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim sh -c \
-            "npm ci --no-audit --no-fund && npm run lint && npm run format:check \
+            "npm ci --no-audit --no-fund && npm run lint && npm run lint:fsd && npm run format:check \
              && npm run typecheck && npm test && npm run build"
 
   # The whole browser path, with a scripted interviewer, fake speech engines and Chromium's fake
