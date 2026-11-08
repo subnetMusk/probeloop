@@ -1,4 +1,5 @@
 import type { components } from './types/rest'
+import { localise } from '@/settings/i18n'
 
 export type CreateSession = components['schemas']['CreateSession']
 export type SessionView = components['schemas']['SessionView']
@@ -24,7 +25,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
   ) {
-    super(message)
+    // Problem details from the backend are English; known messages are shown localised.
+    super(localise(message))
   }
 }
 

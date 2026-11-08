@@ -253,7 +253,7 @@ function Refinement({ session, job }: { session: SessionView; job: JobView | und
             <AlertTitle>
               <T text={'The transcript could not be refined'} />
             </AlertTitle>
-            <AlertDescription>{job.error}</AlertDescription>
+            <AlertDescription>{job.error && <T text={job.error} />}</AlertDescription>
           </Alert>
         )}
         {!running && (

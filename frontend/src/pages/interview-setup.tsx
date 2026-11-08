@@ -195,7 +195,7 @@ export function InterviewSetup({
                 id="minutes"
                 label={localise('Duration')}
                 value={minutes}
-                options={Object.fromEntries(DURATIONS.map((m) => [String(m), `${m} minutes`]))}
+                options={Object.fromEntries(DURATIONS.map((m) => [String(m), `${m} min`]))}
                 onChange={setMinutes}
               />
             </CardContent>

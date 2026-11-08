@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { rememberReportJob } from '@/reports/pending-jobs'
 import { useLanguage } from '@/settings/preferences'
+import { T } from '@/settings/translated-text'
 
 export function InterviewReportPanel({ sessionId, jobs }: { sessionId: string; jobs: JobView[] }) {
   const language = useLanguage()
@@ -42,8 +43,8 @@ export function InterviewReportPanel({ sessionId, jobs }: { sessionId: string; j
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
           {it
-            ? 'Due giudizi con ragionamento per risposta e una sintesi: può richiedere diversi minuti. Il tempo effettivo compare nel report.'
-            : 'Two reasoning passes per answer and a synthesis can take several minutes. Actual duration appears in the report.'}
+            ? 'Ogni risposta viene giudicata due volte, con le ancore in ordine opposto, poi viene scritta una sintesi: di solito pochi minuti. Il tempo effettivo compare nel report.'
+            : 'Each answer is judged twice, with the anchors in opposite order, then a summary is written: usually a few minutes. Actual duration appears in the report.'}
         </p>
         <Button
           className="self-start"
@@ -67,7 +68,7 @@ export function InterviewReportPanel({ sessionId, jobs }: { sessionId: string; j
         )}
         {latest?.status === 'failed' && (
           <p role="alert" className="text-destructive">
-            {latest.error}
+            {latest.error && <T text={latest.error} />}
           </p>
         )}
         {(start.error ?? reports.error) && (

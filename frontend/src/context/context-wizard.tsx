@@ -763,7 +763,9 @@ export function ContextWizard() {
               <AlertTitle>
                 <T text={'Analysis unavailable'} />
               </AlertTitle>
-              <AlertDescription>{preparation.error?.message ?? view?.error}</AlertDescription>
+              <AlertDescription>
+                {preparation.error?.message ?? (view?.error && <T text={view.error} />)}
+              </AlertDescription>
             </Alert>
           )}
           <Button variant="outline" className="self-start" onClick={restart}>

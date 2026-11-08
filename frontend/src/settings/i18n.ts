@@ -241,6 +241,41 @@ export const IT: Readonly<Record<string, string>> = {
   'The microphone could not be opened.': 'Impossibile aprire il microfono.',
   'The microphone stopped (was it unplugged?). Enable it again.':
     'Il microfono si è fermato. Attivalo di nuovo.',
+  English: 'Inglese',
+  'CV review could not be completed; try again':
+    'Non è stato possibile completare la revisione del CV; riprova',
+  'interview review could not be completed; try again':
+    'Non è stato possibile completare la valutazione del colloquio; riprova',
+  'documents or answers exceed the evaluator context; prepare shorter resources or answers':
+    'Documenti o risposte superano il contesto del valutatore: usa risorse o risposte più brevi',
+  'interview not found': 'Colloquio non trovato',
+  'the documents could not be analysed': 'Non è stato possibile analizzare i documenti',
+  'speech recognition is not configured': 'Il riconoscimento vocale non è configurato',
+  'end the interview before generating a report':
+    'Termina il colloquio prima di generare il report',
+  'the interview has no answers to assess': 'Il colloquio non contiene risposte da valutare',
+  'the approved context has no CV': 'Il contesto approvato non contiene un CV',
+  'the interview is not over': 'Il colloquio non è terminato',
+  'model unavailable': 'Modello non disponibile',
+  'the file is larger than 10 MB': 'Il file supera i 10 MB',
+  'describe the position in a few words first': 'Descrivi prima la posizione in poche parole',
+  'add at least a CV, a job offer or a resource':
+    'Aggiungi almeno un CV, un’offerta di lavoro o una risorsa',
+  'the statement cannot be empty': 'L’affermazione non può essere vuota',
+  'a correction needs the corrected statement': 'Una correzione richiede l’affermazione corretta',
+  'the area cannot be empty': 'L’area non può essere vuota',
+  'confirm the professional area before approving':
+    'Conferma l’area professionale prima di approvare',
+  'close live interviews and wait for background jobs first':
+    'Chiudi i colloqui in corso e attendi la fine delle elaborazioni',
+  'backup no longer available': 'Backup non più disponibile',
+  'unknown job kind': 'Tipo di elaborazione sconosciuto',
+  'report not found': 'Report non trovato',
+  'session not found': 'Colloquio non trovato',
+  'approved context not found': 'Contesto approvato non trovato',
+  'profile not found': 'Profilo non trovato',
+  'document not found': 'Documento non trovato',
+  'not found': 'Non trovato',
 }
 
 export function translate(text: string, language: Language): string {

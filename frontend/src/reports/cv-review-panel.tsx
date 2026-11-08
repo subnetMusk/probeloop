@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { setLanguage, useLanguage } from '@/settings/preferences'
 import { rememberReportJob } from '@/reports/pending-jobs'
+import { T } from '@/settings/translated-text'
 
 export function CvReviewPanel({
   snapshotId,
@@ -90,7 +91,7 @@ export function CvReviewPanel({
         )}
         {latestJob?.status === 'failed' && (
           <p role="alert" className="text-destructive">
-            {latestJob.error}
+            {latestJob.error && <T text={latestJob.error} />}
           </p>
         )}
         <Button

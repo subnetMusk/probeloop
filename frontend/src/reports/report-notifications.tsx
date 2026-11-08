@@ -5,6 +5,7 @@ import { api, isRunning } from '@/api/rest'
 import { Button } from '@/components/ui/button'
 import { dismissReportJob, useReportJobs } from '@/reports/pending-jobs'
 import { useLanguage } from '@/settings/preferences'
+import { T } from '@/settings/translated-text'
 
 export function ReportNotifications() {
   const ids = useReportJobs()
@@ -53,7 +54,7 @@ export function ReportNotifications() {
                   {it
                     ? 'Elaborazione non riuscita o non disponibile'
                     : 'Processing failed or unavailable'}
-                  : {job?.error}
+                  : {job?.error && <T text={job.error} />}
                 </span>
               )}
               <Button
