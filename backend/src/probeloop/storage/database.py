@@ -12,6 +12,7 @@ from typing import Any, ClassVar
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import (
     JSON,
     Float,
@@ -21,6 +22,7 @@ from sqlalchemy import (
     String,
     Text,
     event,
+    text,
 )
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
@@ -251,6 +253,20 @@ async def migrate(engine: AsyncEngine, revision: str = "head") -> None:
 
     async with engine.begin() as connection:
         await connection.run_sync(upgrade)
+
+
+def revisions() -> list[str]:
+    """Every schema revision, oldest first."""
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    script = ScriptDirectory.from_config(config)
+    return [r.revision for r in reversed(list(script.walk_revisions()))]
+
+
+async def current_revision(engine: AsyncEngine) -> str | None:
+    async with engine.connect() as connection:
+        result = await connection.execute(text("SELECT version_num FROM alembic_version"))
+        return result.scalar_one_or_none()
 
 
 async def downgrade(engine: AsyncEngine, revision: str) -> None:

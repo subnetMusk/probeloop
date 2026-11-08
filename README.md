@@ -109,8 +109,8 @@ restore command with the archive mounted into a one-off container:
 docker compose run --rm --no-deps -v "$PWD/probeloop-backup.zip:/backup.zip:ro" backend probeloop restore-backup /backup.zip
 ```
 
-The restore refuses a database or data directory that is not empty, and archives with unsafe
-paths. "Delete all my data" removes every interview, document, profile, report, export and log,
+The restore refuses a database or data directory that is not empty, archives with unsafe paths,
+and backups from a newer version. Backups from an earlier version are upgraded while restoring. "Delete all my data" removes every interview, document, profile, report, export and log,
 and resets the browser preferences.
 
 **Your ChatGPT plan (optional).** By default every model runs locally. With a ChatGPT Plus or

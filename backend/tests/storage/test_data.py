@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from probeloop.context.application.snapshots import snapshot_of
 from probeloop.storage.data import SqlDataStore
-from probeloop.storage.database import sessionmaker
+from probeloop.storage.database import current_revision, revisions, sessionmaker
 from probeloop.storage.session_files import SessionFiles
 from probeloop.storage.sql_context import SqlContextStore
 from probeloop.storage.sql_reports import SqlReportStore
@@ -45,7 +45,7 @@ async def test_portable_backup_roundtrip_and_complete_owned_data_deletion(
     source = Path(__file__).parents[1] / "fixtures/synthetic/cv_review/cv.txt"
     (root / "blobs" / "synthetic.txt").write_bytes(source.read_bytes())
     (root / ".env").write_text("synthetic configuration marker")
-    data = SqlDataStore(sessions, root)
+    data = SqlDataStore(engine, root)
     counts = await data.summary()
     exported = json.loads(await data.export_json())
     assert exported["tables"]["reports"][0]["id"] == report.id
@@ -81,7 +81,7 @@ async def test_restore_rejects_paths_before_changing_data(
     archive = tmp_path / "malformed.zip"
     with zipfile.ZipFile(archive, "w") as contents:
         contents.writestr(entry, "synthetic")
-    data = SqlDataStore(sessionmaker(engine), tmp_path / "data")
+    data = SqlDataStore(engine, tmp_path / "data")
     with pytest.raises(ValueError, match="unsafe backup path"):
         await data.restore(archive)
     assert not any((await data.summary()).values())
@@ -96,7 +96,72 @@ async def test_deletion_refuses_an_owned_directory_redirected_outside_the_root(
     outside.mkdir()
     (outside / "marker").write_text("synthetic marker")
     (root / "blobs").symlink_to(outside, target_is_directory=True)
-    data = SqlDataStore(sessionmaker(engine), root)
+    data = SqlDataStore(engine, root)
     with pytest.raises(ValueError, match="inside"):
         await data.delete_all()
     assert (outside / "marker").exists()
+
+
+def _archive(path: Path, content: dict[str, object]) -> Path:
+    with zipfile.ZipFile(path, "w") as contents:
+        contents.writestr("data.json", json.dumps(content))
+    return path
+
+
+async def test_a_backup_from_an_earlier_schema_is_upgraded_on_restore(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    root = tmp_path / "data"
+    data = SqlDataStore(engine, root)
+    store = SqlSessionStore(sessionmaker(engine), SessionFiles(root / "sessions"))
+    session = synthetic_session()
+    await store.save(session)
+    exported = json.loads(await data.export_json())
+    assert exported["format"] == "probeloop-data-v2"
+    head = exported["revision"]
+    assert head == revisions()[-1]
+    # The same data as a backup taken before the reports table existed (revision 0002).
+    del exported["tables"]["reports"]
+    exported["revision"] = "0002"
+    archive = _archive(tmp_path / "old.zip", exported)
+    await data.delete_all()
+    await data.restore(archive)
+    assert await current_revision(engine) == head
+    restored = await store.load(session.id)
+    assert restored is not None
+    assert restored.turns == session.turns
+
+
+async def test_a_backup_without_a_recorded_revision_is_read_as_the_first_format(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    data = SqlDataStore(engine, tmp_path / "data")
+    tables = json.loads(await data.export_json())["tables"]
+    archive = _archive(tmp_path / "v1.zip", {"format": "probeloop-data-v1", "tables": tables})
+    await data.restore(archive)
+    assert await current_revision(engine) == revisions()[-1]
+
+
+async def test_a_backup_from_a_newer_version_is_refused(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    data = SqlDataStore(engine, tmp_path / "data")
+    content = json.loads(await data.export_json())
+    content["revision"] = "9999"
+    with pytest.raises(ValueError, match="newer or unknown"):
+        await data.restore(_archive(tmp_path / "new.zip", content))
+    assert await current_revision(engine) == revisions()[-1]
+
+
+async def test_a_failed_restore_leaves_an_empty_database_at_the_current_schema(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    data = SqlDataStore(engine, tmp_path / "data")
+    content = json.loads(await data.export_json())
+    del content["tables"]["reports"]
+    content["revision"] = "0002"
+    content["tables"]["interview_sessions"] = [{"id": "x", "unknown_column": 1}]
+    with pytest.raises(ValueError, match="invalid backup rows"):
+        await data.restore(_archive(tmp_path / "bad.zip", content))
+    assert await current_revision(engine) == revisions()[-1]
+    assert not any((await data.summary()).values())

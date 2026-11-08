@@ -301,7 +301,7 @@ def build(
         return bool(await jobs.pending())
 
     data = DataService(
-        SqlDataStore(db, settings.data_dir),
+        SqlDataStore(engine, settings.data_dir),
         connected=lambda: sessions.has_connections or sessions.any_active(),
         pending=pending_jobs,
         clear_live=sessions.shutdown,

@@ -12,21 +12,36 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from sqlalchemy import delete, func, insert, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy import MetaData, Table, delete, func, insert, select
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from probeloop.storage.database import Base
+from probeloop.storage.database import (
+    Base,
+    current_revision,
+    downgrade,
+    migrate,
+    revisions,
+    sessionmaker,
+)
 
 OWNED_DIRS = ("sessions", "blobs", "logs")
 MANAGED_DIRS = (*OWNED_DIRS, "exports")
-FORMAT = "probeloop-data-v1"
+FORMAT = "probeloop-data-v2"
+# Backups written before the format recorded the schema revision.
+LEGACY_FORMATS = {"probeloop-data-v1": "0003"}
 MAX_JSON = 100 * 1024 * 1024
 MAX_ARCHIVE = 20 * 1024 * 1024 * 1024
 
 
 class SqlDataStore:
-    def __init__(self, sessions: async_sessionmaker[AsyncSession], root: Path) -> None:
-        self.sessions = sessions
+    """Backups record the schema revision they were taken at. A restore brings the empty database
+    to that revision, inserts the rows, then applies the later migrations, so the migrations are
+    the only definition of how older data is upgraded."""
+
+    def __init__(self, engine: AsyncEngine, root: Path) -> None:
+        self.engine = engine
+        self.sessions = sessionmaker(engine)
         self.root = root.resolve()
 
     async def summary(self) -> dict[str, int]:
@@ -42,8 +57,12 @@ class SqlDataStore:
                 table.name: [dict(row) for row in (await db.execute(select(table))).mappings()]
                 for table in Base.metadata.sorted_tables
             }
+        revision = await current_revision(self.engine)
         return json.dumps(
-            {"format": FORMAT, "tables": tables}, ensure_ascii=False, indent=2
+            {"format": FORMAT, "revision": revision, "tables": tables},
+            ensure_ascii=False,
+            indent=2,
+            default=str,
         ).encode()
 
     async def backup(self) -> Path:
@@ -104,18 +123,54 @@ class SqlDataStore:
             raise ValueError("restore requires empty data directories")
         with tempfile.TemporaryDirectory(prefix="probeloop-restore-") as staging:
             directory = Path(staging)
-            data = await asyncio.to_thread(self._unpack, archive, directory)
-            async with self.sessions.begin() as db:
-                for table in Base.metadata.sorted_tables:
-                    rows = data[table.name]
-                    if rows:
-                        await db.execute(insert(table), rows)
+            revision, data = await asyncio.to_thread(self._unpack, archive, directory)
+            known = revisions()
+            if revision not in known:
+                raise ValueError("backup from a newer or unknown version of ProbeLoop")
+            head = known[-1]
             try:
+                if revision != head:
+                    await downgrade(self.engine, revision)
+                tables = await self._tables()
+                _check_rows(data, tables)
+                async with self.engine.begin() as connection:
+                    for table in tables.values():
+                        rows = data[table.name]
+                        if rows:
+                            await connection.execute(insert(table), rows)
+                if revision != head:
+                    await migrate(self.engine)
                 await asyncio.to_thread(self._copy_restored, directory)
             except BaseException:
-                # The target was empty: remove this incomplete restore so it can be retried.
-                await self.delete_all()
+                # The target was empty: return it to an empty database at the current schema, so
+                # the restore can be retried.
+                await self._reset()
                 raise
+
+    async def _tables(self) -> dict[str, Table]:
+        """The application tables of the current schema, in dependency order."""
+
+        def reflect(connection: Connection) -> dict[str, Table]:
+            metadata = MetaData()
+            metadata.reflect(bind=connection)
+            return {
+                table.name: table
+                for table in metadata.sorted_tables
+                if table.name != "alembic_version"
+            }
+
+        async with self.engine.connect() as connection:
+            return await connection.run_sync(reflect)
+
+    async def _reset(self) -> None:
+        tables = await self._tables()
+        async with self.engine.begin() as connection:
+            for table in reversed(list(tables.values())):
+                await connection.execute(delete(table))
+        await migrate(self.engine)
+        await asyncio.to_thread(
+            self._remove_directories, [self._owned(name) for name in MANAGED_DIRS]
+        )
 
     def _has_files(self) -> bool:
         return any(
@@ -124,7 +179,7 @@ class SqlDataStore:
             for path in self._owned(name).rglob("*")
         )
 
-    def _unpack(self, source: Path, staging: Path) -> dict[str, list[dict[str, Any]]]:
+    def _unpack(self, source: Path, staging: Path) -> tuple[str, dict[str, list[dict[str, Any]]]]:
         with zipfile.ZipFile(source) as archive:
             entries = archive.infolist()
             names = [entry.filename for entry in entries]
@@ -147,28 +202,40 @@ class SqlDataStore:
             if archive.getinfo("data.json").file_size > MAX_JSON:
                 raise ValueError("oversized structured data")
             content = json.loads(archive.read("data.json"))
-            if not isinstance(content, dict) or content.get("format") != FORMAT:
+            if not isinstance(content, dict):
+                raise ValueError("unknown backup format")
+            if content.get("format") == FORMAT:
+                revision = content.get("revision")
+            else:
+                revision = LEGACY_FORMATS.get(str(content.get("format")))
+            if not isinstance(revision, str):
                 raise ValueError("unknown backup format")
             tables = content.get("tables")
-            expected = {t.name: t for t in Base.metadata.sorted_tables}
-            if not isinstance(tables, dict) or set(tables) != set(expected):
-                raise ValueError("backup schema does not match this application version")
-            for name, rows in tables.items():
-                columns = set(expected[name].columns.keys())
-                if not isinstance(rows, list) or any(
-                    not isinstance(row, dict) or set(row) != columns for row in rows
-                ):
-                    raise ValueError("invalid backup rows")
+            if not isinstance(tables, dict) or any(
+                not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows)
+                for rows in tables.values()
+            ):
+                raise ValueError("invalid backup rows")
             for entry in entries:
                 if PurePosixPath(entry.filename).parts[0] in OWNED_DIRS and not entry.is_dir():
                     destination = staging / entry.filename
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     with archive.open(entry) as source_file, destination.open("wb") as target:
                         shutil.copyfileobj(source_file, target)
-            return tables
+            return revision, tables
 
     def _copy_restored(self, staging: Path) -> None:
         for name in OWNED_DIRS:
             source = staging / name
             if source.exists():
                 shutil.copytree(source, self._owned(name), dirs_exist_ok=True)
+
+
+def _check_rows(data: dict[str, list[dict[str, Any]]], tables: dict[str, Table]) -> None:
+    """The backup holds exactly the tables and columns of the schema it was taken at."""
+    if set(data) != set(tables):
+        raise ValueError("backup schema does not match its recorded version")
+    for name, rows in data.items():
+        columns = set(tables[name].columns.keys())
+        if any(set(row) != columns for row in rows):
+            raise ValueError("invalid backup rows")
