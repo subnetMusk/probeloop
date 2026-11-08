@@ -36,6 +36,9 @@ class ChatRequest:
     response_schema: dict[str, Any] | None = None
     temperature: float | None = None
     top_p: float | None = None
+    # None keeps the model's default. Some model defaults penalise repeated tokens, which can
+    # alter text that must be copied verbatim, such as quotations.
+    presence_penalty: float | None = None
     max_output_tokens: int | None = None
     reasoning: Literal["off", "default"] = "off"
 
@@ -47,6 +50,9 @@ class ChatUsage:
     load_s: float | None = None
     prompt_s: float | None = None
     output_s: float | None = None
+    # Why generation stopped, as the provider reports it ("stop", "length", ...). "length" means
+    # the output was cut at `max_output_tokens`.
+    stop_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

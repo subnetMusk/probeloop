@@ -117,6 +117,8 @@ class OllamaChatModel:
             options["temperature"] = request.temperature
         if request.top_p is not None:
             options["top_p"] = request.top_p
+        if request.presence_penalty is not None:
+            options["presence_penalty"] = request.presence_penalty
         if request.max_output_tokens is not None:
             options["num_predict"] = request.max_output_tokens
         return options
@@ -152,6 +154,7 @@ def _usage(part: ollama.ChatResponse) -> ChatUsage:
         load_s=(part.load_duration or 0) / _NS,
         prompt_s=(part.prompt_eval_duration or 0) / _NS,
         output_s=(part.eval_duration or 0) / _NS,
+        stop_reason=part.done_reason,
     )
 
 

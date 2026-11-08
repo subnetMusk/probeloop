@@ -34,6 +34,8 @@ class StructuredResult[T: BaseModel]:
     value: T
     raw: str
     usage: ChatUsage
+    # Usage of every provider call, including failed attempts before a repair.
+    attempts: tuple[ChatUsage, ...] = ()
 
 
 def partial_object(raw: str) -> dict[str, Any]:
@@ -82,7 +84,7 @@ async def stream_structured[T: BaseModel](
         raise StructuredOutputError(
             f"{model.model_ref} returned invalid {output.__name__}: {exc.error_count()} errors"
         ) from exc
-    yield StructuredResult(value=value, raw=raw, usage=usage)
+    yield StructuredResult(value=value, raw=raw, usage=usage, attempts=(usage,))
 
 
 async def complete_structured[T: BaseModel](
@@ -100,8 +102,10 @@ async def complete_structured[T: BaseModel](
     constrained = replace(request, response_schema=output.model_json_schema())
     last_error: ValidationError | None = None
     messages = constrained.messages
+    usages: list[ChatUsage] = []
     for _ in range(max(1, attempts)):
         result = await model.complete(replace(constrained, messages=messages))
+        usages.append(result.usage)
         try:
             value = output.model_validate_json(result.text)
         except ValidationError as exc:
@@ -118,7 +122,9 @@ async def complete_structured[T: BaseModel](
                 ),
             )
             continue
-        return StructuredResult(value=value, raw=result.text, usage=result.usage)
+        return StructuredResult(
+            value=value, raw=result.text, usage=result.usage, attempts=tuple(usages)
+        )
     assert last_error is not None
     raise StructuredOutputError(
         f"{model.model_ref} returned invalid {output.__name__}: {last_error.error_count()} errors"
