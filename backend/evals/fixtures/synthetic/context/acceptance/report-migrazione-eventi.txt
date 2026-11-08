@@ -1,0 +1,31 @@
+Report di esercizio (sintetico): migrazione degli aggiornamenti di stato verso Kafka
+Trasporti Digitali S.r.l. - team Spedizioni - 2024
+
+Situazione iniziale
+Tre servizi interrogavano ogni 30 secondi la tabella degli stati delle spedizioni. Nei picchi il
+database superava l'80% di CPU e gli aggiornamenti arrivavano ai clienti con minuti di ritardo.
+
+Cosa abbiamo fatto
+- Il servizio delle spedizioni pubblica un evento su Kafka a ogni cambio di stato, scritto prima
+  in una tabella outbox nella stessa transazione dell'aggiornamento (transactional outbox).
+- Chiave di partizione: identificativo della spedizione, per mantenere l'ordine degli eventi di
+  ciascuna spedizione.
+- I consumatori sono idempotenti: registrano l'identificativo dell'evento gia' elaborato e
+  ignorano i duplicati. I messaggi che falliscono tre volte vanno in una coda di scarto con un
+  allarme in Grafana.
+- Migrazione in due fasi: per due settimane polling ed eventi in parallelo con confronto dei
+  risultati, poi spegnimento del polling.
+
+Problemi incontrati
+- Un consumatore non idempotente ha inviato notifiche doppie ai clienti per un'ora durante un
+  ribilanciamento delle partizioni; corretto con la tabella degli eventi elaborati.
+- La coda di scarto e' cresciuta per un errore di formato di un corriere; aggiunta validazione
+  dello schema all'ingresso.
+
+Risultati
+- CPU del database nei picchi: dall'80% al 35%.
+- Ritardo medio di notifica al cliente: da circa 2 minuti a meno di 5 secondi.
+
+Ruoli
+Marco Galli ha progettato i consumatori idempotenti e la coda di scarto; il team piattaforma ha
+gestito il cluster Kafka.

@@ -1,0 +1,27 @@
+PagaFacile S.p.A. (azienda sintetica) - Backend Developer, team Pagamenti
+Milano, ibrido (2 giorni in sede)
+
+Chi siamo
+PagaFacile sviluppa soluzioni di pagamento per negozi e piccole catene: terminali, link di
+pagamento e riconciliazione contabile. Il team Pagamenti conta otto persone tra sviluppatori,
+product manager e QA.
+
+Cosa farai
+- Svilupperai e manterrai le API che registrano gli incassi e li riconciliano con le banche.
+- Lavorerai con il product manager per stimare e rilasciare funzionalita' ogni due settimane.
+- Parteciperai ai turni di reperibilita' (una settimana ogni sei).
+- Collaborerai con il team di supporto per analizzare gli incidenti segnalati dai clienti.
+
+Requisiti
+- Almeno tre anni di esperienza come sviluppatore backend.
+- Buona conoscenza di Python o di un altro linguaggio backend.
+- Esperienza con basi dati relazionali (preferibilmente PostgreSQL).
+- Capacita' di comunicare con colleghi non tecnici.
+- Italiano fluente e inglese tecnico.
+
+Gradito
+- Esperienza nel dominio dei pagamenti o della contabilita'.
+- Conoscenza di sistemi a eventi.
+
+Cosa offriamo
+RAL 42.000 - 50.000 euro, buoni pasto, budget formazione annuale, assicurazione sanitaria.

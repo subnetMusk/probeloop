@@ -1,0 +1,35 @@
+Relazione di progetto (sintetica): raggruppamento delle consegne per fascia oraria
+Autore: Marco Galli - Trasporti Digitali S.r.l. - 2023
+
+1. Contesto
+La pianificazione serale delle consegne del giorno dopo era manuale: due operatori assegnavano
+circa 1.800 consegne a 60 furgoni usando un foglio di calcolo e un servizio che calcolava solo
+le distanze. Il lavoro richiedeva in media 40 minuti e gli errori di fascia oraria generavano
+circa 25 reclami a settimana.
+
+2. Obiettivo
+Proporre automaticamente gruppi di consegne compatibili per zona e fascia oraria, lasciando
+all'operatore la decisione finale.
+
+3. Soluzione
+- Clustering delle consegne per CAP e coordinate con un algoritmo greedy vincolato dalla
+  capacita' del furgone e dalla fascia oraria promessa al cliente.
+- Ottimizzazione locale (2-opt) dell'ordine di visita all'interno di ogni gruppo.
+- Servizio FastAPI che legge le consegne da PostgreSQL e scrive le proposte in una tabella
+  separata; l'interfaccia degli operatori mostra le proposte e permette di spostare consegne.
+- Alternativa scartata: un solver di programmazione lineare intera. Dava piani migliori del 4%
+  sui dati di prova ma impiegava oltre 15 minuti sui giorni di picco.
+
+4. Rischi e decisioni
+- La fascia oraria promessa e' un vincolo rigido; la distanza totale e' secondaria.
+- Le proposte sono idempotenti per data: rigenerarle sostituisce la versione precedente.
+- Rilascio graduale: prima una zona su sei, poi tutte dopo tre settimane.
+
+5. Risultati (dopo tre mesi)
+- Tempo medio di pianificazione serale: da 40 a 12 minuti.
+- Reclami per consegne fuori fascia: da circa 25 a 9 a settimana.
+- Chilometri percorsi: -7%.
+
+6. Limiti e passi successivi
+Il traffico non e' considerato. Il prossimo passo e' usare i tempi di percorrenza storici per
+fascia oraria invece delle distanze in linea d'aria.
