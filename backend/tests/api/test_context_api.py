@@ -104,6 +104,46 @@ def test_profiles_save_titled_resources(client: TestClient) -> None:
     assert client.get("/api/profiles").json() == []
 
 
+def test_profiles_keep_a_cv_and_a_job_offer_and_can_be_renamed(client: TestClient) -> None:
+    cv = typed(client, "cv", "CV", CV_TEXT)
+    offer = typed(client, "job_offer", "Offerta", OFFER_TEXT)
+    created = client.post(
+        "/api/profiles",
+        json={"name": "Backend", "cv_id": cv, "job_offer_id": offer, "resources": []},
+    ).json()
+    assert (created["job_mode"], created["cv"]["id"], created["job_offer"]["id"]) == (
+        "offer",
+        cv,
+        offer,
+    )
+    renamed = client.patch(f"/api/profiles/{created['id']}", json={"name": "Ruoli backend"})
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "Ruoli backend"
+    assert renamed.json()["cv"]["id"] == cv
+    assert client.patch("/api/profiles/missing", json={"name": "x"}).status_code == 404
+    swapped = client.post("/api/profiles", json={"name": "x", "cv_id": offer, "resources": []})
+    assert swapped.status_code == 422
+
+
+def test_editing_a_document_creates_a_revision(client: TestClient) -> None:
+    upload = client.post(
+        "/api/documents",
+        data={"kind": "cv", "title": "CV"},
+        files={"file": ("cv.txt", CV_TEXT.encode(), "text/plain")},
+    ).json()
+    assert upload["has_original"] is True
+    revised = client.post(
+        f"/api/documents/{upload['id']}/revisions", json={"text": "Giulia Neri, backend."}
+    )
+    assert revised.status_code == 201
+    view = revised.json()
+    assert view["id"] != upload["id"]
+    assert (view["origin"], view["filename"], view["has_original"]) == ("edited", "cv.txt", True)
+    assert client.get(f"/api/documents/{upload['id']}").json()["text"].startswith("Giulia Neri")
+    missing = client.post("/api/documents/missing/revisions", json={"text": "x"})
+    assert missing.status_code == 404
+
+
 def test_from_documents_to_an_interview_with_its_own_plan(client: TestClient) -> None:
     cv = typed(client, "cv", "CV", CV_TEXT)
     offer = typed(client, "job_offer", "Offerta", OFFER_TEXT)

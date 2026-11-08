@@ -165,3 +165,26 @@ async def test_a_failed_restore_leaves_an_empty_database_at_the_current_schema(
         await data.restore(_archive(tmp_path / "bad.zip", content))
     assert await current_revision(engine) == revisions()[-1]
     assert not any((await data.summary()).values())
+
+
+async def test_profiles_from_a_backup_before_profile_documents_have_none(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    from probeloop.context.domain.model import DocumentKind, Profile
+
+    root = tmp_path / "data"
+    data = SqlDataStore(engine, root)
+    context = SqlContextStore(sessionmaker(engine), root / "blobs")
+    resource = replace(in_review().documents[0], id="r1", kind=DocumentKind.RESOURCE)
+    await context.add_document(resource)
+    await context.save_profile(Profile("p1", "Backend", (resource,), 1, 1))
+    content = json.loads(await data.export_json())
+    # As exported by revision 0003, before profiles had a CV and a job offer.
+    for row in content["tables"]["profiles"]:
+        del row["cv_document_id"], row["job_offer_document_id"]
+    content["revision"] = "0003"
+    await data.delete_all()
+    await data.restore(_archive(tmp_path / "0003.zip", content))
+    restored = await context.profile("p1")
+    assert restored is not None
+    assert (restored.resources, restored.cv, restored.job_offer) == ((resource,), None, None)

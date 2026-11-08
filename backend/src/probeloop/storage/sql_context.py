@@ -90,6 +90,8 @@ class SqlContextStore:
             row.name = profile.name
             row.created_at = profile.created_at
             row.updated_at = profile.updated_at
+            row.cv_document_id = profile.cv.id if profile.cv else None
+            row.job_offer_document_id = profile.job_offer.id if profile.job_offer else None
             row.resources.clear()
             await db.flush()
             row.resources.extend(
@@ -191,7 +193,12 @@ class SqlContextStore:
 
     async def _profile(self, db: AsyncSession, row: ProfileRow) -> Profile:
         ids = [r.document_id for r in row.resources]
-        documents = (await db.scalars(select(DocumentRow).where(DocumentRow.id.in_(ids)))).all()
+        wanted = [*ids, row.cv_document_id, row.job_offer_document_id]
+        documents = (
+            await db.scalars(
+                select(DocumentRow).where(DocumentRow.id.in_([i for i in wanted if i]))
+            )
+        ).all()
         by_id = {d.id: _document(d) for d in documents}
         return Profile(
             id=row.id,
@@ -199,6 +206,8 @@ class SqlContextStore:
             resources=tuple(by_id[i] for i in ids if i in by_id),
             created_at=row.created_at,
             updated_at=row.updated_at,
+            cv=by_id.get(row.cv_document_id) if row.cv_document_id else None,
+            job_offer=(by_id.get(row.job_offer_document_id) if row.job_offer_document_id else None),
         )
 
     async def _snapshot(self, row: SnapshotRow) -> ContextSnapshot:

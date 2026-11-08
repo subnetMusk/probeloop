@@ -49,6 +49,8 @@ class DocumentView(BaseModel):
     origin: str
     media_type: str
     filename: str | None
+    created_at: float
+    has_original: bool  # the uploaded file can be downloaded
     chars: int
     warnings: list[str]
     preview: str
@@ -62,6 +64,8 @@ class DocumentView(BaseModel):
             origin=d.origin.value,
             media_type=d.media_type,
             filename=d.filename,
+            created_at=d.created_at,
+            has_original=d.has_original,
             chars=len(d.text),
             warnings=list(d.warnings),
             preview=d.text[:600],
@@ -96,7 +100,18 @@ class ResourceIn(Strict):
 
 class ProfileIn(Strict):
     name: str = Field(min_length=1, max_length=MAX_TITLE)
+    cv_id: str | None = Field(default=None, max_length=32)
+    job_offer_id: str | None = Field(default=None, max_length=32)
     resources: list[ResourceIn] = Field(max_length=MAX_RESOURCES)
+
+
+class ProfileRename(Strict):
+    name: str = Field(min_length=1, max_length=MAX_TITLE)
+
+
+class DocumentRevision(Strict):
+    text: str = Field(min_length=1, max_length=MAX_DOCUMENT_CHARS)
+    title: str | None = Field(default=None, max_length=MAX_TITLE)
 
 
 class ProfileView(BaseModel):
@@ -104,6 +119,9 @@ class ProfileView(BaseModel):
     name: str
     created_at: float
     updated_at: float
+    job_mode: JobMode
+    cv: DocumentView | None
+    job_offer: DocumentView | None
     resources: list[DocumentView]
 
     @classmethod
@@ -113,6 +131,9 @@ class ProfileView(BaseModel):
             name=p.name,
             created_at=p.created_at,
             updated_at=p.updated_at,
+            job_mode=p.job_mode,
+            cv=DocumentView.of(p.cv) if p.cv else None,
+            job_offer=DocumentView.of(p.job_offer) if p.job_offer else None,
             resources=[DocumentView.of(d) for d in p.resources],
         )
 
@@ -318,7 +339,14 @@ def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
     @router.post("/profiles", status_code=201)
     async def create_profile(body: ProfileIn) -> ProfileView:
         try:
-            return ProfileView.of(await context.save_profile(body.name, _resources(body.resources)))
+            return ProfileView.of(
+                await context.save_profile(
+                    body.name,
+                    _resources(body.resources),
+                    cv_id=body.cv_id,
+                    job_offer_id=body.job_offer_id,
+                )
+            )
         except ContextNotFoundError as exc:
             raise HTTPException(status_code=404, detail="document not found") from exc
         except ContextError as exc:
@@ -328,13 +356,37 @@ def context_router(context: ContextService, jobs: JobRunner) -> APIRouter:
     async def overwrite_profile(profile_id: str, body: ProfileIn) -> ProfileView:
         try:
             profile = await context.save_profile(
-                body.name, _resources(body.resources), profile_id=profile_id
+                body.name,
+                _resources(body.resources),
+                profile_id=profile_id,
+                cv_id=body.cv_id,
+                job_offer_id=body.job_offer_id,
             )
         except ContextNotFoundError as exc:
             raise HTTPException(status_code=404, detail="not found") from exc
         except ContextError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return ProfileView.of(profile)
+
+    @router.patch("/profiles/{profile_id}")
+    async def rename_profile(profile_id: str, body: ProfileRename) -> ProfileView:
+        try:
+            return ProfileView.of(await context.rename_profile(profile_id, body.name))
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="profile not found") from exc
+        except ContextError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @router.post("/documents/{document_id}/revisions", status_code=201)
+    async def revise_document(document_id: str, body: DocumentRevision) -> DocumentView:
+        try:
+            return DocumentView.of(
+                await context.revise_document(document_id, body.text, body.title)
+            )
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="document not found") from exc
+        except ContextError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @router.delete("/profiles/{profile_id}", status_code=204)
     async def delete_profile(profile_id: str) -> None:

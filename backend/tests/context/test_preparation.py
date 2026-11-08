@@ -69,7 +69,7 @@ def test_the_job_offer_goes_with_the_job_mode() -> None:
 def test_profiles_hold_resources_only() -> None:
     resource = Document("d", DocumentKind.RESOURCE, "Note", DocumentOrigin.TYPED, "testo", 0)
     Profile("p", "Il mio profilo", (resource,), 0, 0)
-    with pytest.raises(ContextError, match="resources only"):
+    with pytest.raises(ContextError, match="resource documents"):
         Profile("p", "Il mio profilo", (cv(),), 0, 0)
 
 

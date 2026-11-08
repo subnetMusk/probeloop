@@ -7,6 +7,7 @@ contract tests run on both.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -139,6 +140,8 @@ class ProfileRow(Base):
     name: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[float] = mapped_column(Float)
     updated_at: Mapped[float] = mapped_column(Float)
+    cv_document_id: Mapped[str | None] = mapped_column(ForeignKey("documents.id"))
+    job_offer_document_id: Mapped[str | None] = mapped_column(ForeignKey("documents.id"))
 
     resources: Mapped[list[ProfileResourceRow]] = relationship(
         order_by="ProfileResourceRow.position", cascade="all, delete-orphan", passive_deletes=True
@@ -251,8 +254,7 @@ async def migrate(engine: AsyncEngine, revision: str = "head") -> None:
     def upgrade(connection: Connection) -> None:
         command.upgrade(alembic_config(connection), revision)
 
-    async with engine.begin() as connection:
-        await connection.run_sync(upgrade)
+    await _run_migration(engine, upgrade)
 
 
 def revisions() -> list[str]:
@@ -273,5 +275,20 @@ async def downgrade(engine: AsyncEngine, revision: str) -> None:
     def run(connection: Connection) -> None:
         command.downgrade(alembic_config(connection), revision)
 
-    async with engine.begin() as connection:
-        await connection.run_sync(run)
+    await _run_migration(engine, run)
+
+
+async def _run_migration(engine: AsyncEngine, step: Callable[[Connection], None]) -> None:
+    async with engine.connect() as connection:
+        sqlite = connection.dialect.name == "sqlite"
+        if sqlite:
+            # SQLite batch migrations rebuild a table and drop the old one; with foreign keys on,
+            # the drop would cascade deletes into the tables that reference it. The pragma only
+            # applies outside a transaction, so it is set before the migration starts.
+            await connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        try:
+            await connection.run_sync(step)
+            await connection.commit()
+        finally:
+            if sqlite:
+                await connection.exec_driver_sql("PRAGMA foreign_keys=ON")

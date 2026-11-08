@@ -28,3 +28,27 @@ async def test_migrations_go_down_and_up_again(engine: AsyncEngine) -> None:
     await migrate(engine)
     async with engine.connect() as connection:
         assert await connection.run_sync(tables) == set(Base.metadata.tables)
+
+
+async def test_upgrading_keeps_the_rows_of_tables_that_reference_rebuilt_ones(
+    engine: AsyncEngine,
+) -> None:
+    # Migration 0004 rebuilds `profiles` on SQLite; its resources must survive.
+    await downgrade(engine, "0003")
+    async with engine.begin() as connection:
+        await connection.exec_driver_sql(
+            "INSERT INTO documents (id, kind, title, origin, text, media_type, filename, sha256,"
+            " warnings, created_at) VALUES ('d1', 'resource', 'Note', 'typed', 'Testo', "
+            "'text/plain', NULL, NULL, '[]', 0)"
+        )
+        await connection.exec_driver_sql(
+            "INSERT INTO profiles (id, name, created_at, updated_at) VALUES ('p1', 'B', 0, 0)"
+        )
+        await connection.exec_driver_sql(
+            "INSERT INTO profile_resources (profile_id, position, document_id)"
+            " VALUES ('p1', 0, 'd1')"
+        )
+    await migrate(engine)
+    async with engine.connect() as connection:
+        count = await connection.exec_driver_sql("SELECT count(*) FROM profile_resources")
+        assert count.scalar_one() == 1

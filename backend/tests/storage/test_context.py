@@ -57,6 +57,11 @@ async def test_profiles_keep_resource_order_and_can_be_overwritten(
     updated = replace(profile, resources=(a,), updated_at=2)
     await store.save_profile(updated)
     assert await store.profiles() == [updated]
+    with_documents = replace(updated, cv=cv(), job_offer=offer(), updated_at=3)
+    for document in (cv(), offer()):
+        await store.add_document(document)
+    await store.save_profile(with_documents)
+    assert await store.profile("p1") == with_documents
     assert await store.delete_profile("p1")
     assert await store.profiles() == []
 

@@ -10,6 +10,8 @@ const document: DocumentView = {
   origin: 'typed',
   media_type: 'text/plain',
   filename: null,
+  created_at: 0,
+  has_original: false,
   chars: 30,
   warnings: [],
   preview: 'Built a Python service.',
@@ -19,6 +21,9 @@ const profile: ProfileView = {
   name: 'Backend',
   created_at: 0,
   updated_at: 0,
+  job_mode: 'none',
+  cv: null,
+  job_offer: null,
   resources: [document],
 }
 

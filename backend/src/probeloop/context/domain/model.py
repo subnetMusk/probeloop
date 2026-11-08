@@ -31,6 +31,9 @@ class DocumentOrigin(StrEnum):
     UPLOAD = "upload"  # a file
     TYPED = "typed"  # text typed or pasted by the user
     GENERATED = "generated"  # a job offer drafted by the model from the user's description
+    # Text extracted from an uploaded file, then edited by the user. The original file stays
+    # available: filename, media type and sha256 are kept.
+    EDITED = "edited"
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +56,30 @@ class Document:
             raise ContextError(f"'{self.title}' contains no text")
         if len(self.text) > MAX_DOCUMENT_CHARS:
             raise ContextError(f"'{self.title}' is longer than {MAX_DOCUMENT_CHARS} characters")
+
+    @property
+    def has_original(self) -> bool:
+        """Whether the uploaded file behind this text is stored."""
+        return self.sha256 is not None and self.origin in (
+            DocumentOrigin.UPLOAD,
+            DocumentOrigin.EDITED,
+        )
+
+    def revised(self, document_id: str, text: str, title: str | None, now: float) -> Document:
+        """A new document with edited text. Documents are immutable: preparations and
+        snapshots that used this one keep it."""
+        origin = DocumentOrigin.EDITED if self.has_original else self.origin
+        return Document(
+            id=document_id,
+            kind=self.kind,
+            title=(title or self.title).strip(),
+            origin=origin,
+            text=text.strip(),
+            created_at=now,
+            media_type=self.media_type if self.has_original else "text/plain",
+            filename=self.filename if self.has_original else None,
+            sha256=self.sha256 if self.has_original else None,
+        )
 
 
 class Subject(StrEnum):
@@ -276,13 +303,15 @@ class Preparation:
 
 @dataclass(frozen=True, slots=True)
 class Profile:
-    """A named set of resources, reused across interviews."""
+    """A named set of documents reused across interviews: a CV, a job offer and resources."""
 
     id: str
     name: str
     resources: tuple[Document, ...]
     created_at: float
     updated_at: float
+    cv: Document | None = None
+    job_offer: Document | None = None
 
     def __post_init__(self) -> None:
         if not self.name.strip() or len(self.name) > MAX_TITLE:
@@ -290,7 +319,22 @@ class Profile:
         if len(self.resources) > MAX_RESOURCES:
             raise ContextError(f"at most {MAX_RESOURCES} resources")
         if any(r.kind is not DocumentKind.RESOURCE for r in self.resources):
-            raise ContextError("a profile holds resources only")
+            raise ContextError("the resources of a profile must be resource documents")
+        if self.cv is not None and self.cv.kind is not DocumentKind.CV:
+            raise ContextError("the CV of a profile must be a CV document")
+        if self.job_offer is not None and self.job_offer.kind is not DocumentKind.JOB_OFFER:
+            raise ContextError("the job offer of a profile must be a job offer document")
+
+    @property
+    def job_mode(self) -> JobMode:
+        if self.job_offer is None:
+            return JobMode.NONE
+        if self.job_offer.origin is DocumentOrigin.GENERATED:
+            return JobMode.GENERATED
+        return JobMode.OFFER
+
+    def renamed(self, name: str, now: float) -> Profile:
+        return replace(self, name=name.strip(), updated_at=now)
 
 
 @dataclass(frozen=True, slots=True)

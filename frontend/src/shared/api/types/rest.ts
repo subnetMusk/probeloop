@@ -140,6 +140,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documents/{document_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revise Document */
+        post: operations["revise_document_api_documents__document_id__revisions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/job-offers/draft": {
         parameters: {
             query?: never;
@@ -349,7 +366,8 @@ export interface paths {
         delete: operations["delete_profile_api_profiles__profile_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Rename Profile */
+        patch: operations["rename_profile_api_profiles__profile_id__patch"];
         trace?: never;
     };
     "/api/progress": {
@@ -825,6 +843,13 @@ export interface components {
          * @enum {string}
          */
         DocumentKind: "cv" | "job_offer" | "resource";
+        /** DocumentRevision */
+        DocumentRevision: {
+            /** Text */
+            text: string;
+            /** Title */
+            title?: string | null;
+        };
         /** DocumentTextView */
         DocumentTextView: {
             /** Id */
@@ -836,8 +861,12 @@ export interface components {
         DocumentView: {
             /** Chars */
             chars: number;
+            /** Created At */
+            created_at: number;
             /** Filename */
             filename: string | null;
+            /** Has Original */
+            has_original: boolean;
             /** Id */
             id: string;
             /** Kind */
@@ -1062,17 +1091,29 @@ export interface components {
         Profile: "local" | "cloud";
         /** ProfileIn */
         ProfileIn: {
+            /** Cv Id */
+            cv_id?: string | null;
+            /** Job Offer Id */
+            job_offer_id?: string | null;
             /** Name */
             name: string;
             /** Resources */
             resources: components["schemas"]["ResourceIn"][];
         };
+        /** ProfileRename */
+        ProfileRename: {
+            /** Name */
+            name: string;
+        };
         /** ProfileView */
         ProfileView: {
             /** Created At */
             created_at: number;
+            cv: components["schemas"]["DocumentView"] | null;
             /** Id */
             id: string;
+            job_mode: components["schemas"]["JobMode"];
+            job_offer: components["schemas"]["DocumentView"] | null;
             /** Name */
             name: string;
             /** Resources */
@@ -1641,6 +1682,41 @@ export interface operations {
             };
         };
     };
+    revise_document_api_documents__document_id__revisions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentRevision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     draft_job_offer_api_job_offers_draft_post: {
         parameters: {
             query?: never;
@@ -2053,6 +2129,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_profile_api_profiles__profile_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileView"];
+                };
             };
             /** @description Validation Error */
             422: {

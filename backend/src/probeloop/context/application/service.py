@@ -139,10 +139,18 @@ class ContextService:
         return profile
 
     async def save_profile(
-        self, name: str, resources: Sequence[ResourceInput], profile_id: str | None = None
+        self,
+        name: str,
+        resources: Sequence[ResourceInput],
+        profile_id: str | None = None,
+        *,
+        cv_id: str | None = None,
+        job_offer_id: str | None = None,
     ) -> Profile:
-        """Create a profile, or overwrite an existing one, with these resources."""
+        """Create a profile, or overwrite an existing one, with these documents."""
         documents = await self._resources(resources)
+        cv = await self._document_of_kind(cv_id, DocumentKind.CV)
+        job_offer = await self._document_of_kind(job_offer_id, DocumentKind.JOB_OFFER)
         now = self._now()
         created = now
         if profile_id is not None:
@@ -153,9 +161,34 @@ class ContextService:
             resources=tuple(documents),
             created_at=created,
             updated_at=now,
+            cv=cv,
+            job_offer=job_offer,
         )
         await self._store.save_profile(profile)
         return profile
+
+    async def rename_profile(self, profile_id: str, name: str) -> Profile:
+        profile = (await self.profile(profile_id)).renamed(name, self._now())
+        await self._store.save_profile(profile)
+        return profile
+
+    async def revise_document(self, document_id: str, text: str, title: str | None) -> Document:
+        """Save edited text as a new document; the edited one stays unchanged."""
+        document = (await self.document(document_id)).revised(
+            self._new_id(), text, title, self._now()
+        )
+        await self._store.add_document(document)
+        return document
+
+    async def _document_of_kind(
+        self, document_id: str | None, kind: DocumentKind
+    ) -> Document | None:
+        if document_id is None:
+            return None
+        document = await self.document(document_id)
+        if document.kind is not kind:
+            raise ContextError(f"document {document_id} is not a {kind.value}")
+        return document
 
     async def delete_profile(self, profile_id: str) -> None:
         if not await self._store.delete_profile(profile_id):
