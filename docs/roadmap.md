@@ -398,8 +398,11 @@ per report and passed the labelled checks; see the
 ([results](research/interview-calibration.md)) ranked every strong answer above its weak pair with
 no unverified quotation, but missed the detection and spread thresholds: the past-example
 classification was unreliable (fixed in classification v3, calibration not yet rerun) and vague
-ownership is not detected. The ownership decision, a calibration rerun and the two voice
-acceptance interviews remain open, see the
+ownership is not detected. The two voice acceptance interviews ran with the ChatGPT plan profile
+([results](research/voice-acceptance-2026-11-08.md)): the interviewer probed every planted weak
+answer and the technical report caught the planted error without false corrections; topic
+planning, transcription of English terms and report readability have open issues. The ownership
+decision, a calibration rerun and a local-profile rerun remain open, see the
 [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 
 - **Deliverables**

@@ -201,7 +201,10 @@ Thresholds from proposal section 6: planted-problem detection >=80%, correct per
 ranking >=90%, zero displayed unverified quotes, and overall spread <=0.5 across five
 regenerations. Record false positives and coverage as well as headline thresholds.
 
-The final acceptance remains two real-stack voice interviews, 10 minutes each, using the same
+The two real-stack voice interviews ran on 2026-11-08 with the ChatGPT plan profile; results and
+open issues are in `docs/research/voice-acceptance-2026-11-08.md`. The original plan for them
+follows, for a rerun with the local profile. It called for two real-stack voice interviews,
+10 minutes each, using the same
 synthetic CV: one HR/getting-to-know, one technical with a synthetic job offer. Both must go
 through documents, analysis, review and approval. `evals/voice_candidate.py` already supports
 `--snapshot-id` and a male candidate voice, default `it_IT-riccardo-x_low`; the interviewer is
