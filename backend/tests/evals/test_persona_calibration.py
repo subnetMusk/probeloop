@@ -11,6 +11,7 @@ from evals.persona_calibration import (
     contains,
     session_for,
     summary,
+    traits_present,
 )
 
 from probeloop.assessment.application.interview_review import InterviewJudgement
@@ -35,6 +36,17 @@ def test_the_planted_claim_must_be_present_verbatim() -> None:
     assert not contains("Indexes make inserts faster.", CLAIM)
 
 
+def test_persona_traits_are_checked_in_code() -> None:
+    card = {"wrong_claim": CLAIM}
+    assert traits_present(f"The team added one. {CLAIM}", card, "weak")
+    assert not traits_present(f"I added one. {CLAIM}", card, "weak")
+    assert not traits_present(f"We cut latency by 30%. {CLAIM}", card, "weak")
+    assert not traits_present("The team added an index.", card, "weak")
+    assert traits_present("I measured both before I added it.", card, "strong")
+    assert not traits_present(f"I measured it. {CLAIM}", card, "strong")
+    assert not traits_present("We measured it.", card, "strong")
+
+
 def _assessment(persona: str, regeneration: int, mean: float, **fields: object) -> Assessment:
     base = Assessment(
         card="indexes",
@@ -55,8 +67,8 @@ def _assessment(persona: str, regeneration: int, mean: float, **fields: object) 
 
 def test_summary_counts_detection_ranking_spread_and_false_corrections() -> None:
     answers = [
-        Answer("indexes", "weak", "q", CLAIM, True),
-        Answer("indexes", "strong", "q", "A correct answer.", None),
+        Answer("indexes", "weak", "q", CLAIM, True, 1),
+        Answer("indexes", "strong", "q", "A correct answer.", True, 2),
     ]
     assessments = [
         _assessment("weak", 0, 1.5, corrections=("removes the need to update the table",)),
@@ -70,24 +82,25 @@ def test_summary_counts_detection_ranking_spread_and_false_corrections() -> None
     assert result["ranking"] == 0.5
     assert result["spreads"] == {"indexes/weak": 0.3, "indexes/strong": 2.6}
     assert result["false_corrections"] == 1
+    assert result["persona_attempts"] == 3
     assert result["passed"] is False
 
 
-def test_answers_without_the_planted_claim_are_excluded_and_reported() -> None:
+def test_answers_without_their_traits_are_excluded_and_reported() -> None:
     answers = [
-        Answer("indexes", "weak", "q", "The persona ignored the trait.", False),
-        Answer("indexes", "strong", "q", "A correct answer.", None),
+        Answer("indexes", "weak", "q", "The persona ignored the trait.", False, 3),
+        Answer("indexes", "strong", "q", "A correct answer.", True, 1),
     ]
     assessments = [_assessment("weak", 0, 1.0), _assessment("strong", 0, 4.0)]
     result = summary(answers, assessments, {"indexes": CLAIM})
     assert result["detection"] is None
     assert result["ranking"] is None
-    assert result["missing_planted_claims"] == ["indexes"]
+    assert result["non_compliant"] == ["indexes/weak"]
     assert result["passed"] is False
 
 
 def test_assessment_reads_scores_corrections_and_unverified_quotes() -> None:
-    answer = Answer("indexes", "weak", "q", f"We did it together. {CLAIM}", True)
+    answer = Answer("indexes", "weak", "q", f"We did it together. {CLAIM}", True, 1)
     quote = Evidence("turn-1", "removes the need to update the table", 1)
     result = InterviewJudgement(
         units=(),

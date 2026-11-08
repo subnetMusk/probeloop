@@ -12,6 +12,9 @@ answer several times. Thresholds from proposal section 6:
 - score spread <= 0.5 over the regenerations of the same answer.
 
 False corrections on strong answers, discarded items and criterion coverage are recorded too.
+A persona answer is generated again, up to three times, until its traits can be checked in code:
+a weak answer contains the wrong claim verbatim, no first-person "I" and no numbers; a strong
+answer contains "I" and not the wrong claim. Answers that never comply are excluded and listed.
 With one scored unit per answer, the "overall" of an answer is the mean of its available unit
 scores. Everything is synthetic; keep the output outside git.
 
@@ -23,6 +26,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import statistics
 import sys
 import time
@@ -33,6 +37,7 @@ from typing import Any
 from rapidfuzz import fuzz
 from tests.conftest import make_session
 
+from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.assessment.application.interview_review import InterviewJudgement, InterviewReviewer
@@ -47,6 +52,9 @@ from probeloop.settings import Settings
 
 CARDS = Path(__file__).parent / "fixtures/synthetic/assessment/personas.json"
 THRESHOLDS = {"detection": 0.8, "ranking": 0.9, "unverified": 0, "spread": 0.5}
+ATTEMPTS = 3
+_FIRST_PERSON = re.compile(r"\bI\b")
+_DIGIT = re.compile(r"\d")
 
 PERSONA_PROMPT = """You play a job candidate in a practice interview for an automated test.
 Answer the interviewer's question in English, in 90 to 160 words, as natural spoken text
@@ -58,7 +66,8 @@ TRAITS = {
     "weak": (
         "- Include this sentence word for word and present it as a fact: {wrong_claim}\n"
         "- Describe the work only as what 'we' or 'the team' did: no decision of your own, no "
-        "constraint, no alternative and no concrete outcome."
+        "constraint, no alternative and no concrete outcome.\n"
+        "- Give no numbers, percentages or measurements."
     ),
     "strong": (
         "- Be technically correct and consistent with: {correct_fact}\n"
@@ -74,7 +83,8 @@ class Answer:
     persona: str
     question: str
     text: str
-    planted_present: bool | None
+    compliant: bool
+    attempts: int
 
 
 @dataclass(frozen=True)
@@ -116,6 +126,14 @@ def contains(text: str, claim: str) -> bool:
     return normalise(claim).rstrip(".") in normalise(text)
 
 
+def traits_present(text: str, card: dict[str, str], persona: str) -> bool:
+    claimed = contains(text, card["wrong_claim"])
+    first_person = _FIRST_PERSON.search(text) is not None
+    if persona == "weak":
+        return claimed and not first_person and _DIGIT.search(text) is None
+    return first_person and not claimed
+
+
 def assessment_of(
     answer: Answer, regeneration: int, result: InterviewJudgement, duration_s: float
 ) -> Assessment:
@@ -153,9 +171,7 @@ def summary(
     answers: list[Answer], assessments: list[Assessment], wrong_claims: dict[str, str]
 ) -> dict[str, Any]:
     weak = [a for a in assessments if a.persona == "weak"]
-    usable = {
-        (a.card, a.persona) for a in answers if a.persona == "strong" or a.planted_present is True
-    }
+    usable = {(a.card, a.persona) for a in answers if a.compliant}
     detected = possible = 0
     for item in weak:
         if (item.card, "weak") not in usable:
@@ -171,7 +187,7 @@ def summary(
     by_key = {(a.card, a.persona, a.regeneration): a for a in assessments}
     for item in weak:
         strong = by_key.get((item.card, "strong", item.regeneration))
-        if strong is None or (item.card, "weak") not in usable:
+        if strong is None or not {(item.card, "weak"), (item.card, "strong")} <= usable:
             continue
         pairs += 1
         ranked += strong.mean is not None and item.mean is not None and strong.mean > item.mean
@@ -189,9 +205,8 @@ def summary(
         "spread": max((s for s in spreads.values() if s is not None), default=None),
         "spreads": spreads,
         "false_corrections": sum(len(a.corrections) for a in assessments if a.persona == "strong"),
-        "missing_planted_claims": sorted(
-            a.card for a in answers if a.persona == "weak" and a.planted_present is not True
-        ),
+        "non_compliant": sorted(f"{a.card}/{a.persona}" for a in answers if not a.compliant),
+        "persona_attempts": sum(a.attempts for a in answers),
         "coverage": round(
             sum(a.assessed for a in assessments) / max(1, sum(a.criteria for a in assessments)), 3
         ),
@@ -214,19 +229,19 @@ def summary(
 
 
 async def persona_answer(model: ChatModel, card: dict[str, str], persona: str) -> Answer:
-    traits = TRAITS[persona].format(**card)
-    result = await model.complete(
-        ChatRequest(
-            instructions=PERSONA_PROMPT.format(traits=traits),
-            messages=(ChatMessage("user", card["question"]),),
-            temperature=0.7,
-            max_output_tokens=400,
-            reasoning="off",
-        )
+    request = ChatRequest(
+        instructions=PERSONA_PROMPT.format(traits=TRAITS[persona].format(**card)),
+        messages=(ChatMessage("user", card["question"]),),
+        temperature=0.7,
+        max_output_tokens=400,
+        reasoning="off",
     )
-    text = " ".join(result.text.split())
-    planted = contains(text, card["wrong_claim"]) if persona == "weak" else None
-    return Answer(card["id"], persona, card["question"], text, planted)
+    text = ""
+    for attempt in range(1, ATTEMPTS + 1):
+        text = " ".join((await model.complete(request)).text.split())
+        if traits_present(text, card, persona):
+            return Answer(card["id"], persona, card["question"], text, True, attempt)
+    return Answer(card["id"], persona, card["question"], text, False, ATTEMPTS)
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -246,14 +261,15 @@ async def run(args: argparse.Namespace) -> int:
         for card in cards
         for persona in ("weak", "strong")
     ]
-    evaluator = InterviewReviewer(
-        OllamaChatModel(
-            base_url=settings.ollama_base_url,
-            model=settings.evaluation_model,
-            context_window=settings.evaluation_context_window,
-            timeout_s=600,
-        )
+    evaluation_model: ChatModel = OllamaChatModel(
+        base_url=settings.ollama_base_url,
+        model=settings.evaluation_model,
+        context_window=settings.evaluation_context_window,
+        timeout_s=600,
     )
+    if args.debug_log:
+        evaluation_model = DebugLogChatModel(evaluation_model, args.debug_log)
+    evaluator = InterviewReviewer(evaluation_model)
 
     async def quiet(value: float, message: str | None) -> None:
         pass
@@ -294,6 +310,7 @@ def main() -> None:
     parser.add_argument("--regenerations", type=int, default=5)
     parser.add_argument("--cards", nargs="*", help="card ids; all cards by default")
     parser.add_argument("--persona-model", default=None, help="defaults to the interviewer model")
+    parser.add_argument("--debug-log", type=Path, default=None, help="JSONL of evaluator calls")
     sys.exit(asyncio.run(run(parser.parse_args())))
 
 
