@@ -342,7 +342,9 @@ M0 → M1 → M2 → M3 → M4 → M5 → CV review → M7 → M6 → M9       M
 
 The approved scope is [proposal section 3](proposals/2026-11-context-evaluation-reports.md#3-cv-review-new):
 versioned rubric YAML, deterministic checks, evidence-verified model judgements, a background job
-and a report page. This milestone is not implemented yet.
+and a report page. The [CV rating requirements](proposals/2026-11-cv-rating-guidelines.md) incorporate
+the owner's general guidelines, evidence limits and draft anchors for calibration. This milestone
+is not implemented yet.
 
 ## M6 — Final UI · 6–10 days
 

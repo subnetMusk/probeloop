@@ -111,17 +111,21 @@ data, delimited in prompts like the CV.
 A review of the CV, before or without an interview. It runs against a real job offer, against a
 generated one (section 2.2, path B), or against the area inferred from the CV (path A).
 
+The owner's general CV rating guidelines were incorporated on 2026-11-08 in
+[CV rating requirements](2026-11-cv-rating-guidelines.md). That document defines contextual
+checks, non-penalty rules, evidence limits, draft anchors and synthetic calibration cases.
+
 **Rubric v1** (versioned YAML, like the interview rubrics):
 
 | Criterion | How it is judged |
 |---|---|
 | Relevance to the target | Against the requirement matrix with a job offer; against the confirmed area without one |
-| Evidence of impact | Quantified results, cited; counting numbers and units is deterministic |
-| Specificity and ownership | Concrete actions and the candidate's own part, not team claims |
-| Clarity and structure | Standard sections, length, readability; mostly deterministic checks |
-| Consistency | Dates, overlaps and gaps; deterministic |
-| Depth for the target level | LLM judgement with cited evidence |
-| Machine readability | Text extractable, no essential content in images or tables only |
+| Evidence of impact | Concrete qualitative or quantitative outcomes with verified quotes; number counts are diagnostic, not the grade |
+| Specificity and ownership | Concrete actions and individual contribution, including relevant unpaid work and projects |
+| Clarity and structure | Recognisable organisation, relevant detail and readability; visual checks require layout evidence |
+| Consistency | Dates and internal coherence; gaps and overlaps are contextual review flags, not automatic deductions |
+| Depth for the target level | Detail appropriate to the confirmed target, judged from cited evidence in the document |
+| Machine readability | Observed extraction quality and limitations, without a universal ATS compatibility claim |
 
 **Output:**
 - a score per criterion (1–5, or *not assessable*), each with verified quotes;
@@ -135,6 +139,10 @@ The output language follows the application setting (section 7).
 - Deterministic checks wherever possible; the LLM only where judgement is needed.
 - No statement about the candidate without a quote from the CV.
 - Scores are formative, not predictions.
+- No universal deductions for page count, template, photo, column count, missing introduction or
+  lack of numerical metrics. Apply explicit employer instructions and observed defects in context.
+- Do not infer visual properties from plain text or equate a quoted claim with verified ability.
+- Links are not fetched; reachability is not assessed.
 
 **Evaluation:** synthetic CVs with planted problems (unquantified results, a date gap, a
 requirement not shown), measuring how many of them the review detects.
