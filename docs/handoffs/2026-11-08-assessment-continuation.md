@@ -7,94 +7,55 @@ owner; repository code, comments, documentation and commit messages are English.
 
 ## Current instruction and priorities
 
-The owner considers the evaluation latency excessive and asked to defer retesting for now.
-Do not start by repeating a long model evaluation, a large calibration batch or the final voice
-interviews. First inspect the existing measurements and design a better approach. Reduce latency
-while preserving assessment quality. The latest prompt changes below are unmeasured hypotheses,
-not an accepted solution. Ordinary source review and completion of the unfinished integration
-can proceed without invoking real models.
+The owner considered the evaluation latency excessive and asked for an analysis before any long
+retest. That analysis and the revised pipeline, accepted by the owner, are in
+[ADR 0012](../adr/0012-interview-evaluation-pipeline.md) and
+[docs/research/evaluation-latency.md](../research/evaluation-latency.md). The pipeline was
+measured only on the short labelled synthetic transcript; it is not calibrated. Do not run the
+full persona calibration or the final voice interviews without the owner's go-ahead: both are
+long. Keep prompts short and provider-neutral (an OpenAI adapter is planned): enforce rules the
+small model ignores in code rather than adding corrective prompt wording.
 
 The approved scope/order is M5, CV review, M7 assessment, M6 UI and M9 history/data management.
 M8 internet enrichment is dropped. M10 live coding is outside this work. Local commits are
 authorised without confirmation. Push only when the owner explicitly requests it; batch pushes,
 check that CI starts, and use no PRs or AI attribution trailers.
 
-## The 27-minute problem: exact evidence
+## The 27-minute problem and the revised pipeline
 
-The first complete interview evaluation took **1,646 seconds (27 minutes 26 seconds) to assess
-four questions and four candidate answers** in a very short synthetic text transcript.
-One question was a follow-up, so the four answers formed three graded answer units. An extra
-candidate-question/closing exchange was present but unscored. This was report generation time,
-not interview duration. It did not include speech recognition, Whisper refinement, audio
-generation, CV extraction or PDF rendering. No context snapshot was supplied in this smoke run.
+The first complete evaluation took **1,646 s for three graded units** of a short synthetic text
+transcript (nine sequential calls, thinking on, 9,000-token caps). It also asserted a false
+PostgreSQL correction on a good answer, leaked a neighbouring answer into a unit's reason, and
+duplicated half of its observations. A raw diagnostic showed about 87% of a judging call's
+output was reasoning that ended in incomplete JSON. Details and numbers are in the research
+note; the raw artifacts stay in ignored `var/test-run/` (`interview-review-smoke.json`,
+`judge-diagnostic.json`; do not overwrite them).
 
-The draft pipeline made nine logical model calls sequentially: one classifier, two judges per
-unit (six calls), and two synthesis calls. All used thinking in that draft. The structured-output
-helper can add a repair attempt after invalid JSON, but per-call traces were not recorded for
-the complete run, so the number and cost of repairs cannot be attributed exactly.
+Judge prompt v3 (ADR 0012), implemented and unit-tested with fakes:
 
-The evaluator was `qwen3.5:9b`, temperature 0.1, with a 16,384-token context and up to 9,000
-output tokens for judging/synthesis. Output caps had been increased after shorter caps produced
-empty or truncated JSON while the model spent its budget on reasoning. Increasing a cap was
-a correctness workaround, not a demonstrated performance improvement.
+- judging passes without thinking, with an evidence-first schema (quotation, reason, score) and
+  every rubric criterion as a required key;
+- both anchor orders still scored and averaged in code; the descending pass returns scores only;
+- an independent, neutral check of each reported technical error; disagreement withholds the
+  correction and marks accuracy unstable;
+- one synthesis call that selects observations by id, with score bands computed in code;
+- a compact approved context shared as the request prefix; judges see only their unit's turns;
+- presence penalty 0 for evaluator requests (the qwen3.5 Modelfile default is 1.5);
+- classification v2 (technical "how would you" questions are technical) also decides whether a
+  past example was asked for; if not, experience, results and reflection are not assessable;
+- technical corrections are kept only on technical units, and displayed quotations are the
+  transcript's own passages;
+- a per-call trace (phase, attempts, tokens, stop reasons, duration) in the eval output and
+  per-phase totals in the job log; `PROBELOOP_EVALUATION_JUDGE_REASONING=default` restores
+  thinking for an ablation.
 
-A separate raw diagnostic at an 8,192-token context recorded:
-
-| Measurement | Value |
-|---|---|
-| Input tokens | 746 |
-| Generated tokens | 5,500 |
-| Stop reason | length |
-| Total time | 104.66 s |
-| Generation time | 103.76 s |
-| Generation speed | about 53 tokens/s |
-| Reasoning text | 19,919 characters |
-| Answer text | 2,400 characters; incomplete JSON |
-
-The reasoning repeatedly restated rules, drafted output and checked quotations. Large amounts
-of generated text and sequential calls are the main evidenced explanation. Do not blame CPU
-offload or a slow GPU without measuring them. The 16k Qwen profile was observed at about
-5.66 GB VRAM; the interviewer retains its separate 8k profile.
-
-Local, ignored artifacts (same Windows workspace only):
-
-- `var/test-run/interview-review-smoke.json`: the complete 1,646-second draft result.
-- `var/test-run/judge-diagnostic.json`: raw diagnostic, including synthetic-only reasoning.
-- `var/test-run/cv-review-verified.json`: separate successful CV review, 91.82 s.
-- `var/test-run/synthetic-report.{json,md,pdf}` and rendered page PNGs: fake report export checks.
-
-These artifacts are deliberately not tracked. Read the labelled fixtures to reconstruct the
-inputs on another machine; do not silently overwrite the original measurements.
-
-### Quality is also unresolved
-
-The draft detected vague ownership and the planted claim that indexes remove the need to update
-the table. However, it incorrectly criticised a good answer for saying that failed PostgreSQL
-concurrent index creation can leave an invalid index. This behaviour is documented in the
-[PostgreSQL CREATE INDEX reference](https://www.postgresql.org/docs/current/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY).
-That false positive affected grading as well as the suggested correction. The draft had 17
-discarded model items, unstable scores and repeated synthesis observations.
-
-Exact quote verification proves that a passage occurs in the source. It does not prove that a
-technical correction, inference or CV statement is true. Preserve that distinction. A faster
-version must not trade this known accuracy problem for an apparently successful latency number.
-
-### Latest source changes, not yet measured with a real model
-
-- `judge_unit.v2.j2` asks for one brief decision per criterion, without repeated schema drafts
-  or quotation-character counting; at most two observations per judging pass.
-- Both scoring passes still use thinking, opposite anchor order and a 9,000-token output cap.
-- Classification now uses thinking off, capped at 1,200 output tokens.
-- `synthesise.v2.j2` is intended as editorial synthesis of existing judgements, thinking off,
-  capped at 2,400 tokens and four observations. It should not create new factual judgements.
-- `Settings.evaluation_context_window` is 16,384; the interviewer and extraction profiles remain 8k.
-
-Inspect the whole design rather than assuming these edits are optimal. Consider call count,
-batching/context duplication, unnecessary synthesis work, reasoning behaviour and output shape.
-Instrument phase times, provider attempts and token usage before selecting the smallest useful
-benchmark. Preserve verified evidence, explicit not-assessable scores, versioned inputs/reports
-and code-owned aggregation. Do not silently remove the approved two-pass bias mitigation or
-declare a quality/performance improvement without comparative evidence.
+Measured on machine A with the labelled transcript (see the research note for every run):
+about 120 s per report instead of 1,646 s, nine or ten calls, no repairs or truncations, all
+labelled checks passed. Checking the judge's advice with a second call was tried and removed:
+the same model shares the same misconceptions. Wrong technical advice (for example about
+`VACUUM`) and remarks about the candidate can still appear in observations. A measured
+side finding: at the 16k context, 2 of 34 layers of `qwen3.5:9b` run on the CPU and generation
+is about 30 tokens/s.
 
 ## Implemented code and outstanding work
 
@@ -125,16 +86,20 @@ See `docs/research/cv-review-results.md`; this is smoke coverage, not full CV ca
 - Report exports are Markdown, JSON and WeasyPrint PDF. A custom fetcher refuses every resource
   URL, and the HTML template escapes supplied text. Pango/fonts are in the backend image.
 
-Still needed: real-model quality/calibration, a measured efficient configuration, final report/UI
-review, and end-to-end coverage of report generation/regeneration, navigation and downloads.
-Technical accuracy and repetitive observations are known concerns, not completed acceptance.
+Still needed: owner acceptance of ADR 0012, persona calibration (the tool
+`evals/persona_calibration.py` exists and is unit-tested, not run), an Italian labelled
+transcript, and a final visual review of the report and PDF. The voice E2E test now covers report
+generation, opening, the three downloads and regeneration with the scripted evaluator; check CI.
+Technical accuracy remains a model judgement even when two calls agree.
 
 ### Settings and UI
 
 Language, interviewer volume through a gain node, light/dark/system theme, persisted browser
 preferences, report notifications and broad IT/EN translation scaffolding are implemented.
-Finish remaining dynamic/untranslated strings and review the whole flow. New Playwright tests
-cover keyboard volume, theme changes and axe scans, but they have not yet been run locally.
+Backend problem details and failed-job messages are now localised in the UI when they are known
+static messages; messages with variable parts (for example document titles) stay English. The
+setup page labels the interview language explicitly. A full review of the Italian flow is
+still worth doing by eye.
 Settings currently focus on the preferences approved in proposal section 7; do not assume every
 older, broader M6 roadmap item (provider/model/retention configuration UI or diagnostics) is done.
 
@@ -151,9 +116,10 @@ one-use download token, allowing the browser to stream the archive. Generated ex
 an owned directory and are included in deletion. Restore rejects unsafe paths and nonempty
 destinations. API mutation/connection guards coordinate maintenance with live sessions/jobs.
 
-Backend roundtrips, path guards and deletion tests passed on SQLite and PostgreSQL. Complete UI
-verification, concurrency/error-path review and documentation remain. Never test delete-all on
-the primary data volume: use isolated synthetic instances.
+Backend roundtrips, path guards and deletion tests passed on SQLite and PostgreSQL. The README
+now documents exports, backups, restore and deletion. A browser check of backup download and
+delete-all on an isolated synthetic instance, and a concurrency/error-path review, remain. Never
+test delete-all on the primary data volume: use isolated synthetic instances.
 
 ## Verification boundary
 

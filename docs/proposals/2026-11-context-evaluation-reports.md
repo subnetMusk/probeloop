@@ -172,7 +172,7 @@ requirement not shown), measuring how many of them the review detects.
 **What the evaluator receives.** Accuracy matters more than speed, so each judge call gets the
 whole context it needs:
 
-- the answer unit, and the surrounding turns;
+- the answer unit (ADR 0012: only its own turns, since neighbouring answers leaked into judgements);
 - the rubric of the unit's kind, with its anchors;
 - the user's documents as approved in the snapshot: the CV, the job offer (real or generated) and
   the resources, as delimited data;
@@ -180,7 +180,8 @@ whole context it needs:
 
 A judge call is about 5k tokens (rubric 1k, documents 3k, unit 1k), within an 8k context.
 
-**Model and timing.** The evaluator is a separate model profile: `qwen3.5:9b` with thinking on.
+**Model and timing.** The evaluator is a separate model profile: `qwen3.5:9b`, with thinking off
+for judging since [ADR 0012](../adr/0012-interview-evaluation-pipeline.md).
 It runs only after the call, because any other model call during the interview would evict the
 interviewer's prompt cache, and it runs asynchronously: the user can leave the page and gets a
 notification when the report is ready. The run time on machine A is measured in M7 and shown as
@@ -454,7 +455,7 @@ Recorded on 2026-11-07 from the owner's answers to the first draft.
 | Interviews and CV reviews without a job offer | Both supported: a getting-to-know interview for the area inferred from the CV, or a job offer drafted from the user's description and edited before the interview (section 2.2) |
 | Language of the output | An application setting, next to audio volume and theme (section 7) |
 | Rubrics | Drafted from the literature on structured interviews (section 5), to be calibrated with synthetic personas |
-| Evaluator | `qwen3.5:9b` with thinking, asynchronous, with the user's documents in context; accuracy over speed (section 4.1) |
+| Evaluator | `qwen3.5:9b` with thinking, asynchronous, with the user's documents in context; accuracy over speed (section 4.1). Revised on 2026-11-08 by ADR 0012: judging without thinking, evidence-first schemas |
 | Exports | Markdown, JSON and PDF (section 4.4) |
 | Background refinement during the interview | Not now: it costs little CPU, but about 1 GB of memory that machine A does not have to spare. Refinement runs after the call (section 4.5) |
 | External sources | Revised on 2026-11-07: nothing is fetched from the internet. Resources are titled text or text files added by the user, saved in reusable profiles (section 2.5). The job offer no longer accepts a URL |

@@ -386,10 +386,15 @@ diagnostics deliverable below.
 ## M7 — Evaluation and reports · 8–12 days
 
 **Checkpoint (2026-11-08), not complete:** rubrics, two-pass unit scoring, evidence verification,
-versioned reports, delivery metrics, report UI and exports are implemented. A draft real-model
-smoke took 1,646 seconds for four scored question/answer pairs and produced a technical false
-positive. Prompt/routing changes are unmeasured. Full persona calibration and voice acceptance
-remain open; see the [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
+versioned reports, delivery metrics, report UI and exports are implemented. The first real-model
+smoke took 1,646 seconds for three graded units and produced a technical false positive. The
+revised pipeline ([ADR 0012](adr/0012-interview-evaluation-pipeline.md)) judges without
+thinking through an evidence-first schema, keeps both anchor orders, checks reported corrections
+independently and synthesises by reference. On the same labelled transcript it took about 120 s
+per report and passed the labelled checks; see the
+[latency note](research/evaluation-latency.md). The persona calibration tool exists but has not
+been run; calibration and the two voice acceptance interviews remain open, see the
+[continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 
 - **Deliverables**
   - Rubrics v1 (HR, behavioral, technical, mixed) in YAML.
