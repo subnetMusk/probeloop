@@ -5,8 +5,10 @@
 - Scope: M4, M5 and M7 of the [roadmap](../roadmap.md), plus CV review.
 - Implementation status (2026-11-08): M4 is complete; M5 is implemented and verified locally with
   live extraction measurements and the browser flow. CV review is implemented with a live-model
-  smoke run and versioned reports. M7 reports and application
-  settings remain pending. The decisions below govern their implementation.
+  smoke run and versioned reports. M7, M6 preferences/i18n and M9 data/history code are implemented
+  as an unfinished development checkpoint. Model quality/latency, final UI verification and the
+  two voice acceptance runs remain open. See the [continuation notes](../handoffs/2026-11-08-assessment-continuation.md).
+  The decisions below govern their implementation.
 
 ## 1. Starting point and proposed order
 

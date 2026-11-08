@@ -362,6 +362,12 @@ recording persistence), strict typing, linting, nine dependency contracts and re
 
 ## M6 — Final UI · 6–10 days
 
+**Checkpoint (2026-11-08), not complete:** language, volume, theme, report notifications and
+IT/EN scaffolding are implemented. Remaining translation, final rebuilt-app/E2E checks and
+accessibility acceptance are recorded in the [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
+The implemented settings currently cover proposal section 7, not every older configuration and
+diagnostics deliverable below.
+
 - **Deliverables**
   - The Phase A wizard, polished review screens and the Phase D summary.
   - The final meeting room: the requested layout, a collapsible transcript, volume, states.
@@ -378,6 +384,12 @@ recording persistence), strict typing, linting, nine dependency contracts and re
   - axe reports no "serious" violations.
 
 ## M7 — Evaluation and reports · 8–12 days
+
+**Checkpoint (2026-11-08), not complete:** rubrics, two-pass unit scoring, evidence verification,
+versioned reports, delivery metrics, report UI and exports are implemented. A draft real-model
+smoke took 1,646 seconds for four scored question/answer pairs and produced a technical false
+positive. Prompt/routing changes are unmeasured. Full persona calibration and voice acceptance
+remain open; see the [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 
 - **Deliverables**
   - Rubrics v1 (HR, behavioral, technical, mixed) in YAML.
@@ -406,6 +418,11 @@ recording persistence), strict typing, linting, nine dependency contracts and re
 No crawler, GitHub client, enrichment job or URL fetcher is planned.
 
 ## M9 — History and progress · 3–5 days
+
+**Checkpoint (2026-11-08), not complete:** latest-version progress groups, portable backups,
+empty-target restore and delete-all are implemented. Targeted SQLite/PostgreSQL checks passed;
+complete browser integration, error-path review and documentation remain open. See the
+[continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 
 - **Deliverables**
   - History and comparisons, valid only when the rubric version is the same.

@@ -5,10 +5,12 @@ interviewer. The interview is a spoken conversation. The interviewer asks follow
 based on your answers, your CV and the job offer. After the call you get a detailed report, and
 you can track your progress across sessions.
 
-> **Status: early development (milestone M5).** Prepare an interview from a CV, an optional job
-> offer and reusable resources, review the extracted facts, then take a spoken interview.
-> Transcripts and audio are persisted and reviewable. CV reviews and interview evaluation reports
-> are the next milestones (see the [roadmap](docs/roadmap.md)).
+> **Status: early development.** Document preparation, spoken interviews, transcript review and
+> CV reviews are implemented. Interview reports, settings and data/history workflows are a
+> development checkpoint with outstanding integration and model-quality acceptance. The first
+> draft evaluator took 27 minutes for four question/answer pairs and produced a technical false
+> positive. See the [continuation notes](docs/handoffs/2026-11-08-assessment-continuation.md) and
+> [roadmap](docs/roadmap.md); these features are not yet declared complete.
 
 ## Goals
 
