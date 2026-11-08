@@ -325,3 +325,10 @@ def test_an_elided_quotation_is_kept_only_when_every_part_is_verbatim() -> None:
     # An invented part, or a part too short to locate, rejects the whole quotation.
     assert quoted("introduce a partial index... the team chose BRIN") == []
     assert quoted("introduce a partial index... GiST") == []
+
+
+def test_the_past_example_flag_is_decided_before_the_unit_kind() -> None:
+    # Constrained decoding follows the schema's property order. Deciding the kind first made the
+    # flag false for technical questions that also ask for a personal example.
+    unit = KindsOut.model_json_schema()["$defs"]["KindOut"]
+    assert list(unit["properties"]) == ["unit_id", "past_example", "kind"]

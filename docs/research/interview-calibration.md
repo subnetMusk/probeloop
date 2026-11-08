@@ -101,11 +101,40 @@ excluded. The evaluator still reported their wrong claims in 10 of 10 reviews.
 
 This is a first calibration, not an acceptance.
 
+## Follow-up: past-example classification (classification v3)
+
+The classification request was measured alone on labelled questions. There were eight decisions
+per repetition:
+
+- each of the five cards asks for a personal example;
+- in the labelled transcript, u0 asks for one, u4 asks for an explanation and u6 for a plan.
+
+The production schema decided `kind` before `past_example`.
+
+| Variant | Wrong decisions | Notes |
+|---|---|---|
+| Classification v2 (production) | 14/40, then 12/40 | asyncio and HTTP wrong every time |
+| Same prompt and schema, rebuilt in the probe (control) | 12/40 | the probe reproduces production |
+| `past_example` before `kind`, prompt unchanged | 0/40, then 5/80 in the final code | false negatives only |
+| Field renamed to `asks_for_own_past_example` | 0/40 | |
+| Definition: "even if it also asks for an explanation" | 0/40 | |
+| Flag first and definition (adopted as v3) | 0/80, then 0/80 with the final wording | |
+
+- **Unit kinds.** Every variant kept all unit kinds correct.
+- **Negatives.** Explanation and plan questions were never marked as asking for an example.
+- **The adopted change.** It is a schema order and one clause of the definition: no instruction
+  aimed at a particular model.
+- **Regression check.** On the labelled transcript, two runs of the full pipeline with v3 passed
+  every check: the plan-only answer still had no experience score, the spread was 0.06 and a
+  report took about 113 s.
+
+The probe script was a one-off. Its outputs are in the ignored `var/test-run/classify-probe.jsonl`.
+The persona calibration has not been rerun with v3.
+
 ## Next steps (not decided)
 
-- **Past-example decision.** Either measure a classification variant on the five cards and on
-  the labelled transcript (classification calls take about 2 s), or remove the guard and accept
-  that a plan-only answer can be scored on experience.
+- **Calibration rerun.** Rerun the persona calibration with classification v3. Experience
+  should then be scored where it was asked for; ownership detection is not expected to change.
 - **Ownership.** Decide whether ownership belongs in the technical rubric. If it does, add an
   explicit criterion, rather than expecting experience to carry it.
 - **Cloud profile.** Run the same calibration on the cloud execution profile

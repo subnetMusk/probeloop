@@ -159,7 +159,7 @@ class InterviewReviewer:
     def prompt_ref(self) -> str:
         judging = "think" if self.judge_reasoning == "default" else "off"
         return (
-            f"classify_units@v2:off+judge_unit@v3:asc,desc-scores:{judging}"
+            f"classify_units@v3:off+judge_unit@v3:asc,desc-scores:{judging}"
             "+check_claim@v1:off+synthesise@v3:off"
         )
 
@@ -307,7 +307,7 @@ class InterviewReviewer:
                 {"unit_id": u.id, "questions": [turn_data(turns[n]) for n in u.question_seqs]}
                 for u in batch
             ]
-            prompt = self._prompts.render("classify_units", 2)
+            prompt = self._prompts.render("classify_units", 3)
             request = ChatRequest(
                 instructions=prompt.text,
                 messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),

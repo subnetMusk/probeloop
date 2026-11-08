@@ -41,8 +41,9 @@ Judge prompt v3 (ADR 0012), implemented and unit-tested with fakes:
 - one synthesis call that selects observations by id, with score bands computed in code;
 - a compact approved context shared as the request prefix; judges see only their unit's turns;
 - presence penalty 0 for evaluator requests (the qwen3.5 Modelfile default is 1.5);
-- classification v2 (technical "how would you" questions are technical) also decides whether a
-  past example was asked for; if not, experience, results and reflection are not assessable;
+- classification v3 (technical "how would you" questions are technical) also decides, before
+  the kind, whether a past example was asked for; if not, experience, results and reflection
+  are not assessable;
 - technical corrections are kept only on technical units, and displayed quotations are the
   transcript's own passages;
 - a per-call trace (phase, attempts, tokens, stop reasons, duration) in the eval output and
@@ -87,8 +88,9 @@ See `docs/research/cv-review-results.md`; this is smoke coverage, not full CV ca
   URL, and the HTML template escapes supplied text. Pango/fonts are in the backend image.
 
 Still needed: decisions on the first persona calibration
-(`docs/research/interview-calibration.md`: thresholds missed; the past-example classification
-and ownership detection need a decision), an Italian labelled transcript, and a final visual
+(`docs/research/interview-calibration.md`: thresholds missed; classification v3 fixes the
+past-example decision but the calibration has not been rerun; ownership detection needs a
+decision), an Italian labelled transcript, and a final visual
 review of the report and PDF. The voice E2E test now covers report
 generation, opening, the three downloads and regeneration with the scripted evaluator; check CI.
 Technical accuracy remains a model judgement even when two calls agree.

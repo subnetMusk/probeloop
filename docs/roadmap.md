@@ -397,8 +397,9 @@ per report and passed the labelled checks; see the
 [latency note](research/evaluation-latency.md). The first persona calibration
 ([results](research/interview-calibration.md)) ranked every strong answer above its weak pair with
 no unverified quotation, but missed the detection and spread thresholds: the past-example
-classification is unreliable and vague ownership is not detected. Those decisions and the two
-voice acceptance interviews remain open, see the
+classification was unreliable (fixed in classification v3, calibration not yet rerun) and vague
+ownership is not detected. The ownership decision, a calibration rerun and the two voice
+acceptance interviews remain open, see the
 [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 
 - **Deliverables**

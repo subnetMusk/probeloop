@@ -19,10 +19,13 @@ from probeloop.interview.domain.model import (
 
 class KindOut(Strict):
     unit_id: str
-    kind: Literal["hr", "behavioral", "technical", "hypothetical", "logistics"]
     # Whether a question asks what the candidate actually did. Decided from the questions alone,
-    # because judges were observed to score a plan as missing experience.
+    # because judges were observed to score a plan as missing experience. It precedes `kind`:
+    # constrained decoding follows this order, and deciding the kind first made the model answer
+    # false for technical questions that also ask for a personal example
+    # (docs/research/interview-calibration.md).
     past_example: bool
+    kind: Literal["hr", "behavioral", "technical", "hypothetical", "logistics"]
 
 
 class KindsOut(Strict):

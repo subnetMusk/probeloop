@@ -151,7 +151,7 @@ Details that preserve the existing guarantees:
     with an explicit instruction;
   - criterion keys, observation count and field order come from the schema.
 - **Provenance.** The report's `prompt_ref` names every prompt version and the thinking choice:
-  `classify_units@v2:off+judge_unit@v3:asc,desc-scores:off+check_claim@v1:off+synthesise@v3:off`.
+  `classify_units@v3:off+judge_unit@v3:asc,desc-scores:off+check_claim@v1:off+synthesise@v3:off`.
   Progress groups keep separating reports produced by different prompt versions.
 - **Instrumentation.** Every logical call records its phase, unit, attempts (repairs included),
   prompt and output tokens, stop reasons and duration. The job log receives per-phase totals
@@ -164,6 +164,9 @@ Details that preserve the existing guarantees:
 - **Classification v2** defines technical questions to include "how would you" questions about
   technical systems, and adds the past-example decision. Without thinking, a draft run
   classified the index rollout question as hypothetical, which removed its accuracy score.
+  **Version 3** decides the past-example flag before the kind and states that a question that
+  also asks for an explanation still asks for an example; the persona calibration showed why
+  ([interview-calibration.md](interview-calibration.md), section "Follow-up").
 - **Configurable thinking.** `PROBELOOP_EVALUATION_JUDGE_REASONING=default` restores thinking for
   the judging passes, with a larger cap, for the ablation in section 5.
 
