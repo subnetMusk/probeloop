@@ -9,6 +9,8 @@ import type { ReactNode } from 'react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 function RoundButton(props: {
   label: string
@@ -81,7 +83,7 @@ export function ControlBar(props: ControlBarProps) {
             className="flex h-12 items-center gap-2 rounded-full bg-red-500 px-5 font-medium text-white transition-colors hover:bg-red-600 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
           >
             <SquareIcon className="size-4 fill-current" />
-            End of answer
+            <T text={'End of answer'} />
           </button>
         ) : (
           <button
@@ -92,14 +94,18 @@ export function ControlBar(props: ControlBarProps) {
             className="flex h-12 items-center gap-2 rounded-full bg-emerald-500 px-5 font-medium text-white transition-colors hover:bg-emerald-600 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
           >
             <MicIcon className="size-5" />
-            Answer
+            <T text={'Answer'} />
           </button>
         )}
-        <RoundButton label="Captions" active={props.captions} onClick={props.onToggleCaptions}>
+        <RoundButton
+          label={localise('Captions')}
+          active={props.captions}
+          onClick={props.onToggleCaptions}
+        >
           <CaptionsIcon />
         </RoundButton>
         <RoundButton
-          label="Transcript"
+          label={localise('Transcript')}
           active={props.transcript}
           onClick={props.onToggleTranscript}
           testId="toggle-transcript"
@@ -107,7 +113,7 @@ export function ControlBar(props: ControlBarProps) {
           <MessageSquareTextIcon />
         </RoundButton>
         <RoundButton
-          label="End call"
+          label={localise('End call')}
           onClick={props.onEndCall}
           className="w-16 bg-red-600 text-white hover:bg-red-700"
           testId="end-call"
@@ -116,7 +122,7 @@ export function ControlBar(props: ControlBarProps) {
         </RoundButton>
       </div>
       <div className="hidden justify-end text-xs text-zinc-500 md:flex">
-        {props.canAnswer || props.answering ? 'Space: answer / end of answer' : ''}
+        <T text={props.canAnswer || props.answering ? 'Space: answer / end of answer' : ''} />
       </div>
     </div>
   )

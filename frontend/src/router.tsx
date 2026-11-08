@@ -6,6 +6,7 @@ import { SessionPage } from '@/pages/session-page'
 import { SessionsPage } from '@/pages/sessions-page'
 import { SetupPage } from '@/pages/setup-page'
 import { ReportPage } from '@/pages/report-page'
+import { SettingsPage } from '@/pages/settings-page'
 
 const rootRoute = createRootRoute({ component: Layout })
 const setupRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: SetupPage })
@@ -32,6 +33,12 @@ const reportRoute = createRoute({
   component: ReportPage,
 })
 
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: SettingsPage,
+})
+
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     setupRoute,
@@ -39,6 +46,7 @@ export const router = createRouter({
     sessionsRoute,
     sessionRoute,
     reportRoute,
+    settingsRoute,
   ]),
 })
 

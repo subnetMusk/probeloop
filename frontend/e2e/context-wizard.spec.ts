@@ -6,6 +6,11 @@ const cvPath = fileURLToPath(
   new URL('../../backend/evals/fixtures/synthetic/context/backend-it.txt', import.meta.url),
 )
 const cv = readFileSync(cvPath, 'utf8')
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
+  })
+})
 
 test('quick start keeps the microphone setup available', async ({ page }) => {
   await page.goto('/')
@@ -49,6 +54,8 @@ test('an uploaded CV and an edited generated offer reach approval', async ({ pag
   await page.getByRole('button', { name: 'Approve context and continue' }).click()
   await expect(page.getByTestId('enable-microphone')).toBeVisible()
   const review = page.getByTestId('cv-review-panel')
+  await review.getByRole('combobox', { name: 'Report language', exact: true }).click()
+  await page.getByRole('option', { name: 'Italiano', exact: true }).click()
   await review.getByRole('button', { name: 'Genera revisione CV' }).click()
   const first = review.getByRole('link', { name: /Apri revisione v1/ })
   await expect(first).toBeVisible({ timeout: 30_000 })

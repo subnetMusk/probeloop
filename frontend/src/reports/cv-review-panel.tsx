@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { setLanguage, useLanguage } from '@/settings/preferences'
+import { rememberReportJob } from '@/reports/pending-jobs'
 
 export function CvReviewPanel({
   snapshotId,
@@ -45,6 +46,7 @@ export function CvReviewPanel({
   const start = useMutation({
     mutationFn: () => api.reviewCv(snapshotId, language),
     onSuccess: (job) => {
+      rememberReportJob(job.id)
       queryClient.setQueryData<JobView[]>(jobsKey, (old) => [...(old ?? []), job])
       void queryClient.invalidateQueries({ queryKey: jobsKey })
     },

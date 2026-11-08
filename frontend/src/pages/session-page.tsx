@@ -19,6 +19,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import { INTERVIEW_TYPES, STATUS_LABELS, clock, dateTime } from '@/lib/format'
+import { InterviewReportPanel } from '@/reports/interview-report-panel'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 /** Words the recogniser was unsure about are highlighted for review. */
 export const DOUBTFUL_BELOW = 0.5
@@ -73,7 +76,15 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
     <div className="flex flex-col gap-2">
       {draft === null ? (
         <p className="leading-relaxed" data-testid="answer-text">
-          {turn.words.length > 0 ? <Words words={turn.words} /> : turn.text || <em>(no speech)</em>}
+          {turn.words.length > 0 ? (
+            <Words words={turn.words} />
+          ) : (
+            turn.text || (
+              <em>
+                <T text={'(no speech)'} />
+              </em>
+            )
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -82,7 +93,7 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
             onChange={(event) => {
               setDraft(event.target.value)
             }}
-            aria-label="Corrected answer"
+            aria-label={localise('Corrected answer')}
             autoFocus
           />
           <div className="flex gap-2">
@@ -93,7 +104,7 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
                 save.mutate(draft)
               }}
             >
-              {save.isPending ? 'Saving…' : 'Save correction'}
+              <T text={save.isPending ? 'Saving…' : 'Save correction'} />
             </Button>
             <Button
               size="sm"
@@ -102,7 +113,7 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
                 setDraft(null)
               }}
             >
-              Cancel
+              <T text={'Cancel'} />
             </Button>
           </div>
           {save.error && <p className="text-sm text-destructive">{save.error.message}</p>}
@@ -111,7 +122,7 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {current && (
           <Badge variant="outline" title={current.engine_ref ?? undefined}>
-            {SOURCE_LABELS[current.source] ?? current.source}
+            <T text={SOURCE_LABELS[current.source] ?? current.source} />
           </Badge>
         )}
         {editable && draft === null && (
@@ -123,7 +134,7 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
             }}
           >
             <PencilIcon data-icon="inline-start" />
-            Correct
+            <T text={'Correct'} />
           </Button>
         )}
         {turn.revisions.length > 1 && (
@@ -135,7 +146,8 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
             }}
           >
             <HistoryIcon data-icon="inline-start" />
-            {history ? 'Hide' : 'Show'} {turn.revisions.length - 1} earlier version
+            <T text={history ? 'Hide' : 'Show'} /> {turn.revisions.length - 1}
+            <T text={'earlier version'} />
             {turn.revisions.length > 2 ? 's' : ''}
           </Button>
         )}
@@ -148,7 +160,8 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
             .map((revision) => (
               <li key={revision.number}>
                 <span className="text-xs font-medium">
-                  {String(revision.number)}. {SOURCE_LABELS[revision.source] ?? revision.source}:
+                  {String(revision.number)}.{' '}
+                  <T text={SOURCE_LABELS[revision.source] ?? revision.source} />:
                 </span>{' '}
                 {revision.text}
               </li>
@@ -162,10 +175,14 @@ function Answer({ session, turn }: { session: SessionView; turn: TurnView }) {
 function Turn({ session, turn }: { session: SessionView; turn: TurnView }) {
   const interviewer = turn.speaker === 'interviewer'
   return (
-    <li className="grid gap-2 py-4 sm:grid-cols-[8rem_1fr]" data-testid={`turn-${turn.speaker}`}>
+    <li
+      id={`turn-${turn.seq}`}
+      className="scroll-mt-8 grid gap-2 py-4 sm:grid-cols-[8rem_1fr]"
+      data-testid={`turn-${turn.speaker}`}
+    >
       <div className="flex flex-col gap-1 text-sm">
         <span className={interviewer ? 'font-medium text-indigo-600' : 'font-medium'}>
-          {interviewer ? 'Interviewer' : 'You'}
+          <T text={interviewer ? 'Interviewer' : 'You'} />
         </span>
         <span className="text-xs text-muted-foreground">{clock(turn.elapsed_s)}</span>
       </div>
@@ -173,7 +190,11 @@ function Turn({ session, turn }: { session: SessionView; turn: TurnView }) {
         {interviewer ? (
           <p className="leading-relaxed text-muted-foreground">
             {turn.text}
-            {turn.status === 'interrupted' && <em> (interrupted)</em>}
+            {turn.status === 'interrupted' && (
+              <em>
+                <T text={' (interrupted)'} />
+              </em>
+            )}
           </p>
         ) : (
           <Answer session={session} turn={turn} />
@@ -197,10 +218,15 @@ function Refinement({ session, job }: { session: SessionView; job: JobView | und
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Accurate transcript</CardTitle>
+        <CardTitle>
+          <T text={'Accurate transcript'} />
+        </CardTitle>
         <CardDescription>
-          After the call your answers are transcribed again with a slower, more accurate recogniser.
-          Words it was unsure about are highlighted: correct them before generating a report.
+          <T
+            text={
+              'After the call your answers are transcribed again with a slower, more accurate recogniser. Words it was unsure about are highlighted: correct them before generating a report.'
+            }
+          />
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -217,13 +243,16 @@ function Refinement({ session, job }: { session: SessionView; job: JobView | und
         )}
         {job?.status === 'succeeded' && (
           <p className="text-sm text-muted-foreground" data-testid="refine-done">
-            Done: {typeof job.result?.revised === 'number' ? String(job.result.revised) : '0'}{' '}
-            answers transcribed again.
+            <T text={'Done:'} />
+            {typeof job.result?.revised === 'number' ? String(job.result.revised) : '0'}{' '}
+            <T text={'answers transcribed again.'} />
           </p>
         )}
         {job?.status === 'failed' && (
           <Alert variant="destructive">
-            <AlertTitle>The transcript could not be refined</AlertTitle>
+            <AlertTitle>
+              <T text={'The transcript could not be refined'} />
+            </AlertTitle>
             <AlertDescription>{job.error}</AlertDescription>
           </Alert>
         )}
@@ -273,7 +302,9 @@ export function SessionPage() {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
         <Alert variant="destructive">
-          <AlertTitle>The interview could not be loaded</AlertTitle>
+          <AlertTitle>
+            <T text={'The interview could not be loaded'} />
+          </AlertTitle>
           <AlertDescription>{session.error.message}</AlertDescription>
         </Alert>
       </div>
@@ -289,15 +320,18 @@ export function SessionPage() {
       <Button asChild variant="ghost" className="self-start">
         <Link to="/sessions">
           <ArrowLeftIcon data-icon="inline-start" />
-          All interviews
+          <T text={'All interviews'} />
         </Link>
       </Button>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
-            {INTERVIEW_TYPES[data.interview_type] ?? data.interview_type} interview
+            <T text={INTERVIEW_TYPES[data.interview_type] ?? data.interview_type} />
+            <T text={'interview'} />
           </h1>
-          <Badge variant="secondary">{STATUS_LABELS[data.status] ?? data.status}</Badge>
+          <Badge variant="secondary">
+            <T text={STATUS_LABELS[data.status] ?? data.status} />
+          </Badge>
         </div>
         <p className="text-muted-foreground">
           {dateTime(data.created_at)} · {data.language.toUpperCase()} · {data.difficulty}
@@ -307,8 +341,12 @@ export function SessionPage() {
       {ended && hasAudio && (
         <Card>
           <CardHeader>
-            <CardTitle>Recording</CardTitle>
-            <CardDescription>The whole conversation, both voices.</CardDescription>
+            <CardTitle>
+              <T text={'Recording'} />
+            </CardTitle>
+            <CardDescription>
+              <T text={'The whole conversation, both voices.'} />
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <audio
@@ -322,11 +360,16 @@ export function SessionPage() {
       )}
 
       {ended && <Refinement session={data} job={refineJob} />}
+      {ended && data.turns.some((t) => t.speaker === 'candidate') && (
+        <InterviewReportPanel sessionId={data.id} jobs={jobs.data ?? []} />
+      )}
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
           <div className="flex flex-col gap-1.5">
-            <CardTitle>Transcript</CardTitle>
+            <CardTitle>
+              <T text={'Transcript'} />
+            </CardTitle>
             <CardDescription>
               {ended
                 ? 'Correct any answer that was recognised wrongly: corrections are kept as new versions.'

@@ -9,10 +9,17 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { INTERVIEW_TYPES, STATUS_LABELS, dateTime } from '@/lib/format'
+import { ProgressHistory } from '@/reports/progress-history'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 function StatusBadge({ status }: { status: string }) {
   const variant = status === 'failed' ? 'destructive' : status === 'ended' ? 'secondary' : 'outline'
-  return <Badge variant={variant}>{STATUS_LABELS[status] ?? status}</Badge>
+  return (
+    <Badge variant={variant}>
+      <T text={STATUS_LABELS[status] ?? status} />
+    </Badge>
+  )
 }
 
 function Row({ session, onDelete }: { session: SessionSummary; onDelete: () => void }) {
@@ -21,7 +28,8 @@ function Row({ session, onDelete }: { session: SessionSummary; onDelete: () => v
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-2">
           <span className="font-medium">
-            {INTERVIEW_TYPES[session.interview_type] ?? session.interview_type} interview
+            <T text={INTERVIEW_TYPES[session.interview_type] ?? session.interview_type} />
+            <T text={' interview'} />
           </span>
           <StatusBadge status={session.status} />
         </div>
@@ -29,12 +37,17 @@ function Row({ session, onDelete }: { session: SessionSummary; onDelete: () => v
           {dateTime(session.created_at)} · {session.language.toUpperCase()}
         </span>
       </div>
-      <Button variant="ghost" size="icon" aria-label="Delete the interview" onClick={onDelete}>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={localise('Delete the interview')}
+        onClick={onDelete}
+      >
         <Trash2Icon />
       </Button>
       <Button asChild variant="outline">
         <Link to="/sessions/$sessionId" params={{ sessionId: session.id }}>
-          Open
+          <T text={'Open'} />
           <ChevronRightIcon data-icon="inline-end" />
         </Link>
       </Button>
@@ -55,27 +68,33 @@ export function SessionsPage() {
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-10">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-3xl font-semibold tracking-tight">Your interviews</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            <T text={'Your interviews'} />
+          </h1>
           <p className="text-muted-foreground">
-            Transcripts, recordings and reports of the interviews you practised.
+            <T text={'Transcripts, recordings and reports of the interviews you practised.'} />
           </p>
         </div>
         <Button asChild>
           <Link to="/">
             <PlusIcon data-icon="inline-start" />
-            New interview
+            <T text={'New interview'} />
           </Link>
         </Button>
       </div>
       {sessions.error && (
         <Alert variant="destructive">
-          <AlertTitle>The interviews could not be loaded</AlertTitle>
+          <AlertTitle>
+            <T text={'The interviews could not be loaded'} />
+          </AlertTitle>
           <AlertDescription>{sessions.error.message}</AlertDescription>
         </Alert>
       )}
       {remove.error && (
         <Alert variant="destructive">
-          <AlertTitle>The interview could not be deleted</AlertTitle>
+          <AlertTitle>
+            <T text={'The interview could not be deleted'} />
+          </AlertTitle>
           <AlertDescription>{remove.error.message}</AlertDescription>
         </Alert>
       )}
@@ -83,7 +102,7 @@ export function SessionsPage() {
         <CardContent className="px-0">
           {sessions.data?.length === 0 && (
             <p className="px-4 py-10 text-center text-muted-foreground">
-              No interviews yet. Start one to see it here.
+              <T text={'No interviews yet. Start one to see it here.'} />
             </p>
           )}
           <ul className="divide-y">
@@ -102,6 +121,7 @@ export function SessionsPage() {
           </ul>
         </CardContent>
       </Card>
+      <ProgressHistory />
     </div>
   )
 }

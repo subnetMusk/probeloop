@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Entry } from '@/interview/state'
 import { cn } from '@/lib/utils'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 /** The whole conversation, as chat bubbles, in a side panel. */
 export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClose?: () => void }) {
@@ -14,13 +16,15 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
   return (
     <aside className="flex min-h-0 w-full flex-col rounded-2xl bg-zinc-900 ring-1 ring-white/5 md:w-96">
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
-        <h2 className="text-sm font-medium text-zinc-100">Transcript</h2>
+        <h2 className="text-sm font-medium text-zinc-100">
+          <T text={'Transcript'} />
+        </h2>
         {onClose && (
           <Button
             size="icon-sm"
             variant="ghost"
             onClick={onClose}
-            aria-label="Close the transcript"
+            aria-label={localise('Close the transcript')}
           >
             <XIcon />
           </Button>
@@ -31,7 +35,9 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
         data-testid="transcript"
       >
         {entries.length === 0 && (
-          <p className="text-sm text-zinc-500">The conversation will appear here.</p>
+          <p className="text-sm text-zinc-500">
+            <T text={'The conversation will appear here.'} />
+          </p>
         )}
         {entries.map((entry) => {
           const mine = entry.speaker === 'candidate'
@@ -44,7 +50,7 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
               )}
             >
               <span className="text-[11px] text-zinc-500">
-                {mine ? 'You' : 'Interviewer'}
+                <T text={mine ? 'You' : 'Interviewer'} />
                 {entry.incomplete && ' · partly not transcribed'}
               </span>
               <div

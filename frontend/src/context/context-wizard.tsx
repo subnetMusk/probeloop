@@ -34,6 +34,8 @@ import {
 import type { ResourceRow } from './resources'
 import { PREPARATION_KEY } from './setup-state'
 import { setLanguage as saveLanguage, useLanguage } from '@/settings/preferences'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 const ACCEPT = '.txt,.md,.json,.xml,.html,.docx,.pdf'
 type Language = 'it' | 'en'
@@ -76,12 +78,14 @@ function DocumentEditor({
     <div className="flex flex-col gap-3">
       {!fileOnly && (
         <>
-          <Label htmlFor={`${id}-text`}>{label}</Label>
+          <Label htmlFor={`${id}-text`}>
+            <T text={label} />
+          </Label>
           <Textarea
             id={`${id}-text`}
             className="min-h-36"
             maxLength={60000}
-            placeholder="Paste the text here"
+            placeholder={localise('Paste the text here')}
             value={value.text}
             disabled={Boolean(value.file)}
             onChange={(event) => {
@@ -93,7 +97,7 @@ function DocumentEditor({
       {!textOnly && (
         <>
           <Label htmlFor={`${id}-file`}>
-            {fileOnly ? label : 'Or upload a text document (up to 10 MB)'}
+            <T text={fileOnly ? label : 'Or upload a text document (up to 10 MB)'} />
           </Label>
           <Input
             id={`${id}-file`}
@@ -106,7 +110,10 @@ function DocumentEditor({
             }}
           />
           {value.file && (
-            <p className="text-sm text-muted-foreground">Selected: {value.file.name}</p>
+            <p className="text-sm text-muted-foreground">
+              <T text={'Selected: '} />
+              {value.file.name}
+            </p>
           )}
         </>
       )}
@@ -119,7 +126,7 @@ function DocumentEditor({
             onChange(emptyInput())
           }}
         >
-          Clear {label.toLowerCase()}
+          <T text={'Clear'} /> <T text={label} />
         </Button>
       )}
     </div>
@@ -286,9 +293,11 @@ export function ContextWizard() {
     <main className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Prepare your interview</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            <T text={'Prepare your interview'} />
+          </h1>
           <p className="mt-2 text-muted-foreground">
-            Add your documents, check the facts, then practise out loud.
+            <T text={'Add your documents, check the facts, then practise out loud.'} />
           </p>
         </div>
         <Button
@@ -297,31 +306,35 @@ export function ContextWizard() {
             setQuick(true)
           }}
         >
-          Quick start without documents
+          <T text={'Quick start without documents'} />
         </Button>
       </div>
       <ol
-        aria-label="Preparation steps"
+        aria-label={localise('Preparation steps')}
         className="flex flex-wrap gap-4 text-sm text-muted-foreground"
       >
         <li className={stage === 'documents' ? 'font-semibold text-foreground' : ''}>
-          1. Documents
+          <T text={'1. Documents'} />
         </li>
         <li className={stage === 'resources' ? 'font-semibold text-foreground' : ''}>
-          2. Resources
+          <T text={'2. Resources'} />
         </li>
         <li className={stage === 'analysis' ? 'font-semibold text-foreground' : ''}>
-          3. Analysis and review
+          <T text={'3. Analysis and review'} />
         </li>
-        <li>4. Settings and microphone</li>
+        <li>
+          <T text={'4. Settings and microphone'} />
+        </li>
       </ol>
       {stage === 'documents' && (
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Interview language</CardTitle>
+              <CardTitle>
+                <T text={'Interview language'} />
+              </CardTitle>
               <CardDescription>
-                Used for the analysis and as the default for this interview.
+                <T text={'Used for the analysis and as the default for this interview.'} />
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -332,11 +345,13 @@ export function ContextWizard() {
                   saveLanguage(value === 'en' ? 'en' : 'it')
                 }}
               >
-                <SelectTrigger aria-label="Analysis language">
+                <SelectTrigger aria-label={localise('Analysis language')}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="it">Italian</SelectItem>
+                  <SelectItem value="it">
+                    <T text={'Italian'} />
+                  </SelectItem>
                   <SelectItem value="en">English</SelectItem>
                 </SelectContent>
               </Select>
@@ -344,9 +359,11 @@ export function ContextWizard() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Your CV</CardTitle>
+              <CardTitle>
+                <T text={'Your CV'} />
+              </CardTitle>
               <CardDescription>
-                Upload a file or paste its text. Scanned documents are not supported.
+                <T text={'Upload a file or paste its text. Scanned documents are not supported.'} />
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -355,9 +372,15 @@ export function ContextWizard() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Job offer</CardTitle>
+              <CardTitle>
+                <T text={'Job offer'} />
+              </CardTitle>
               <CardDescription>
-                Use an offer, describe a role, or get to know a generic company in your area.
+                <T
+                  text={
+                    'Use an offer, describe a role, or get to know a generic company in your area.'
+                  }
+                />
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -369,19 +392,29 @@ export function ContextWizard() {
                   draft.reset()
                 }}
               >
-                <SelectTrigger aria-label="Job offer source">
+                <SelectTrigger aria-label={localise('Job offer source')}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No job offer: getting-to-know interview</SelectItem>
-                  <SelectItem value="text">Paste an offer</SelectItem>
-                  <SelectItem value="file">Upload an offer</SelectItem>
-                  <SelectItem value="describe">Describe a role</SelectItem>
+                  <SelectItem value="none">
+                    <T text={'No job offer: getting-to-know interview'} />
+                  </SelectItem>
+                  <SelectItem value="text">
+                    <T text={'Paste an offer'} />
+                  </SelectItem>
+                  <SelectItem value="file">
+                    <T text={'Upload an offer'} />
+                  </SelectItem>
+                  <SelectItem value="describe">
+                    <T text={'Describe a role'} />
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {offerMode === 'describe' && (
                 <>
-                  <Label htmlFor="role-description">Describe the role</Label>
+                  <Label htmlFor="role-description">
+                    <T text={'Describe the role'} />
+                  </Label>
                   <Textarea
                     id="role-description"
                     maxLength={3000}
@@ -398,11 +431,11 @@ export function ContextWizard() {
                       draft.mutate()
                     }}
                   >
-                    {draft.isPending ? 'Drafting…' : 'Draft a job offer'}
+                    <T text={draft.isPending ? 'Drafting…' : 'Draft a job offer'} />
                   </Button>
                   {draft.data && (
                     <Badge variant="secondary">
-                      Drafted from your description: edit before continuing
+                      <T text={'Drafted from your description: edit before continuing'} />
                     </Badge>
                   )}
                 </>
@@ -426,7 +459,7 @@ export function ContextWizard() {
               setStage('resources')
             }}
           >
-            Continue to resources
+            <T text={'Continue to resources'} />
           </Button>
         </>
       )}
@@ -434,10 +467,15 @@ export function ContextWizard() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Reusable resources</CardTitle>
+              <CardTitle>
+                <T text={'Reusable resources'} />
+              </CardTitle>
               <CardDescription>
-                Choose a profile or start a new set, then add project notes, a README or other
-                context. Links are never followed.
+                <T
+                  text={
+                    'Choose a profile or start a new set, then add project notes, a README or other context. Links are never followed.'
+                  }
+                />
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
@@ -448,11 +486,13 @@ export function ContextWizard() {
                   selectProfile.mutate(profiles.data?.find((p) => p.id === value))
                 }}
               >
-                <SelectTrigger aria-label="Resource profile">
-                  <SelectValue placeholder="New profile" />
+                <SelectTrigger aria-label={localise('Resource profile')}>
+                  <SelectValue placeholder={localise('New profile')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new">New profile / this interview only</SelectItem>
+                  <SelectItem value="new">
+                    <T text={'New profile / this interview only'} />
+                  </SelectItem>
                   {profiles.data?.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
@@ -462,7 +502,8 @@ export function ContextWizard() {
               </Select>
               {profiles.error && (
                 <p role="alert" className="text-destructive">
-                  Could not load profiles. {profiles.error.message}
+                  <T text={'Could not load profiles.'} />
+                  {profiles.error.message}
                 </p>
               )}
               <fieldset
@@ -476,7 +517,10 @@ export function ContextWizard() {
                     data-testid="resource-row"
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">Resource {index + 1}</h3>
+                      <h3 className="text-sm font-medium">
+                        <T text={'Resource '} />
+                        {index + 1}
+                      </h3>
                       {!isEmpty(row) && (
                         <Button
                           variant="ghost"
@@ -492,7 +536,9 @@ export function ContextWizard() {
                         </Button>
                       )}
                     </div>
-                    <Label htmlFor={`title-${row.key}`}>Title</Label>
+                    <Label htmlFor={`title-${row.key}`}>
+                      <T text={'Title'} />
+                    </Label>
                     <Input
                       id={`title-${row.key}`}
                       value={row.title}
@@ -501,7 +547,9 @@ export function ContextWizard() {
                         updateRow(row.key, { title: event.target.value })
                       }}
                     />
-                    <Label htmlFor={`content-${row.key}`}>Resource text</Label>
+                    <Label htmlFor={`content-${row.key}`}>
+                      <T text={'Resource text'} />
+                    </Label>
                     <Textarea
                       id={`content-${row.key}`}
                       maxLength={60000}
@@ -511,7 +559,9 @@ export function ContextWizard() {
                         updateRow(row.key, { text: event.target.value })
                       }}
                     />
-                    <Label htmlFor={`file-${row.key}`}>Or a text file</Label>
+                    <Label htmlFor={`file-${row.key}`}>
+                      <T text={'Or a text file'} />
+                    </Label>
                     <Input
                       id={`file-${row.key}`}
                       type="file"
@@ -524,7 +574,8 @@ export function ContextWizard() {
                     />
                     {(row.file || row.document?.filename) && (
                       <p className="text-sm text-muted-foreground">
-                        Selected: {row.file?.name ?? row.document?.filename}
+                        <T text={'Selected:'} />
+                        {row.file?.name ?? row.document?.filename}
                       </p>
                     )}
                     {row.file && (
@@ -536,20 +587,28 @@ export function ContextWizard() {
                           updateRow(row.key, { file: null })
                         }}
                       >
-                        Clear file
+                        <T text={'Clear file'} />
                       </Button>
                     )}
                   </div>
                 ))}
                 {rows.every(isEmpty) && (
                   <p className="text-sm text-muted-foreground">
-                    <PlusIcon className="mr-1 inline size-4" />A new empty row appears when you fill
-                    a title and its content. Resources are optional.
+                    <PlusIcon className="mr-1 inline size-4" />
+                    <T
+                      text={
+                        'A new empty row appears when you fill a title and its content. Resources are optional.'
+                      }
+                    />
                   </p>
                 )}
                 {!validRows && (
                   <p className="text-sm text-amber-700">
-                    Each resource needs a title and text or a file. You can add at most 20.
+                    <T
+                      text={
+                        'Each resource needs a title and text or a file. You can add at most 20.'
+                      }
+                    />
                   </p>
                 )}
               </fieldset>
@@ -563,7 +622,7 @@ export function ContextWizard() {
                 setStage('documents')
               }}
             >
-              Back to documents
+              <T text={'Back to documents'} />
             </Button>
             <Button
               disabled={!hasDocuments || !validRows || analyse.isPending || selectProfile.isPending}
@@ -574,7 +633,7 @@ export function ContextWizard() {
                 } else analyse.mutate()
               }}
             >
-              {analyse.isPending ? 'Submitting…' : 'Analyse documents'}
+              <T text={analyse.isPending ? 'Submitting…' : 'Analyse documents'} />
             </Button>
           </div>
           <Dialog
@@ -586,9 +645,11 @@ export function ContextWizard() {
             <DialogContent>
               <Card className="w-full max-w-lg">
                 <CardHeader>
-                  <DialogTitle className="font-semibold">Save your resource changes?</DialogTitle>
+                  <DialogTitle className="font-semibold">
+                    <T text={'Save your resource changes?'} />
+                  </DialogTitle>
                   <DialogDescription className="text-sm text-muted-foreground">
-                    Choose how to keep this resource set.
+                    <T text={'Choose how to keep this resource set.'} />
                   </DialogDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -603,7 +664,8 @@ export function ContextWizard() {
                             setSaveChoice('overwrite')
                           }}
                         />
-                        Overwrite {profile.name}
+                        <T text={'Overwrite'} />
+                        {profile.name}
                       </label>
                     )}
                     <label className="flex gap-2">
@@ -615,7 +677,7 @@ export function ContextWizard() {
                           setSaveChoice('new')
                         }}
                       />
-                      Save as a new profile
+                      <T text={'Save as a new profile'} />
                     </label>
                     <label className="flex gap-2">
                       <input
@@ -626,11 +688,13 @@ export function ContextWizard() {
                           setSaveChoice('once')
                         }}
                       />
-                      Use for this interview only
+                      <T text={'Use for this interview only'} />
                     </label>
                     {saveChoice === 'new' && (
                       <>
-                        <Label htmlFor="profile-name">Profile name</Label>
+                        <Label htmlFor="profile-name">
+                          <T text={'Profile name'} />
+                        </Label>
                         <Input
                           id="profile-name"
                           maxLength={120}
@@ -648,7 +712,7 @@ export function ContextWizard() {
                           analyse.mutate()
                         }}
                       >
-                        {analyse.isPending ? 'Submitting…' : 'Continue with analysis'}
+                        <T text={analyse.isPending ? 'Submitting…' : 'Continue with analysis'} />
                       </Button>
                       <Button
                         variant="ghost"
@@ -656,7 +720,7 @@ export function ContextWizard() {
                           setSaveDialog(false)
                         }}
                       >
-                        Cancel
+                        <T text={'Cancel'} />
                       </Button>
                     </div>
                   </fieldset>
@@ -678,14 +742,14 @@ export function ContextWizard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Loader2Icon className="size-5 animate-spin" />
-                  Analysing your documents
+                  <T text={'Analysing your documents'} />
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3" aria-live="polite">
                 <Progress value={(view?.analysis?.progress ?? 0) * 100} />
                 <p>{view?.analysis?.message ?? 'Waiting for analysis to start'}</p>
                 <p className="text-sm text-muted-foreground">
-                  You can leave this page and return to the preparation in this tab.
+                  <T text={'You can leave this page and return to the preparation in this tab.'} />
                 </p>
               </CardContent>
             </Card>
@@ -695,18 +759,22 @@ export function ContextWizard() {
           )}
           {(preparation.error || view?.status === 'failed') && (
             <Alert variant="destructive">
-              <AlertTitle>Analysis unavailable</AlertTitle>
+              <AlertTitle>
+                <T text={'Analysis unavailable'} />
+              </AlertTitle>
               <AlertDescription>{preparation.error?.message ?? view?.error}</AlertDescription>
             </Alert>
           )}
           <Button variant="outline" className="self-start" onClick={restart}>
-            Start a new preparation
+            <T text={'Start a new preparation'} />
           </Button>
         </>
       )}
       {error && !saveDialog && (
         <Alert variant="destructive">
-          <AlertTitle>Could not continue</AlertTitle>
+          <AlertTitle>
+            <T text={'Could not continue'} />
+          </AlertTitle>
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
       )}

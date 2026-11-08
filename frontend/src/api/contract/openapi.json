@@ -75,6 +75,19 @@
         "title": "AreaView",
         "type": "object"
       },
+      "BackupReady": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "BackupReady",
+        "type": "object"
+      },
       "Body_upload_document_api_documents_post": {
         "properties": {
           "file": {
@@ -204,6 +217,69 @@
           "interview_type"
         ],
         "title": "CreateSession",
+        "type": "object"
+      },
+      "DeleteAllRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "const": "DELETE ALL DATA",
+            "title": "Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmation"
+        ],
+        "title": "DeleteAllRequest",
+        "type": "object"
+      },
+      "DeliveryData": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "turn_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Seq"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "value",
+          "unit",
+          "detail",
+          "turn_seq"
+        ],
+        "title": "DeliveryData",
         "type": "object"
       },
       "Difficulty": {
@@ -951,6 +1027,135 @@
         "title": "ProfileView",
         "type": "object"
       },
+      "ProgressGroupView": {
+        "properties": {
+          "criteria": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Criteria",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "model_ref": {
+            "title": "Model Ref",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressPointView"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "rubric_hash": {
+            "title": "Rubric Hash",
+            "type": "string"
+          },
+          "rubric_id": {
+            "title": "Rubric Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "rubric_id",
+          "rubric_hash",
+          "model_ref",
+          "language",
+          "criteria",
+          "points"
+        ],
+        "title": "ProgressGroupView",
+        "type": "object"
+      },
+      "ProgressPointView": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "evidence_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Evidence Counts",
+            "type": "object"
+          },
+          "overall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "report_id",
+          "subject_id",
+          "session_id",
+          "created_at",
+          "version",
+          "overall",
+          "values",
+          "evidence_counts"
+        ],
+        "title": "ProgressPointView",
+        "type": "object"
+      },
       "ReportData": {
         "additionalProperties": false,
         "properties": {
@@ -972,6 +1177,13 @@
           "criteria": {
             "title": "Criteria",
             "type": "integer"
+          },
+          "delivery": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryData"
+            },
+            "title": "Delivery",
+            "type": "array"
           },
           "disclaimer": {
             "title": "Disclaimer",
@@ -1026,6 +1238,13 @@
             "title": "Prompt Ref",
             "type": "string"
           },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionData"
+            },
+            "title": "Revisions",
+            "type": "array"
+          },
           "rubric_hash": {
             "title": "Rubric Hash",
             "type": "string"
@@ -1067,6 +1286,20 @@
             "title": "Subject Id",
             "type": "string"
           },
+          "unit_scores": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreData"
+            },
+            "title": "Unit Scores",
+            "type": "array"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/UnitData"
+            },
+            "title": "Units",
+            "type": "array"
+          },
           "version": {
             "title": "Version",
             "type": "integer"
@@ -1094,7 +1327,11 @@
           "criteria",
           "dropped",
           "duration_s",
-          "disclaimer"
+          "disclaimer",
+          "units",
+          "unit_scores",
+          "delivery",
+          "revisions"
         ],
         "title": "ReportData",
         "type": "object"
@@ -1658,6 +1895,46 @@
         "title": "TypedDocument",
         "type": "object"
       },
+      "UnitData": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answer Seqs",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "question_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Question Seqs",
+            "type": "array"
+          },
+          "topic_id": {
+            "title": "Topic Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "topic_id",
+          "kind",
+          "question_seqs",
+          "answer_seqs"
+        ],
+        "title": "UnitData",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1696,6 +1973,25 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionData": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq",
+          "revision"
+        ],
+        "title": "VersionData",
         "type": "object"
       },
       "WordView": {
@@ -1741,6 +2037,130 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/data/backup": {
+      "post": {
+        "operationId": "prepare_backup_api_data_backup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupReady"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Prepare Backup"
+      }
+    },
+    "/api/data/backup/{token}": {
+      "get": {
+        "operationId": "backup_api_data_backup__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Backup"
+      }
+    },
+    "/api/data/delete-all": {
+      "post": {
+        "operationId": "delete_all_api_data_delete_all_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAllRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete All"
+      }
+    },
+    "/api/data/export": {
+      "get": {
+        "operationId": "export_json_api_data_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Json"
+      }
+    },
+    "/api/data/summary": {
+      "get": {
+        "operationId": "summary_api_data_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Summary Api Data Summary Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Summary"
+      }
+    },
     "/api/documents": {
       "post": {
         "description": "A CV, job offer or resource as a file: txt, md, json, xml, html, docx or pdf.",
@@ -1894,6 +2314,28 @@
           }
         },
         "summary": "Draft Job Offer"
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "operationId": "pending_jobs_api_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobView"
+                  },
+                  "title": "Response Pending Jobs Api Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pending Jobs"
       }
     },
     "/api/jobs/{job_id}": {
@@ -2365,6 +2807,50 @@
         "summary": "Overwrite Profile"
       }
     },
+    "/api/progress": {
+      "get": {
+        "operationId": "progress_api_progress_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProgressGroupView"
+                  },
+                  "title": "Response Progress Api Progress Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Progress"
+      }
+    },
+    "/api/reports": {
+      "get": {
+        "operationId": "history_api_reports_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportData"
+                  },
+                  "title": "Response History Api Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History"
+      }
+    },
     "/api/reports/{report_id}": {
       "get": {
         "operationId": "report_api_reports__report_id__get",
@@ -2402,6 +2888,57 @@
           }
         },
         "summary": "Report"
+      }
+    },
+    "/api/reports/{report_id}/export/{format}": {
+      "get": {
+        "operationId": "export_report_api_reports__report_id__export__format__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "enum": [
+                "md",
+                "json",
+                "pdf"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Report"
       }
     },
     "/api/sessions": {
@@ -2761,6 +3298,96 @@
           }
         },
         "summary": "Refine Transcript"
+      }
+    },
+    "/api/sessions/{session_id}/reports": {
+      "get": {
+        "operationId": "interview_reports_api_sessions__session_id__reports_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportData"
+                  },
+                  "title": "Response Interview Reports Api Sessions  Session Id  Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Interview Reports"
+      },
+      "post": {
+        "operationId": "review_interview_api_sessions__session_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Interview"
       }
     },
     "/api/snapshots/{snapshot_id}": {

@@ -16,6 +16,8 @@ import { STEP_TEXT, formatClock, remainingSeconds } from '@/interview/state'
 import type { Entry, InterviewState } from '@/interview/state'
 import { useInterview } from '@/interview/use-interview'
 import { cn } from '@/lib/utils'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 function useNow(intervalMs: number): number {
   const [now, setNow] = useState(() => performance.now())
@@ -69,7 +71,9 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
               )}
               {step.state === 'ready' && <CheckIcon className="size-4 text-emerald-400" />}
               {step.state === 'failed' && <XIcon className="size-4 text-red-400" />}
-              <span className="flex-1">{STEP_TEXT[step.name]}</span>
+              <span className="flex-1">
+                <T text={STEP_TEXT[step.name]} />
+              </span>
               <span className="text-xs text-zinc-500">{step.state}</span>
             </li>
           ))}
@@ -83,7 +87,7 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
           ))}
         {!preparing && !state.notice && (
           <p className="text-sm text-zinc-400">
-            Connecting
+            <T text={'Connecting'} />
             <Dots />
           </p>
         )}
@@ -91,11 +95,11 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
         {(failed || state.notice) && (
           <Button onClick={onRetry}>
             <RotateCcwIcon data-icon="inline-start" />
-            Try again
+            <T text={'Try again'} />
           </Button>
         )}
         <p className="text-xs text-zinc-500">
-          Loading the language model can take a minute the first time.
+          <T text={'Loading the language model can take a minute the first time.'} />
         </p>
       </div>
     </Lobby>
@@ -111,14 +115,19 @@ function Ended({ state, sessionId }: { state: InterviewState; sessionId: string 
           <div className="flex size-14 items-center justify-center rounded-full bg-zinc-800">
             <PhoneOffIcon className="size-6 text-zinc-300" />
           </div>
-          <h1 className="font-heading text-2xl font-semibold">The interview has ended</h1>
+          <h1 className="font-heading text-2xl font-semibold">
+            <T text={'The interview has ended'} />
+          </h1>
           <p className="text-sm text-zinc-400" data-testid="ended-summary">
             {state.ended?.failure ??
               `${answers} ${answers === 1 ? 'answer' : 'answers'} · ${formatClock(state.clock?.elapsedS ?? 0)} of conversation`}
           </p>
           <p className="max-w-md text-xs text-zinc-500">
-            The full transcript and the audio of the whole conversation are kept with the session.
-            Your answers are now transcribed again, more accurately: review them before the report.
+            <T
+              text={
+                'The full transcript and the audio of the whole conversation are kept with the session. Your answers are now transcribed again, more accurately: review them before the report.'
+              }
+            />
           </p>
           <div className="flex gap-2">
             <Button asChild>
@@ -127,11 +136,13 @@ function Ended({ state, sessionId }: { state: InterviewState; sessionId: string 
                 params={{ sessionId }}
                 data-testid="review-transcript"
               >
-                Review the transcript
+                <T text={'Review the transcript'} />
               </Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link to="/">New interview</Link>
+              <Link to="/">
+                <T text={'New interview'} />
+              </Link>
             </Button>
           </div>
         </div>
@@ -191,16 +202,24 @@ export function InterviewPage() {
 
   if (!kit) {
     return (
-      <Lobby title="Enable the microphone to join">
+      <Lobby title={localise('Enable the microphone to join')}>
         <div className="flex flex-col gap-4">
           <p className="text-sm text-zinc-400">
-            The interview is spoken: the browser needs the microphone, and a click to play audio.
+            <T
+              text={
+                'The interview is spoken: the browser needs the microphone, and a click to play audio.'
+              }
+            />
           </p>
           <Button onClick={() => void audio.enable()} disabled={audio.enabling}>
             <MicIcon data-icon="inline-start" />
-            Enable microphone and audio
+            <T text={'Enable microphone and audio'} />
           </Button>
-          {audio.problem && <p className="text-sm text-red-400">{PROBLEM_TEXT[audio.problem]}</p>}
+          {audio.problem && (
+            <p className="text-sm text-red-400">
+              <T text={PROBLEM_TEXT[audio.problem]} />
+            </p>
+          )}
         </div>
       </Lobby>
     )
@@ -226,7 +245,7 @@ export function InterviewPage() {
   else if (phase === 'interviewer_thinking')
     interviewerStatus = (
       <>
-        Thinking
+        <T text={'Thinking'} />
         <Dots />
       </>
     )
@@ -236,7 +255,7 @@ export function InterviewPage() {
   if (transcribing)
     candidateStatus = (
       <>
-        Transcribing
+        <T text={'Transcribing'} />
         <Dots />
       </>
     )
@@ -249,13 +268,24 @@ export function InterviewPage() {
           <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500 font-heading font-semibold text-white">
             P
           </span>
-          <span className="font-medium">Mock interview</span>
-          <span className="text-zinc-500">· voice</span>
+          <span className="font-medium">
+            <T text={'Mock interview'} />
+          </span>
+          <span className="text-zinc-500">
+            <T text={'· voice'} />
+          </span>
         </div>
         <div className="flex items-center gap-3 text-xs text-zinc-500">
-          {state.connection === 'closed' && <span className="text-red-400">Connection lost</span>}
+          {state.connection === 'closed' && (
+            <span className="text-red-400">
+              <T text={'Connection lost'} />
+            </span>
+          )}
           {lastLatency !== undefined && (
-            <span data-testid="latency">reply after {(lastLatency / 1000).toFixed(1)} s</span>
+            <span data-testid="latency">
+              <T text={'reply after '} />
+              {(lastLatency / 1000).toFixed(1)} s
+            </span>
           )}
         </div>
       </header>
@@ -293,8 +323,12 @@ export function InterviewPage() {
           )}
           {state.status === 'paused' && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-2xl bg-black/60 backdrop-blur-sm">
-              <p className="text-lg font-medium">The interview is paused</p>
-              <Button onClick={resume}>Resume</Button>
+              <p className="text-lg font-medium">
+                <T text={'The interview is paused'} />
+              </p>
+              <Button onClick={resume}>
+                <T text={'Resume'} />
+              </Button>
             </div>
           )}
           <div className="min-h-14">

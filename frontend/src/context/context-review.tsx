@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { T } from '@/settings/translated-text'
+import { localise } from '@/settings/i18n'
 
 const ORIGINS: Record<string, string> = {
   declared: 'Declared',
@@ -32,11 +34,19 @@ function FactRow({
     <li className="flex flex-col gap-3 border-b py-4 last:border-0" data-testid="context-fact">
       <div className="flex flex-wrap gap-2">
         <Badge variant={fact.origin === 'inferred' ? 'secondary' : 'outline'}>
-          {ORIGINS[fact.origin]}
+          <T text={ORIGINS[fact.origin] ?? fact.origin} />
         </Badge>
-        <Badge variant="outline">{fact.kind.replaceAll('_', ' ')}</Badge>
-        {fact.review === 'corrected' && <Badge variant="secondary">Corrected by you</Badge>}
-        <span className="text-xs text-muted-foreground">{fact.review}</span>
+        <Badge variant="outline">
+          <T text={fact.kind.replaceAll('_', ' ')} />
+        </Badge>
+        {fact.review === 'corrected' && (
+          <Badge variant="secondary">
+            <T text={'Corrected by you'} />
+          </Badge>
+        )}
+        <span className="text-xs text-muted-foreground">
+          <T text={fact.review} />
+        </span>
       </div>
       <p className={fact.review === 'excluded' ? 'text-muted-foreground line-through' : ''}>
         {fact.text}
@@ -51,13 +61,13 @@ function FactRow({
       )}
       {fact.origin === 'inferred' && (
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          No verified quote. Check this interpretation before keeping it.
+          <T text={'No verified quote. Check this interpretation before keeping it.'} />
         </p>
       )}
       {draft !== null ? (
         <div className="flex flex-col gap-2">
           <Textarea
-            aria-label="Corrected fact"
+            aria-label={localise('Corrected fact')}
             maxLength={400}
             value={draft}
             onChange={(event) => {
@@ -73,7 +83,7 @@ function FactRow({
                 setDraft(null)
               }}
             >
-              Save correction
+              <T text={'Save correction'} />
             </Button>
             <Button
               size="sm"
@@ -82,7 +92,7 @@ function FactRow({
                 setDraft(null)
               }}
             >
-              Cancel
+              <T text={'Cancel'} />
             </Button>
           </div>
         </div>
@@ -95,7 +105,7 @@ function FactRow({
               act(fact.id, 'confirmed')
             }}
           >
-            Confirm
+            <T text={'Confirm'} />
           </Button>
           <Button
             size="sm"
@@ -104,7 +114,7 @@ function FactRow({
               setDraft(fact.text)
             }}
           >
-            Correct
+            <T text={'Correct'} />
           </Button>
           <Button
             size="sm"
@@ -113,7 +123,7 @@ function FactRow({
               act(fact.id, fact.review === 'excluded' ? 'pending' : 'excluded')
             }}
           >
-            {fact.review === 'excluded' ? 'Include again' : 'Exclude'}
+            <T text={fact.review === 'excluded' ? 'Include again' : 'Exclude'} />
           </Button>
         </div>
       )}
@@ -133,15 +143,22 @@ function Area({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Confirm your professional area</CardTitle>
+        <CardTitle>
+          <T text={'Confirm your professional area'} />
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          Without a job offer, this is a getting-to-know interview for a generic company in your
-          area. Requirement matching does not apply.
+          <T
+            text={
+              'Without a job offer, this is a getting-to-know interview for a generic company in your area. Requirement matching does not apply.'
+            }
+          />
         </p>
         <p className="text-sm">{preparation.area?.rationale}</p>
-        <Label htmlFor="area">Professional area</Label>
+        <Label htmlFor="area">
+          <T text={'Professional area'} />
+        </Label>
         <Input
           id="area"
           maxLength={120}
@@ -150,7 +167,9 @@ function Area({
             setArea(event.target.value)
           }}
         />
-        <Label htmlFor="seniority">Seniority</Label>
+        <Label htmlFor="seniority">
+          <T text={'Seniority'} />
+        </Label>
         <Input
           id="seniority"
           maxLength={40}
@@ -166,9 +185,13 @@ function Area({
             save(area, seniority)
           }}
         >
-          {preparation.area?.confirmed ? 'Save area' : 'Confirm area'}
+          <T text={preparation.area?.confirmed ? 'Save area' : 'Confirm area'} />
         </Button>
-        {preparation.area?.confirmed && <p className="text-sm text-emerald-700">Area confirmed</p>}
+        {preparation.area?.confirmed && (
+          <p className="text-sm text-emerald-700">
+            <T text={'Area confirmed'} />
+          </p>
+        )}
       </CardContent>
     </Card>
   )
@@ -179,7 +202,9 @@ function AddFact({ save }: { save: (body: AddFactIn) => void }) {
   const [statement, setStatement] = useState('')
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-medium">Add a fact</h3>
+      <h3 className="font-medium">
+        <T text={'Add a fact'} />
+      </h3>
       <div className="flex gap-2">
         <Button
           variant={subject === 'candidate' ? 'default' : 'outline'}
@@ -187,7 +212,7 @@ function AddFact({ save }: { save: (body: AddFactIn) => void }) {
             setSubject('candidate')
           }}
         >
-          Candidate
+          <T text={'Candidate'} />
         </Button>
         <Button
           variant={subject === 'job' ? 'default' : 'outline'}
@@ -195,11 +220,11 @@ function AddFact({ save }: { save: (body: AddFactIn) => void }) {
             setSubject('job')
           }}
         >
-          Job
+          <T text={'Job'} />
         </Button>
       </div>
       <Textarea
-        aria-label="New fact"
+        aria-label={localise('New fact')}
         maxLength={400}
         value={statement}
         onChange={(event) => {
@@ -214,7 +239,7 @@ function AddFact({ save }: { save: (body: AddFactIn) => void }) {
           setStatement('')
         }}
       >
-        Add fact
+        <T text={'Add fact'} />
       </Button>
     </div>
   )
@@ -245,13 +270,20 @@ export function ContextReview({
   const ready = preparation.job_mode !== 'none' || preparation.area?.confirmed === true
   return (
     <div className="flex flex-col gap-6" data-testid="context-review">
-      <h2 className="text-2xl font-semibold">Review the interview context</h2>
+      <h2 className="text-2xl font-semibold">
+        <T text={'Review the interview context'} />
+      </h2>
       <p className="text-muted-foreground">
-        Check the extracted facts. Correct or exclude mistakes before approving. Declared means the
-        quote was found in the document; it does not independently verify the claim.
+        <T
+          text={
+            'Check the extracted facts. Correct or exclude mistakes before approving. Declared means the quote was found in the document; it does not independently verify the claim.'
+          }
+        />
       </p>
       {preparation.job_mode === 'generated' && (
-        <Badge variant="secondary">Job offer drafted from your description</Badge>
+        <Badge variant="secondary">
+          <T text={'Job offer drafted from your description'} />
+        </Badge>
       )}
       {preparation.documents.map(
         (document) =>
@@ -298,7 +330,9 @@ export function ContextReview({
                   ))}
               </ul>
               {!preparation.facts.some((f) => f.subject === subject) && (
-                <p className="text-muted-foreground">No facts extracted.</p>
+                <p className="text-muted-foreground">
+                  <T text={'No facts extracted.'} />
+                </p>
               )}
             </CardContent>
           </Card>
@@ -307,16 +341,22 @@ export function ContextReview({
           <Card>
             <CardHeader>
               <CardTitle role="heading" aria-level={3}>
-                Requirement matrix
+                <T text={'Requirement matrix'} />
               </CardTitle>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr>
-                    <th className="p-2">Requirement</th>
-                    <th className="p-2">Status</th>
-                    <th className="p-2">Supporting facts</th>
+                    <th className="p-2">
+                      <T text={'Requirement'} />
+                    </th>
+                    <th className="p-2">
+                      <T text={'Status'} />
+                    </th>
+                    <th className="p-2">
+                      <T text={'Supporting facts'} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -328,7 +368,8 @@ export function ContextReview({
                         {match.fact_ids.map((id) => byId.get(id)?.text).join('; ') ||
                           'No evidence shown'}
                         <p className="text-xs text-muted-foreground">
-                          Model interpretation: {match.rationale}
+                          <T text={'Model interpretation:'} />
+                          {match.rationale}
                         </p>
                       </td>
                     </tr>
@@ -354,11 +395,11 @@ export function ContextReview({
             approve.mutate()
           }}
         >
-          {approve.isPending ? 'Approving…' : 'Approve context and continue'}
+          <T text={approve.isPending ? 'Approving…' : 'Approve context and continue'} />
         </Button>
         {!ready && (
           <p className="text-sm text-muted-foreground">
-            Confirm your professional area before continuing.
+            <T text={'Confirm your professional area before continuing.'} />
           </p>
         )}
       </fieldset>

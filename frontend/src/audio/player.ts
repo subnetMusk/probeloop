@@ -13,6 +13,7 @@ import { pcm16ToFloat } from './resample'
 export class SpeechPlayer {
   private readonly sources = new Set<AudioBufferSourceNode>()
   private readonly analyser: AnalyserNode
+  private readonly gain: GainNode
   private readonly samples: Float32Array<ArrayBuffer>
   private readonly listeners = new Set<(playing: boolean) => void>()
   private nextStart = 0
@@ -23,8 +24,15 @@ export class SpeechPlayer {
   constructor(private readonly context: AudioContext) {
     this.analyser = context.createAnalyser()
     this.analyser.fftSize = 1024
-    this.analyser.connect(context.destination)
+    this.gain = context.createGain()
+    this.analyser.connect(this.gain)
+    this.gain.connect(context.destination)
     this.samples = new Float32Array(this.analyser.fftSize)
+  }
+
+  setVolume(value: number): void {
+    if (!Number.isFinite(value)) return
+    this.gain.gain.setTargetAtTime(Math.max(0, Math.min(1, value)), this.context.currentTime, 0.02)
   }
 
   /** A new utterance. `onFirstStart` receives when its first audio starts, in performance time. */

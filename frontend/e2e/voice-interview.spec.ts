@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
+  })
+})
 
 const syntheticCV = readFileSync(
   new URL('../../backend/evals/fixtures/synthetic/context/backend-it.txt', import.meta.url),
@@ -24,6 +29,8 @@ test('a voice interview from the setup page to the end of the call', async ({ pa
   await page.getByRole('button', { name: 'Confirm area', exact: true }).click()
   await expect(page.getByText('Area confirmed', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Approve context and continue' }).click()
+  await page.getByRole('combobox', { name: 'Interview language', exact: true }).click()
+  await page.getByRole('option', { name: 'Italian', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Type', exact: true })).toContainText(
     'HR screening',
   )

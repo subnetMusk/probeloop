@@ -17,6 +17,7 @@ export type ResourceIn = components['schemas']['ResourceIn']
 export type ReviewIn = components['schemas']['ReviewIn']
 export type AddFactIn = components['schemas']['AddFactIn']
 export type ReportData = components['schemas']['ReportData']
+export type ProgressGroup = components['schemas']['ProgressGroupView']
 
 export class ApiError extends Error {
   constructor(
@@ -54,6 +55,17 @@ const json = (method: string, body: unknown): RequestInit => ({
 })
 
 export const api = {
+  reportHistory: () => request<ReportData[]>('/api/reports'),
+  progress: () => request<ProgressGroup[]>('/api/progress'),
+  dataSummary: () => request<Record<string, number>>('/api/data/summary'),
+  prepareBackup: () =>
+    request<components['schemas']['BackupReady']>('/api/data/backup', json('POST', {})),
+  deleteAllData: () =>
+    request<undefined>('/api/data/delete-all', json('POST', { confirmation: 'DELETE ALL DATA' })),
+  pendingJobs: () => request<JobView[]>('/api/jobs'),
+  interviewReports: (id: string) => request<ReportData[]>(`${sessionPath(id)}/reports`),
+  reviewInterview: (id: string, language: 'it' | 'en') =>
+    request<JobView>(`${sessionPath(id)}/reports`, json('POST', { language })),
   job: (id: string) => request<JobView>(`/api/jobs/${encodeURIComponent(id)}`),
   report: (id: string) => request<ReportData>(`/api/reports/${encodeURIComponent(id)}`),
   cvReviews: (snapshotId: string) =>
