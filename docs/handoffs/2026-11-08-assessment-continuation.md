@@ -86,9 +86,10 @@ See `docs/research/cv-review-results.md`; this is smoke coverage, not full CV ca
 - Report exports are Markdown, JSON and WeasyPrint PDF. A custom fetcher refuses every resource
   URL, and the HTML template escapes supplied text. Pango/fonts are in the backend image.
 
-Still needed: owner acceptance of ADR 0012, persona calibration (the tool
-`evals/persona_calibration.py` exists and is unit-tested, not run), an Italian labelled
-transcript, and a final visual review of the report and PDF. The voice E2E test now covers report
+Still needed: decisions on the first persona calibration
+(`docs/research/interview-calibration.md`: thresholds missed; the past-example classification
+and ownership detection need a decision), an Italian labelled transcript, and a final visual
+review of the report and PDF. The voice E2E test now covers report
 generation, opening, the three downloads and regeneration with the scripted evaluator; check CI.
 Technical accuracy remains a model judgement even when two calls agree.
 
@@ -189,10 +190,11 @@ inside containers and keep real personal data, model files and runtime artifacts
 
 ## Remaining acceptance, deferred until the approach is settled
 
-Complete the LLM-persona calibration workflow. The five topic cards in
-`backend/evals/fixtures/synthetic/assessment/personas.json` exist, but persona generation and
-full calibration have not been implemented or run. The current text smoke uses a manually
-labelled synthetic transcript from `backend/tests/fixtures/synthetic/assessment/interview.json`.
+The LLM-persona calibration (`backend/evals/persona_calibration.py`, five cards in
+`backend/evals/fixtures/synthetic/assessment/personas.json`) ran once on 2026-11-08; results and
+open decisions are in `docs/research/interview-calibration.md`. The text regression check uses a
+manually labelled synthetic transcript from
+`backend/tests/fixtures/synthetic/assessment/interview.json`.
 Thresholds from proposal section 6: planted-problem detection >=80%, correct persona pair
 ranking >=90%, zero displayed unverified quotes, and overall spread <=0.5 across five
 regenerations. Record false positives and coverage as well as headline thresholds.

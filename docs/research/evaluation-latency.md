@@ -243,5 +243,6 @@ a real transcript with an approved context.
 - The claim check confirmed the planted error every time and never disagreed with a judge, so
   its benefit on the original false positive is not demonstrated.
 - One transcript, three graded units, English only: this is a regression check, not
-  calibration. Persona calibration (proposal section 6) and the voice acceptance interviews
-  remain open.
+  calibration. The first persona calibration (proposal section 6) is in
+  [interview-calibration.md](interview-calibration.md); the voice acceptance interviews remain
+  open.

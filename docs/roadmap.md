@@ -394,8 +394,11 @@ revised pipeline ([ADR 0012](adr/0012-interview-evaluation-pipeline.md)) judges 
 thinking through an evidence-first schema, keeps both anchor orders, checks reported corrections
 independently and synthesises by reference. On the same labelled transcript it took about 120 s
 per report and passed the labelled checks; see the
-[latency note](research/evaluation-latency.md). The persona calibration tool exists but has not
-been run; calibration and the two voice acceptance interviews remain open, see the
+[latency note](research/evaluation-latency.md). The first persona calibration
+([results](research/interview-calibration.md)) ranked every strong answer above its weak pair with
+no unverified quotation, but missed the detection and spread thresholds: the past-example
+classification is unreliable and vague ownership is not detected. Those decisions and the two
+voice acceptance interviews remain open, see the
 [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 
 - **Deliverables**
