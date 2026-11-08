@@ -91,6 +91,28 @@ loads the model). "Your interviews" lists past sessions: each has the recording,
 with the doubtful words highlighted, and the downloads. Correcting an answer keeps the earlier
 versions.
 
+**Reports.** After reviewing the transcript, "Generate report" assesses the answers in the
+background with `qwen3.5:9b`; you can leave the page and a notice appears when it is done. Each
+answer is judged twice against an anchored rubric, every score needs a quotation that code finds
+in the transcript, and technical corrections are model judgements, labelled as such. Regenerating
+after a correction keeps the earlier versions. Reports export to Markdown, JSON and PDF, and the
+CV can be reviewed the same way before the interview. How the evaluation works, and what it costs,
+is in [docs/research/evaluation-latency.md](docs/research/evaluation-latency.md).
+
+**Your data.** Settings → Your data exports the structured data as JSON, or downloads a portable ZIP
+backup with the documents, recordings, transcripts and reports (models and server configuration
+are not included; the backup can contain personal data). Close open interviews and wait for
+background jobs first. To restore, start from an empty instance, stop the backend and run the
+restore command with the archive mounted into a one-off container:
+
+```bash
+docker compose run --rm --no-deps -v "$PWD/probeloop-backup.zip:/backup.zip:ro" backend probeloop restore-backup /backup.zip
+```
+
+The restore refuses a database or data directory that is not empty, and archives with unsafe
+paths. "Delete all my data" removes every interview, document, profile, report, export and log,
+and resets the browser preferences.
+
 **What a session leaves** in the `probeloop_data` volume: the database `probeloop.db` (SQLite),
 and under `sessions/<id>/` the files: `transcript.md` and `transcript.json` (the whole
 conversation, rewritten after every correction), `audio/interview.wav` (both voices in one file)
@@ -170,6 +192,22 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm -e PROBELOOP_TEST_ST
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml run --rm backend python -m evals.interviewer_personas
+```
+
+The interview evaluator on a labelled synthetic transcript, with a per-call trace (phase,
+attempts, tokens, stop reason, duration) and labelled checks; `--judge-reasoning default` turns
+thinking on for the judging passes and `--debug-log` keeps the raw synthetic prompts and outputs:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/var/test-run:/out" backend python -m evals.interview_review --output /out/interview-review.json --repetitions 3
+```
+
+The evaluator calibration with LLM personas (proposal section 6): a persona model answers each
+topic card as a weak and a strong candidate, the evaluator reviews every answer five times, and
+the run fails when a threshold is missed. It takes long; `--cards` and `--regenerations` reduce it:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/var/test-run:/out" backend python -m evals.persona_calibration --output /out/calibration.json
 ```
 
 A synthetic voice candidate takes a real voice interview against the running stack. Every question
