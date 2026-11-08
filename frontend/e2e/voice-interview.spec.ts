@@ -75,6 +75,34 @@ test('a voice interview from the setup page to the end of the call', async ({ pa
   await expect(answerText).toHaveText('Ho lavorato con FastAPI.')
   await expect(page.getByText('edited')).toBeVisible()
 
+  // The report assesses the corrected revision in the background (scripted evaluator).
+  const reports = page.getByTestId('interview-report-panel')
+  await reports.getByRole('button', { name: 'Generate report' }).click()
+  const first = reports.getByRole('link', { name: /^Open report v1 / })
+  await expect(first).toBeVisible({ timeout: 60_000 })
+  await first.click()
+  const content = page.getByTestId('report-content')
+  await expect(content).toContainText('Synthetic evidence-based practice summary.')
+  // Quotations show the transcript's own words, between the first and last matched word.
+  await expect(content).toContainText('“Ho lavorato con FastAPI”')
+  const types = { md: 'text/markdown', json: 'application/json', pdf: 'application/pdf' }
+  for (const [format, type] of Object.entries(types)) {
+    const link = content.getByRole('link', { name: format.toUpperCase(), exact: true })
+    const href = await link.getAttribute('href')
+    expect(href).not.toBeNull()
+    const download = await page.request.get(href ?? '')
+    expect(download.ok()).toBe(true)
+    expect(download.headers()['content-type']).toContain(type)
+  }
+
+  // Regenerating keeps the earlier version.
+  await page.goBack()
+  await reports.getByRole('button', { name: 'Generate report' }).click()
+  await expect(reports.getByRole('link', { name: /^Open report v2 / })).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(first).toBeVisible()
+
   await page.getByRole('link', { name: 'All interviews' }).click()
   await expect(page.getByTestId('session-row').first()).toContainText('Ended')
 })
