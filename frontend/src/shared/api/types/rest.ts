@@ -178,6 +178,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/history/cv-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cv Checks
+         * @description Every approved context with a CV review, latest review first.
+         */
+        get: operations["cv_checks_api_history_cv_checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/history/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Interviews
+         * @description Every interview, newest first, with its latest report.
+         */
+        get: operations["interviews_api_history_interviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/job-offers/draft": {
         parameters: {
             query?: never;
@@ -348,6 +388,26 @@ export interface paths {
         /** Review Fact */
         put: operations["review_fact_api_preparations__preparation_id__facts__fact_id__put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/preparations/{preparation_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen
+         * @description Return an approved context to the review; approve it again to continue.
+         */
+        post: operations["reopen_api_preparations__preparation_id__reopen_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -837,6 +897,20 @@ export interface components {
             /** Snapshot Id */
             snapshot_id?: string | null;
         };
+        /** CvCheckHistoryView */
+        CvCheckHistoryView: {
+            /** Created At */
+            created_at: number;
+            cv: components["schemas"]["DocumentView"] | null;
+            /** Job Mode */
+            job_mode: string;
+            job_offer: components["schemas"]["DocumentView"] | null;
+            /** Language */
+            language: string;
+            latest_report: components["schemas"]["LatestReportView"];
+            /** Snapshot Id */
+            snapshot_id: string;
+        };
         /** DeleteAllRequest */
         DeleteAllRequest: {
             /**
@@ -997,6 +1071,33 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** InterviewHistoryView */
+        InterviewHistoryView: {
+            /** Answers */
+            answers: number;
+            /** Created At */
+            created_at: number;
+            /** Difficulty */
+            difficulty: string;
+            /** Effective S */
+            effective_s: number | null;
+            /** Execution Profile */
+            execution_profile: string | null;
+            /** Id */
+            id: string;
+            /** Interview Type */
+            interview_type: string;
+            /** Language */
+            language: string;
+            latest_report: components["schemas"]["LatestReportView"] | null;
+            profile: components["schemas"]["ProfileRefView"] | null;
+            /** Snapshot Id */
+            snapshot_id: string | null;
+            /** Status */
+            status: string;
+            /** Target Duration S */
+            target_duration_s: number;
+        };
         /**
          * InterviewType
          * @enum {string}
@@ -1039,6 +1140,27 @@ export interface components {
          * @enum {string}
          */
         Language: "it" | "en";
+        /** LatestReportView */
+        LatestReportView: {
+            /** Assessed */
+            assessed: number;
+            /** Created At */
+            created_at: number;
+            /** Criteria */
+            criteria: number;
+            /** Id */
+            id: string;
+            /** Language */
+            language: string;
+            /** Model Ref */
+            model_ref: string;
+            /** Overall */
+            overall: number | null;
+            /** Version */
+            version: number;
+            /** Versions */
+            versions: number;
+        };
         /** MatchView */
         MatchView: {
             /** Fact Ids */
@@ -1135,6 +1257,13 @@ export interface components {
             /** Resources */
             resources: components["schemas"]["ResourceIn"][];
         };
+        /** ProfileRefView */
+        ProfileRefView: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string | null;
+        };
         /** ProfileRename */
         ProfileRename: {
             /** Name */
@@ -1176,6 +1305,8 @@ export interface components {
             rubric_hash: string;
             /** Rubric Id */
             rubric_id: string;
+            /** Scorer Key */
+            scorer_key: string;
         };
         /** ProgressPointView */
         ProgressPointView: {
@@ -1185,6 +1316,8 @@ export interface components {
             evidence_counts: {
                 [key: string]: number;
             };
+            /** Interview Type */
+            interview_type: string | null;
             /** Overall */
             overall: number | null;
             /** Report Id */
@@ -1259,6 +1392,30 @@ export interface components {
          * @enum {string}
          */
         ReportKind: "cv" | "interview";
+        /**
+         * RequirementView
+         * @description A requirement of the position and how the approved candidate facts cover it.
+         */
+        RequirementView: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "requirement" | "nice_to_have";
+            /** Rationale */
+            rationale: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "met" | "partial" | "not_shown";
+            /** Supporting */
+            supporting: string[];
+            /** Text */
+            text: string;
+        };
         /** ResourceIn */
         ResourceIn: {
             /** Document Id */
@@ -1320,8 +1477,14 @@ export interface components {
         };
         /** SessionSummaryView */
         SessionSummaryView: {
+            /** Answers */
+            answers: number;
             /** Created At */
             created_at: number;
+            /** Difficulty */
+            difficulty: string;
+            /** Effective S */
+            effective_s: number | null;
             /** Ended At */
             ended_at: number | null;
             /** Execution Profile */
@@ -1334,8 +1497,12 @@ export interface components {
             language: string;
             /** Profile Id */
             profile_id: string | null;
+            /** Snapshot Id */
+            snapshot_id: string | null;
             /** Status */
             status: string;
+            /** Target Duration S */
+            target_duration_s: number;
         };
         /** SessionView */
         SessionView: {
@@ -1385,16 +1552,25 @@ export interface components {
         };
         /** SnapshotView */
         SnapshotView: {
+            area: components["schemas"]["AreaView"] | null;
             /** Candidate Brief */
             candidate_brief: string;
             /** Content Hash */
             content_hash: string;
+            /** Created At */
+            created_at: number;
+            /** Documents */
+            documents: components["schemas"]["DocumentView"][];
             /** Id */
             id: string;
             /** Job Brief */
             job_brief: string;
             /** Job Mode */
             job_mode: string;
+            /** Language */
+            language: string;
+            /** Requirements */
+            requirements: components["schemas"]["RequirementView"][];
             /** Vocabulary */
             vocabulary: string[];
         };
@@ -1793,6 +1969,46 @@ export interface operations {
             };
         };
     };
+    cv_checks_api_history_cv_checks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvCheckHistoryView"][];
+                };
+            };
+        };
+    };
+    interviews_api_history_interviews_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewHistoryView"][];
+                };
+            };
+        };
+    };
     draft_job_offer_api_job_offers_draft_post: {
         parameters: {
             query?: never;
@@ -2079,6 +2295,37 @@ export interface operations {
                 "application/json": components["schemas"]["ReviewIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreparationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_api_preparations__preparation_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preparation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

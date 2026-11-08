@@ -232,10 +232,15 @@ class SessionSummaryView(BaseModel):
     created_at: float
     status: str
     interview_type: str
+    difficulty: str
     language: str
+    target_duration_s: int
+    effective_s: float | None  # interview time without pauses, once it stopped
+    answers: int
     ended_at: float | None
     execution_profile: str | None
     profile_id: str | None
+    snapshot_id: str | None
 
     @classmethod
     def of(cls, s: SessionSummary) -> SessionSummaryView:
@@ -244,10 +249,15 @@ class SessionSummaryView(BaseModel):
             created_at=s.created_at,
             status=s.status.value,
             interview_type=s.interview_type,
+            difficulty=s.difficulty,
             language=s.language,
+            target_duration_s=s.target_duration_s,
+            effective_s=round(s.effective_s, 1) if s.effective_s is not None else None,
+            answers=s.answers,
             ended_at=s.ended_at,
             execution_profile=s.execution_profile,
             profile_id=s.profile_id,
+            snapshot_id=s.snapshot_id,
         )
 
 

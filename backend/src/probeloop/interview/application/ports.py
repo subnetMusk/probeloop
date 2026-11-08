@@ -72,6 +72,12 @@ class SessionSummary:
     ended_at: float | None = None
     execution_profile: str | None = None
     profile_id: str | None = None
+    difficulty: str = "standard"
+    target_duration_s: int = 0
+    # Interview time without pauses; None before the start and while the interview runs.
+    effective_s: float | None = None
+    answers: int = 0  # candidate turns
+    snapshot_id: str | None = None
 
 
 class SessionStore(Protocol):

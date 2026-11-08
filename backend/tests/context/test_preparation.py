@@ -95,6 +95,28 @@ def test_the_review_confirms_corrects_excludes_and_adds() -> None:
         p.review_fact("f1", Review.CONFIRMED)
 
 
+def test_an_approved_context_can_be_reopened_and_approved_again() -> None:
+    p = in_review()
+    p.reopen()  # already in review: nothing changes
+    assert p.status is PreparationStatus.REVIEW
+    first = snapshot_of(p, "s1", now=1)
+    p.approve(first.id)
+    p.reopen()
+    assert (p.status, p.snapshot_id) == (PreparationStatus.REVIEW, None)
+    assert snapshot_of(p, "s2", now=2).content_hash == first.content_hash
+    p.review_fact("f2", Review.EXCLUDED)
+    assert snapshot_of(p, "s3", now=3).content_hash != first.content_hash
+    p.approve("s3")
+    assert p.snapshot_id == "s3"
+
+    analysing = Preparation("p", 0, "it", JobMode.OFFER, [cv(), offer()])
+    with pytest.raises(ContextError, match="not approved"):
+        analysing.reopen()
+    analysing.failed("boom")
+    with pytest.raises(ContextError, match="not approved"):
+        analysing.reopen()
+
+
 def test_the_area_can_be_set_only_without_a_job_offer() -> None:
     with pytest.raises(ContextError, match="only without a job offer"):
         in_review().set_area("data", "senior")

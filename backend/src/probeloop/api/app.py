@@ -31,6 +31,7 @@ from probeloop.ai.profiles import using_profile
 from probeloop.api.assessment_routes import assessment_router
 from probeloop.api.context_routes import context_router
 from probeloop.api.data_routes import data_router
+from probeloop.api.history_routes import history_router
 from probeloop.api.schemas import (
     MAX_AUDIO_FRAME_BYTES,
     CreateSession,
@@ -391,6 +392,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(
         assessment_router(container.assessment, jobs, container.export_report, execution_for)
     )
+    app.include_router(history_router(container.assessment, container.context))
     app.include_router(data_router(container.data))
     app.include_router(
         settings_router(

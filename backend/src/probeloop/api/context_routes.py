@@ -266,20 +266,66 @@ class AreaIn(Strict):
     seniority: str = Field(max_length=40)
 
 
+class RequirementView(BaseModel):
+    """A requirement of the position and how the approved candidate facts cover it."""
+
+    id: str
+    kind: Literal["requirement", "nice_to_have"]
+    text: str
+    status: Literal["met", "partial", "not_shown"]
+    supporting: list[str]  # the statements of the candidate facts that support it
+    rationale: str
+
+
 class SnapshotView(BaseModel):
     id: str
+    created_at: float
     content_hash: str
+    language: str
     job_mode: str
+    area: AreaView | None
+    documents: list[DocumentView]
+    requirements: list[RequirementView]
     candidate_brief: str
     job_brief: str
     vocabulary: list[str]
 
     @classmethod
     def of(cls, s: ContextSnapshot) -> SnapshotView:
+        facts = {f.id: f for f in (*s.candidate_facts, *s.job_facts)}
+        requirements = [
+            RequirementView(
+                id=m.requirement_id,
+                kind="nice_to_have"
+                if facts[m.requirement_id].kind is FactKind.NICE_TO_HAVE
+                else "requirement",
+                text=facts[m.requirement_id].text,
+                status=m.status.value,
+                supporting=[facts[i].text for i in m.fact_ids if i in facts],
+                rationale=m.rationale,
+            )
+            for m in s.matches
+            if m.requirement_id in facts
+        ]
+        area = s.area
         return cls(
             id=s.id,
+            created_at=s.created_at,
             content_hash=s.content_hash,
+            language=s.language,
             job_mode=s.job_mode.value,
+            area=(
+                AreaView(
+                    area=area.area,
+                    seniority=area.seniority,
+                    rationale=area.rationale,
+                    confirmed=area.confirmed,
+                )
+                if area
+                else None
+            ),
+            documents=[DocumentView.of(d) for d in s.documents],
+            requirements=requirements,
             candidate_brief=candidate_brief(s),
             job_brief=job_brief(s),
             vocabulary=list(s.vocabulary),
@@ -499,6 +545,16 @@ def context_router(
     async def approve(preparation_id: str) -> SnapshotView:
         try:
             return SnapshotView.of(await context.approve(preparation_id))
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="not found") from exc
+        except ContextError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @router.post("/preparations/{preparation_id}/reopen")
+    async def reopen(preparation_id: str) -> PreparationView:
+        """Return an approved context to the review; approve it again to continue."""
+        try:
+            return await view(await context.reopen(preparation_id))
         except ContextNotFoundError as exc:
             raise HTTPException(status_code=404, detail="not found") from exc
         except ContextError as exc:

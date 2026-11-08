@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
@@ -98,15 +98,28 @@ class SqlSessionStore:
             return None if row is None else _session(row)
 
     async def summaries(self) -> list[SessionSummary]:
+        answers = (
+            select(func.count())
+            .where(TurnRow.session_id == SessionRow.id, TurnRow.speaker == Speaker.CANDIDATE.value)
+            .correlate(SessionRow)
+            .scalar_subquery()
+        )
         query = select(
             SessionRow.id,
             SessionRow.created_at,
             SessionRow.status,
             SessionRow.interview_type,
+            SessionRow.difficulty,
             SessionRow.language,
+            SessionRow.target_duration_s,
+            SessionRow.started_at,
             SessionRow.ended_at,
+            SessionRow.paused_at,
+            SessionRow.paused_total_s,
             SessionRow.execution_profile,
             SessionRow.profile_id,
+            SessionRow.snapshot_id,
+            answers.label("answers"),
         ).order_by(SessionRow.created_at.desc())
         async with self._sessions() as db:
             rows = (await db.execute(query)).all()
@@ -120,6 +133,11 @@ class SqlSessionStore:
                 ended_at=r.ended_at,
                 execution_profile=r.execution_profile,
                 profile_id=r.profile_id,
+                difficulty=r.difficulty,
+                target_duration_s=r.target_duration_s,
+                effective_s=_effective_s(r.started_at, r.ended_at or r.paused_at, r.paused_total_s),
+                answers=r.answers,
+                snapshot_id=r.snapshot_id,
             )
             for r in rows
         ]
@@ -313,3 +331,10 @@ def _revision(row: RevisionRow) -> TranscriptRevision:
             TranscriptWord(text=w[0], start_s=w[1], end_s=w[2], probability=w[3]) for w in row.words
         ),
     )
+
+
+def _effective_s(started_at: float | None, end: float | None, paused_s: float) -> float | None:
+    """The same measure as `InterviewSession.elapsed_s`, for interviews that are not running."""
+    if started_at is None or end is None:
+        return None
+    return max(0.0, end - started_at - paused_s)

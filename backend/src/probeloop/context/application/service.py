@@ -329,6 +329,12 @@ class ContextService:
         await self._store.save_preparation(preparation)
         return snapshot
 
+    async def reopen(self, preparation_id: str) -> Preparation:
+        preparation = await self.preparation(preparation_id)
+        preparation.reopen()
+        await self._store.save_preparation(preparation)
+        return preparation
+
     async def snapshot(self, snapshot_id: str) -> ContextSnapshot:
         snapshot = await self._store.snapshot(snapshot_id)
         if snapshot is None:

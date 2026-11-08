@@ -294,6 +294,16 @@ class Preparation:
         self.status = PreparationStatus.APPROVED
         self.snapshot_id = snapshot_id
 
+    def reopen(self) -> None:
+        """Return an approved context to the review, so the user can still change it before
+        the interview starts. The snapshot stays: approving the same content again reuses it."""
+        if self.status is PreparationStatus.REVIEW:
+            return
+        if self.status is not PreparationStatus.APPROVED:
+            raise ContextError(f"the context is {self.status.value}, not approved")
+        self.status = PreparationStatus.REVIEW
+        self.snapshot_id = None
+
     def included_facts(self, subject: Subject | None = None) -> list[Fact]:
         return [f for f in self.facts if f.included and (subject is None or f.subject is subject)]
 

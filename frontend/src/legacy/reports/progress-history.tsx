@@ -136,7 +136,12 @@ function Trend({ group }: { group: ProgressGroup }) {
 
 export function ProgressHistory() {
   const it = useLanguage() === 'it'
-  const groups = useQuery({ queryKey: ['progress'], queryFn: api.progress })
+  const progress = useQuery({ queryKey: ['progress'], queryFn: api.progress })
+  // CV checks have their own trend; this view follows interviews only.
+  const groups = {
+    data: progress.data?.filter((group) => group.kind === 'interview'),
+    error: progress.error,
+  }
   const reports = useQuery({ queryKey: ['report-history'], queryFn: api.reportHistory })
   return (
     <Card>

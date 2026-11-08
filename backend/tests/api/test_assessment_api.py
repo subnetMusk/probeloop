@@ -60,6 +60,22 @@ def test_cv_review_is_a_job_and_regeneration_preserves_versions(tmp_path: Path) 
         assert len(client.get(f"/api/snapshots/{snapshot['id']}/cv-reviews").json()) == 2
         assert client.get("/api/reports/missing").status_code == 404
 
+        [check] = client.get("/api/history/cv-checks").json()
+        assert (check["snapshot_id"], check["job_mode"], check["job_offer"]) == (
+            snapshot["id"],
+            "none",
+            None,
+        )
+        assert check["cv"]["id"] == document["id"]
+        latest = check["latest_report"]
+        assert (latest["id"], latest["version"], latest["versions"]) == (report["id"], 2, 2)
+        [group] = client.get("/api/progress").json()
+        assert group["kind"] == "cv"
+        assert group["scorer_key"]
+        assert [(p["report_id"], p["interview_type"]) for p in group["points"]] == [
+            (report["id"], None)
+        ]
+
 
 def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path: Path) -> None:
     container = build(Settings(data_dir=tmp_path, allowed_hosts=["testserver"], llm_fake=True))
@@ -104,6 +120,17 @@ def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path:
                 assert report["input_fingerprint"] != original["input_fingerprint"]
         assert client.get(f"/api/reports/{original['id']}").json() == original
         assert len(client.get(f"/api/sessions/{session.id}/reports").json()) == 2
+
+        [entry] = client.get("/api/history/interviews").json()
+        assert entry["id"] == session.id
+        assert entry["answers"] == len(session.candidate_turns())
+        latest = entry["latest_report"]
+        assert (latest["id"], latest["version"], latest["versions"]) == (report["id"], 2, 2)
+        [group] = client.get("/api/progress").json()
+        assert group["kind"] == "interview"
+        assert [p["interview_type"] for p in group["points"]] == [
+            session.config.interview_type.value
+        ]
         assert client.delete(f"/api/sessions/{session.id}").status_code == 204
         assert client.get(f"/api/reports/{original['id']}").status_code == 404
 

@@ -276,6 +276,60 @@
         "title": "CreateSession",
         "type": "object"
       },
+      "CvCheckHistoryView": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "cv": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "job_mode": {
+            "title": "Job Mode",
+            "type": "string"
+          },
+          "job_offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "latest_report": {
+            "$ref": "#/components/schemas/LatestReportView"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "created_at",
+          "language",
+          "job_mode",
+          "cv",
+          "job_offer",
+          "latest_report"
+        ],
+        "title": "CvCheckHistoryView",
+        "type": "object"
+      },
       "DeleteAllRequest": {
         "additionalProperties": false,
         "properties": {
@@ -763,6 +817,112 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "InterviewHistoryView": {
+        "properties": {
+          "answers": {
+            "title": "Answers",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "effective_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective S"
+          },
+          "execution_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Profile"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "interview_type": {
+            "title": "Interview Type",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "latest_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestReportView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileRefView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_duration_s": {
+            "title": "Target Duration S",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "status",
+          "interview_type",
+          "difficulty",
+          "language",
+          "target_duration_s",
+          "effective_s",
+          "answers",
+          "execution_profile",
+          "profile",
+          "snapshot_id",
+          "latest_report"
+        ],
+        "title": "InterviewHistoryView",
+        "type": "object"
+      },
       "InterviewType": {
         "enum": [
           "hr",
@@ -888,6 +1048,66 @@
         ],
         "title": "Language",
         "type": "string"
+      },
+      "LatestReportView": {
+        "properties": {
+          "assessed": {
+            "title": "Assessed",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "criteria": {
+            "title": "Criteria",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "model_ref": {
+            "title": "Model Ref",
+            "type": "string"
+          },
+          "overall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "versions": {
+            "title": "Versions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "versions",
+          "created_at",
+          "overall",
+          "assessed",
+          "criteria",
+          "language",
+          "model_ref"
+        ],
+        "title": "LatestReportView",
+        "type": "object"
       },
       "MatchView": {
         "properties": {
@@ -1252,6 +1472,31 @@
         "title": "ProfileIn",
         "type": "object"
       },
+      "ProfileRefView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProfileRefView",
+        "type": "object"
+      },
       "ProfileRename": {
         "additionalProperties": false,
         "properties": {
@@ -1369,10 +1614,15 @@
           "rubric_id": {
             "title": "Rubric Id",
             "type": "string"
+          },
+          "scorer_key": {
+            "title": "Scorer Key",
+            "type": "string"
           }
         },
         "required": [
           "id",
+          "scorer_key",
           "kind",
           "rubric_id",
           "rubric_hash",
@@ -1396,6 +1646,17 @@
             },
             "title": "Evidence Counts",
             "type": "object"
+          },
+          "interview_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interview Type"
           },
           "overall": {
             "anyOf": [
@@ -1454,7 +1715,8 @@
           "version",
           "overall",
           "values",
-          "evidence_counts"
+          "evidence_counts",
+          "interview_type"
         ],
         "title": "ProgressPointView",
         "type": "object"
@@ -1647,6 +1909,57 @@
         "title": "ReportKind",
         "type": "string"
       },
+      "RequirementView": {
+        "description": "A requirement of the position and how the approved candidate facts cover it.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "requirement",
+              "nice_to_have"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "met",
+              "partial",
+              "not_shown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "supporting": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supporting",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "status",
+          "supporting",
+          "rationale"
+        ],
+        "title": "RequirementView",
+        "type": "object"
+      },
       "ResourceIn": {
         "additionalProperties": false,
         "properties": {
@@ -1837,9 +2150,28 @@
       },
       "SessionSummaryView": {
         "properties": {
+          "answers": {
+            "title": "Answers",
+            "type": "integer"
+          },
           "created_at": {
             "title": "Created At",
             "type": "number"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "effective_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective S"
           },
           "ended_at": {
             "anyOf": [
@@ -1886,9 +2218,24 @@
             ],
             "title": "Profile Id"
           },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "target_duration_s": {
+            "title": "Target Duration S",
+            "type": "integer"
           }
         },
         "required": [
@@ -1896,10 +2243,15 @@
           "created_at",
           "status",
           "interview_type",
+          "difficulty",
           "language",
+          "target_duration_s",
+          "effective_s",
+          "answers",
           "ended_at",
           "execution_profile",
-          "profile_id"
+          "profile_id",
+          "snapshot_id"
         ],
         "title": "SessionSummaryView",
         "type": "object"
@@ -2066,6 +2418,16 @@
       },
       "SnapshotView": {
         "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AreaView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "candidate_brief": {
             "title": "Candidate Brief",
             "type": "string"
@@ -2073,6 +2435,17 @@
           "content_hash": {
             "title": "Content Hash",
             "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentView"
+            },
+            "title": "Documents",
+            "type": "array"
           },
           "id": {
             "title": "Id",
@@ -2086,6 +2459,17 @@
             "title": "Job Mode",
             "type": "string"
           },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/RequirementView"
+            },
+            "title": "Requirements",
+            "type": "array"
+          },
           "vocabulary": {
             "items": {
               "type": "string"
@@ -2096,8 +2480,13 @@
         },
         "required": [
           "id",
+          "created_at",
           "content_hash",
+          "language",
           "job_mode",
+          "area",
+          "documents",
+          "requirements",
           "candidate_brief",
           "job_brief",
           "vocabulary"
@@ -2743,6 +3132,52 @@
         "summary": "Revise Document"
       }
     },
+    "/api/history/cv-checks": {
+      "get": {
+        "description": "Every approved context with a CV review, latest review first.",
+        "operationId": "cv_checks_api_history_cv_checks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CvCheckHistoryView"
+                  },
+                  "title": "Response Cv Checks Api History Cv Checks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cv Checks"
+      }
+    },
+    "/api/history/interviews": {
+      "get": {
+        "description": "Every interview, newest first, with its latest report.",
+        "operationId": "interviews_api_history_interviews_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewHistoryView"
+                  },
+                  "title": "Response Interviews Api History Interviews Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Interviews"
+      }
+    },
     "/api/job-offers/draft": {
       "post": {
         "description": "A plausible job offer written from a short description, for the user to edit.",
@@ -3134,6 +3569,46 @@
           }
         },
         "summary": "Review Fact"
+      }
+    },
+    "/api/preparations/{preparation_id}/reopen": {
+      "post": {
+        "description": "Return an approved context to the review; approve it again to continue.",
+        "operationId": "reopen_api_preparations__preparation_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reopen"
       }
     },
     "/api/profiles": {

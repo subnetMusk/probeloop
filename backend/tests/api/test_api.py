@@ -74,6 +74,34 @@ def test_session_crud(client: TestClient) -> None:
     assert client.delete(f"/api/sessions/{session_id}").status_code == 404
 
 
+def test_the_history_lists_interviews_with_their_profile(client: TestClient) -> None:
+    profile = client.post("/api/profiles", json={"name": "Ruoli backend", "resources": []})
+    assert profile.status_code == 201, profile.text
+    profile_id = profile.json()["id"]
+    with_profile = create(client, profile_id=profile_id, difficulty="hard")
+    without = create(client, interview_type="hr")
+
+    summaries = client.get("/api/sessions").json()
+    assert [s["id"] for s in summaries] == [without, with_profile]
+    assert (summaries[1]["difficulty"], summaries[1]["target_duration_s"]) == ("hard", 600)
+    assert (summaries[1]["answers"], summaries[1]["effective_s"]) == (0, None)
+
+    history = client.get("/api/history/interviews").json()
+    assert [(e["id"], e["interview_type"]) for e in history] == [
+        (without, "hr"),
+        (with_profile, "technical"),
+    ]
+    assert history[0]["profile"] is None
+    assert history[1]["profile"] == {"id": profile_id, "name": "Ruoli backend"}
+    assert history[1]["latest_report"] is None
+    assert history[1]["execution_profile"] == "local"
+
+    # A deleted profile stays referenced, without a name.
+    assert client.delete(f"/api/profiles/{profile_id}").status_code == 204
+    deleted = client.get("/api/history/interviews").json()[1]["profile"]
+    assert deleted == {"id": profile_id, "name": None}
+
+
 def test_create_validates_input(client: TestClient) -> None:
     assert client.post("/api/sessions", json={"interview_type": "nope"}).status_code == 422
     assert (

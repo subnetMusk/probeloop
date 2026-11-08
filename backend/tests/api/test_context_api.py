@@ -173,6 +173,25 @@ def test_from_documents_to_an_interview_with_its_own_plan(client: TestClient) ->
     assert "Esperta di Kafka." not in snapshot["candidate_brief"]
     assert "Requirements the candidate's documents do not show" in snapshot["job_brief"]
     assert client.post(f"{base}/approve").status_code == 422  # already approved
+    assert (snapshot["language"], snapshot["job_mode"], snapshot["area"]) == ("it", "offer", None)
+    assert [d["kind"] for d in snapshot["documents"]] == ["cv", "job_offer"]
+    assert snapshot["created_at"] > 0
+    requirements = snapshot["requirements"]
+    assert requirements
+    assert {r["kind"] for r in requirements} <= {"requirement", "nice_to_have"}
+    assert {r["status"] for r in requirements} <= {"met", "partial", "not_shown"}
+    statements = {f["id"]: f["statement"] for f in view["facts"]}
+    for requirement in requirements:
+        assert requirement["text"] == statements[requirement["id"]]
+        assert "Esperta di Kafka." not in requirement["supporting"]  # excluded during review
+    assert client.get(f"/api/snapshots/{snapshot['id']}").json() == snapshot
+
+    # Back to the review after approval: the same content gives the same snapshot.
+    reopened = client.post(f"{base}/reopen")
+    assert reopened.status_code == 200, reopened.text
+    assert (reopened.json()["status"], reopened.json()["snapshot_id"]) == ("review", None)
+    assert client.post(f"{base}/approve").json()["id"] == snapshot["id"]
+    assert client.post("/api/preparations/missing/reopen").status_code == 404
 
     session = client.post(
         "/api/sessions",

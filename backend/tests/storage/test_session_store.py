@@ -30,6 +30,13 @@ async def test_save_load_list_delete(store: SqlSessionStore) -> None:
     assert [(x.id, x.status, x.ended_at) for x in summaries] == [
         (SESSION_ID, SessionStatus.ENDED, 20)
     ]
+    summary = summaries[0]
+    # Started at 10, paused from 16 and ended at 20: six seconds of interview.
+    assert (summary.effective_s, summary.answers) == (6, 1)
+    assert (summary.difficulty, summary.target_duration_s) == (
+        s.config.difficulty.value,
+        s.config.target_duration_s,
+    )
 
     assert await store.delete(SESSION_ID)
     assert await store.load(SESSION_ID) is None
@@ -43,6 +50,18 @@ async def test_summaries_are_newest_first(store: SqlSessionStore) -> None:
     await store.save(older)
     await store.save(newer)
     assert [s.id for s in await store.summaries()] == ["c" * 32, "b" * 32]
+
+
+async def test_summaries_measure_only_interviews_that_stopped(store: SqlSessionStore) -> None:
+    paused = played_session("d" * 32)  # started at 10, paused at 16
+    running = played_session("e" * 32)
+    running.resume(18)
+    fresh = played_session("f" * 32)
+    fresh.started_at = None
+    for s in (paused, running, fresh):
+        await store.save(s)
+    measured = {s.id: s.effective_s for s in await store.summaries()}
+    assert measured == {"d" * 32: 6, "e" * 32: None, "f" * 32: None}
 
 
 async def test_revisions_are_appended_and_kept(store: SqlSessionStore) -> None:

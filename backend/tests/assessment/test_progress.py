@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import replace
 
 from probeloop.assessment.domain.model import Evidence, ReportKind, Score
-from probeloop.assessment.domain.progress import comparison_key, latest_reports, progress_groups
+from probeloop.assessment.domain.progress import (
+    comparison_key,
+    latest_reports,
+    progress_groups,
+    scorer_key,
+)
 from tests.assessment.test_exports import sample_report
 
 
@@ -48,4 +53,23 @@ def test_rubric_content_model_prompt_language_and_criteria_must_match() -> None:
         replace(report, scores=(Score("another", "Another", None, "Not elicited"),)),
     ]
     assert all(comparison_key(report) != comparison_key(item) for item in variants)
-    assert progress_groups([replace(report, kind=ReportKind.CV)]) == ()
+    cv = replace(report, kind=ReportKind.CV, subject_id="snapshot", session_id=None)
+    assert {g.kind for g in progress_groups([report, cv])} == {"interview", "cv"}
+
+
+def test_the_scorer_key_ignores_the_criteria_only() -> None:
+    evidence = (Evidence("turn-1", "A synthetic answer.", 1),)
+    accuracy = Score("technical.accuracy", "Accuracy", 3, "1/1", evidence)
+    clarity = Score("communication.clarity", "Clarity", 4, "1/1", evidence)
+    first = replace(sample_report(), id="a", subject_id="one", scores=(accuracy,))
+    other = replace(first, id="b", subject_id="two", created_at=1, scores=(clarity,))
+    assert comparison_key(first) != comparison_key(other)
+    assert scorer_key(first) == scorer_key(other)
+    assert scorer_key(first) != scorer_key(replace(first, model_ref="another"))
+    assert scorer_key(first) != scorer_key(replace(first, kind=ReportKind.CV))
+
+    groups = progress_groups([first, other], {"synthetic": "technical"})
+    assert len(groups) == 2
+    assert len({g.scorer_key for g in groups}) == 1
+    assert [p.interview_type for g in groups for p in g.points] == ["technical", "technical"]
+    assert progress_groups([first])[0].points[0].interview_type is None  # type unknown

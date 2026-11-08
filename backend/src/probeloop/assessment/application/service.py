@@ -12,6 +12,12 @@ from typing import Any
 from probeloop.ai.ports import ContextOverflowError, UserActionRequiredError
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
+from probeloop.assessment.application.history import (
+    CvCheckEntry,
+    InterviewEntry,
+    interview_history,
+    latest_by_subject,
+)
 from probeloop.assessment.application.interview_review import CallTrace, InterviewReviewer
 from probeloop.assessment.application.ports import ReportStore
 from probeloop.assessment.domain.model import (
@@ -104,7 +110,25 @@ class AssessmentService:
         return latest_reports(await self.store.all())
 
     async def progress(self) -> tuple[ProgressGroup, ...]:
-        return progress_groups(await self.store.all())
+        types = {s.id: s.interview_type for s in await self.sessions.summaries()}
+        return progress_groups(await self.store.all(), types)
+
+    async def interview_history(self) -> list[InterviewEntry]:
+        return interview_history(await self.sessions.summaries(), await self.store.all())
+
+    async def cv_history(self) -> list[CvCheckEntry]:
+        """Every approved context with a CV review, latest review first."""
+        latest = latest_by_subject(await self.store.all(), ReportKind.CV)
+        entries = []
+        for report in sorted(latest.values(), key=lambda r: r.created_at, reverse=True):
+            try:
+                snapshot = await self._snapshot(report.subject_id)
+            except LookupError:
+                # Snapshots are kept while their reports exist; skip one that is not.
+                logger.warning("CV review without its context", extra={"report_id": report.id})
+                continue
+            entries.append(CvCheckEntry(snapshot, report))
+        return entries
 
     async def report(self, report_id: str) -> Report:
         report = await self.store.get(report_id)

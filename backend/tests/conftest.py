@@ -65,9 +65,25 @@ class MemoryStore:
     async def summaries(self) -> list[SessionSummary]:
         return [
             SessionSummary(
-                s.id, s.created_at, s.status, s.config.interview_type.value, s.config.language.value
+                s.id,
+                s.created_at,
+                s.status,
+                s.config.interview_type.value,
+                s.config.language.value,
+                ended_at=s.ended_at,
+                execution_profile=s.execution_profile,
+                profile_id=s.profile_id,
+                difficulty=s.config.difficulty.value,
+                target_duration_s=s.config.target_duration_s,
+                effective_s=(
+                    s.elapsed_s(0)
+                    if s.started_at is not None and (s.ended_at or s.paused_at)
+                    else None
+                ),
+                answers=len(s.candidate_turns()),
+                snapshot_id=s.snapshot_id,
             )
-            for s in self.sessions.values()
+            for s in sorted(self.sessions.values(), key=lambda s: s.created_at, reverse=True)
         ]
 
     async def delete(self, session_id: str) -> bool:

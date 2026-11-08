@@ -34,10 +34,12 @@ class ProgressPointView(BaseModel):
     overall: float | None
     values: dict[str, float | None]
     evidence_counts: dict[str, int]
+    interview_type: str | None  # interview reports only
 
 
 class ProgressGroupView(BaseModel):
-    id: str
+    id: str  # reports in one group compare criterion by criterion
+    scorer_key: str  # same rubric, model, prompt and language, whatever the criteria
     kind: str
     rubric_id: str
     rubric_hash: str
