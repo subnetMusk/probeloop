@@ -14,11 +14,13 @@ test('pages are named by the same slug in the URL, the tab and the breadcrumbs',
       name: 'Nuovo colloquio',
     })
     .click()
-  await expect(page).toHaveURL(/\/new-interview$/)
-  await expect(page).toHaveTitle('new-interview | ProbeLoop')
+  // The preparation opens at its first incomplete step.
+  await expect(page).toHaveURL(/\/new-interview\/interview-settings$/)
+  await expect(page).toHaveTitle('interview-settings | ProbeLoop')
   const trail = page.getByRole('navigation', { name: 'Percorso' })
   await expect(trail.getByRole('link', { name: 'dashboard' })).toBeVisible()
-  await expect(trail.locator('[aria-current="page"]')).toHaveText('new-interview')
+  await expect(trail.getByRole('link', { name: 'new-interview' })).toBeVisible()
+  await expect(trail.locator('[aria-current="page"]')).toHaveText('interview-settings')
 
   await expect(page.getByRole('link', { name: 'subnetMusk' })).toHaveAttribute(
     'href',

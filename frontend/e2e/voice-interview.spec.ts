@@ -14,30 +14,39 @@ const syntheticCV = readFileSync(
 // The backend runs with a scripted interviewer and fake speech engines (compose.test.yaml): the
 // recogniser answers "Segmento di prova di N secondi." for every segment that the real voice
 // activity detector cuts from the fake microphone.
-test('a voice interview from the setup page to the end of the call', async ({ page }) => {
+test('a voice interview from the preparation to the end of the call', async ({ page }) => {
+  await page.goto('/settings')
+  await page.evaluate(() => {
+    sessionStorage.clear()
+  })
   await page.goto('/new-interview')
-  await page.getByLabel('CV text', { exact: true }).fill(syntheticCV)
-  await page.getByRole('button', { name: 'Continue to resources' }).click()
-  await page.getByRole('button', { name: 'Analyse documents', exact: true }).click()
+  const next = page.getByTestId('step-continue')
+  await page.getByRole('radio', { name: 'Italian', exact: true }).click()
+  await page.getByRole('radio', { name: 'HR screening', exact: true }).click()
+  await next.click()
+  await page.getByRole('radio', { name: 'This interview only', exact: true }).click()
+  await next.click()
+  await page.getByRole('textbox', { name: 'CV text', exact: true }).fill(syntheticCV)
+  await next.click()
   await expect(page.getByTestId('context-review')).toBeVisible({ timeout: 30_000 })
   const inferred = page
+    .getByTestId('doubtful-facts')
     .getByTestId('context-fact')
     .filter({ hasText: 'Unverified model interpretation.' })
   await inferred.getByRole('button', { name: 'Exclude', exact: true }).click()
-  await expect(inferred).toContainText('excluded')
-  await page.getByLabel('Professional area', { exact: true }).fill('Backend APIs')
+  await expect(inferred.getByRole('button', { name: 'Exclude', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await page.getByRole('textbox', { name: 'Professional area', exact: true }).fill('Backend APIs')
   await page.getByRole('button', { name: 'Confirm area', exact: true }).click()
   await expect(page.getByText('Area confirmed', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Approve context and continue' }).click()
-  await page.getByRole('combobox', { name: 'Interview language', exact: true }).click()
-  await page.getByRole('option', { name: 'Italian', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Type', exact: true })).toContainText(
-    'HR screening',
-  )
+  await next.click()
+  await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   await page.getByTestId('enable-microphone').click()
   await expect(page.getByText('Say something')).toBeVisible()
   await expect(page.getByTestId('speech-status')).toContainText('Speech recognition and voice')
-  await page.getByTestId('start-interview').click()
+  await next.click()
 
   // Joining: the resources load, then the first question is spoken.
   await expect(page.getByTestId('tile-interviewer')).toBeVisible({ timeout: 60_000 })

@@ -21,7 +21,12 @@ export function Breadcrumbs() {
                   {crumb.slug}
                 </span>
               ) : (
-                <Link to={crumb.to} className="rounded-sm hover:text-foreground hover:underline">
+                <Link
+                  to={crumb.to}
+                  // Only the last crumb is the current page.
+                  activeOptions={{ exact: true }}
+                  className="rounded-sm hover:text-foreground hover:underline"
+                >
                   {crumb.slug}
                 </Link>
               )}

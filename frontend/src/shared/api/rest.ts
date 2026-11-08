@@ -22,6 +22,10 @@ export type ReportData = components['schemas']['ReportData']
 export type ProgressGroup = components['schemas']['ProgressGroupView']
 export type ExecutionView = components['schemas']['ExecutionView']
 export type ExecutionProfile = ExecutionView['profile']
+export type RequirementView = components['schemas']['RequirementView']
+export type ProfileIn = components['schemas']['ProfileIn']
+export type InterviewHistoryEntry = components['schemas']['InterviewHistoryView']
+export type CvCheckHistoryEntry = components['schemas']['CvCheckHistoryView']
 
 export class ApiError extends Error {
   constructor(
@@ -85,11 +89,12 @@ export const api = {
   report: (id: string) => request<ReportData>(`/api/reports/${encodeURIComponent(id)}`),
   cvReviews: (snapshotId: string) =>
     request<ReportData[]>(`/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`),
-  reviewCv: (snapshotId: string, language: 'it' | 'en') =>
+  reviewCv: (snapshotId: string, language: 'it' | 'en', executionProfile?: ExecutionProfile) =>
     request<JobView>(
       `/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`,
-      json('POST', { language }),
+      json('POST', { language, execution_profile: executionProfile }),
     ),
+  snapshot: (id: string) => request<SnapshotView>(`/api/snapshots/${encodeURIComponent(id)}`),
   snapshotJobs: (id: string) => request<JobView[]>(`/api/snapshots/${encodeURIComponent(id)}/jobs`),
   documentText: (id: string) =>
     request<components['schemas']['DocumentTextView']>(`/api/documents/${encodeURIComponent(id)}`),
@@ -102,14 +107,19 @@ export const api = {
   },
   typedDocument: (body: components['schemas']['TypedDocument']) =>
     request<DocumentView>('/api/documents/text', json('POST', body)),
+  /** Edited text becomes a new document; the original stays with earlier preparations. */
+  reviseDocument: (id: string, body: components['schemas']['DocumentRevision']) =>
+    request<DocumentView>(`/api/documents/${encodeURIComponent(id)}/revisions`, json('POST', body)),
   draftJobOffer: (body: components['schemas']['DraftRequest']) =>
     request<components['schemas']['DraftView']>('/api/job-offers/draft', json('POST', body)),
   profiles: () => request<ProfileView[]>('/api/profiles'),
-  saveProfile: (body: components['schemas']['ProfileIn'], id?: string) =>
+  saveProfile: (body: ProfileIn, id?: string) =>
     request<ProfileView>(
       id ? `/api/profiles/${encodeURIComponent(id)}` : '/api/profiles',
       json(id ? 'PUT' : 'POST', body),
     ),
+  renameProfile: (id: string, name: string) =>
+    request<ProfileView>(`/api/profiles/${encodeURIComponent(id)}`, json('PATCH', { name })),
   deleteProfile: (id: string) =>
     request<undefined>(`/api/profiles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   prepare: (body: PrepareIn) => request<PreparationView>('/api/preparations', json('POST', body)),
@@ -125,6 +135,11 @@ export const api = {
     request<PreparationView>(`${preparationPath(id)}/area`, json('PUT', body)),
   approve: (id: string) =>
     request<SnapshotView>(`${preparationPath(id)}/approve`, { method: 'POST' }),
+  /** Back to the review after approval; approving the same content again reuses the snapshot. */
+  reopen: (id: string) =>
+    request<PreparationView>(`${preparationPath(id)}/reopen`, { method: 'POST' }),
+  interviewHistory: () => request<InterviewHistoryEntry[]>('/api/history/interviews'),
+  cvCheckHistory: () => request<CvCheckHistoryEntry[]>('/api/history/cv-checks'),
   speechStatus: () => request<SpeechStatus>('/api/speech'),
   sessions: () => request<SessionSummary[]>('/api/sessions'),
   session: (id: string) => request<SessionView>(sessionPath(id)),

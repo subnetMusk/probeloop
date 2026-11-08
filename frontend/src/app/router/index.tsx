@@ -10,9 +10,20 @@ import {
 import { SessionPage } from '@/legacy/pages/session-page'
 import { SessionsPage } from '@/legacy/pages/sessions-page'
 import { ReportPage } from '@/legacy/pages/report-page'
-import { SetupPage } from '@/legacy/setup/setup-page'
+import type { JSX } from 'react'
+
+import { canOpen, firstOpenStep, getDraft } from '@/entities/preparation'
+import type { Step } from '@/entities/preparation'
 import { AccessibilityPage } from '@/pages/accessibility'
 import { InterviewPage } from '@/pages/live-interview'
+import {
+  CheckStep,
+  DocumentsStep,
+  NewInterviewLayout,
+  ProfileStep,
+  ReviewStep,
+  SettingsStep,
+} from '@/pages/new-interview'
 import { NotFoundPage } from '@/pages/not-found'
 import { SettingsPage } from '@/pages/settings'
 import { api } from '@/shared/api'
@@ -47,12 +58,39 @@ const dashboardRoute = createRoute({
   component: SessionsPage,
 })
 
+// The preparation of a new interview, one route per step (ADR 0014). A step opens only when the
+// earlier ones are complete; otherwise the first incomplete step opens instead.
 const newInterviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'new-interview',
   staticData: { slug: 'new-interview' },
-  component: SetupPage,
+  component: NewInterviewLayout,
 })
+const toFirstOpenStep = () => {
+  throw redirect({ to: `/new-interview/${firstOpenStep(getDraft())}`, replace: true })
+}
+const newInterviewIndexRoute = createRoute({
+  getParentRoute: () => newInterviewRoute,
+  path: '/',
+  beforeLoad: toFirstOpenStep,
+})
+const stepRoute = (step: Step, component: () => JSX.Element) =>
+  createRoute({
+    getParentRoute: () => newInterviewRoute,
+    path: step,
+    staticData: { slug: step },
+    beforeLoad: () => {
+      if (!canOpen(getDraft(), step)) toFirstOpenStep()
+    },
+    component,
+  })
+const stepRoutes = [
+  stepRoute('interview-settings', SettingsStep),
+  stepRoute('resource-profile', ProfileStep),
+  stepRoute('documents', DocumentsStep),
+  stepRoute('fact-review', ReviewStep),
+  stepRoute('final-check', CheckStep),
+]
 
 const liveInterviewRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -181,7 +219,7 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
     dashboardRoute,
-    newInterviewRoute,
+    newInterviewRoute.addChildren([newInterviewIndexRoute, ...stepRoutes]),
     liveInterviewRoute,
     interviewsRoute.addChildren([
       interviewsIndexRoute,

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api'
 import { Button } from '@/shared/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/shared/ui/card'
-import { PREPARATION_KEY } from '@/entities/preparation'
+import { resetDraft } from '@/entities/preparation'
 import { clearReportJobs } from '@/entities/report-job'
 import { resetPreferences, useLanguage } from '@/shared/lib/preferences'
 
@@ -28,11 +28,7 @@ export function DataControls() {
       client.clear()
       resetPreferences()
       clearReportJobs()
-      try {
-        sessionStorage.removeItem(PREPARATION_KEY)
-      } catch {
-        /* The page reload clears transient state. */
-      }
+      resetDraft()
       window.location.replace('/settings?deleted=1')
     },
   })

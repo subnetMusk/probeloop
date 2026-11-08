@@ -75,8 +75,9 @@ test('the ChatGPT plan profile needs a sign-in and a confirmation', async ({ pag
 test('the Italian preparation page has no serious accessibility violations', async ({ page }) => {
   await page.goto('/new-interview')
   await expect(
-    page.getByRole('heading', { name: 'Prepara il colloquio', exact: true }),
+    page.getByRole('heading', { name: 'Impostazioni del colloquio', exact: true }),
   ).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Tecnico', exact: true })).toBeVisible()
   const scan = await new AxeBuilder({ page }).analyze()
   expect(scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
     [],
