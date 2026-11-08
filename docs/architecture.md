@@ -1112,6 +1112,8 @@ milestone starts.
 | [0011](adr/0011-interviewer-move-format.md) | Constrained JSON for the interviewer move, parsed incrementally | M1 |
 | [0012](adr/0012-interview-evaluation-pipeline.md) | Evidence-first interview judging without thinking; both anchor orders kept | M7 |
 | [0013](adr/0013-cloud-execution-profile.md) | Optional cloud execution profile through Sign in with ChatGPT (plan usage); speech stays local | M7 |
+| [0014](adr/0014-frontend-architecture-and-identity.md) | Frontend in Feature-Sliced Design with view models; typographic identity | M6 |
+| [0015](adr/0015-execution-profile-per-interview.md) | Execution profile stored per preparation and interview | M6 |
 | (planned) | In-process job runner with database-backed jobs | M5 |
 | (planned) | Prompts and rubrics as versioned files | M2 / M7 |
 | (planned) | Evidence-grounded evaluation with score aggregation in code | M7 |
