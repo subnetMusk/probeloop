@@ -216,6 +216,11 @@ export const IT: Readonly<Record<string, string>> = {
   'Or upload a text document (up to 10 MB)': 'Oppure carica un documento di testo (fino a 10 MB)',
   'Join the interview': 'Partecipa al colloquio',
   'Creating…': 'Creazione…',
+  'Enabling…': 'Attivazione…',
+  'Enable microphone': 'Attiva il microfono',
+  'Interviewer voice:': 'Voce dell’intervistatore:',
+  'An AI interviewer asks the questions and follows up on your answers. Your voice stays on this computer; the transcript, your documents and the answers are sent to OpenAI through your ChatGPT plan.':
+    'Un intervistatore AI pone domande e approfondisce le risposte. La voce resta su questo computer; trascritto, documenti e risposte vengono inviati a OpenAI tramite il tuo piano ChatGPT.',
   'Wait for background processing before joining.':
     'Attendi la fine delle elaborazioni prima di partecipare.',
   role: 'ruolo',

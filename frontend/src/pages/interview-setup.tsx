@@ -115,6 +115,8 @@ export function InterviewSetup({
     refetchInterval: 3000,
   })
 
+  // The privacy statement depends on where the language models run.
+  const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
   const speech = useQuery({
     queryKey: ['speech-status'],
     queryFn: api.speechStatus,
@@ -151,7 +153,9 @@ export function InterviewSetup({
           <p className="max-w-2xl text-muted-foreground">
             <T
               text={
-                'An AI interviewer asks the questions and follows up on your answers. Everything runs on this computer: your voice and the transcript stay here.'
+                execution.data?.profile === 'cloud'
+                  ? 'An AI interviewer asks the questions and follows up on your answers. Your voice stays on this computer; the transcript, your documents and the answers are sent to OpenAI through your ChatGPT plan.'
+                  : 'An AI interviewer asks the questions and follows up on your answers. Everything runs on this computer: your voice and the transcript stay here.'
               }
             />
           </p>
@@ -230,7 +234,7 @@ export function InterviewSetup({
                   data-testid="enable-microphone"
                 >
                   <MicIcon data-icon="inline-start" />
-                  {audio.enabling ? 'Enabling…' : 'Enable microphone'}
+                  <T text={audio.enabling ? 'Enabling…' : 'Enable microphone'} />
                 </Button>
               )}
               {audio.problem && (
@@ -281,7 +285,7 @@ export function InterviewSetup({
                 }}
               >
                 <VideoIcon data-icon="inline-start" />
-                {create.isPending ? 'Creating…' : 'Join the interview'}
+                <T text={create.isPending ? 'Creating…' : 'Join the interview'} />
               </Button>
               {create.error && (
                 <Alert variant="destructive">
@@ -296,7 +300,7 @@ export function InterviewSetup({
         </div>
 
         <footer className="text-xs text-muted-foreground">
-          {voice && `Interviewer voice: ${VOICE_CREDITS[voice] ?? voice}. `}
+          {voice && `${localise('Interviewer voice:')} ${VOICE_CREDITS[voice] ?? voice}. `}
           <T text={'Speech synthesis by Piper, recognition by Parakeet, both running locally.'} />
         </footer>
       </div>
