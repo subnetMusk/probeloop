@@ -36,6 +36,15 @@ services:
       PROBELOOP_STT_URL: http://stt-worker:8000
       PROBELOOP_TTS_URL: http://tts-piper:5000
       PROBELOOP_TTS_VOICE_IT: ${PROBELOOP_TTS_VOICE:-it_IT-serena-medium}
+      # Cloud execution profile (docs/adr/0013-cloud-execution-profile.md). With a key in .env,
+      # Settings offers it; the interviewer, analysis and evaluation then use the cloud models.
+      PROBELOOP_CLOUD_API_KEY: ${PROBELOOP_CLOUD_API_KEY:-}
+      PROBELOOP_CLOUD_BASE_URL: ${PROBELOOP_CLOUD_BASE_URL:-https://api.openai.com/v1}
+      PROBELOOP_CLOUD_INTERVIEWER_MODEL: ${PROBELOOP_CLOUD_INTERVIEWER_MODEL:-gpt-6.1-terra}
+      PROBELOOP_CLOUD_ANALYSIS_MODEL: ${PROBELOOP_CLOUD_ANALYSIS_MODEL:-gpt-6.1-terra}
+      PROBELOOP_CLOUD_EVALUATION_MODEL: ${PROBELOOP_CLOUD_EVALUATION_MODEL:-gpt-6.1-terra}
+      # "none", "low" for models without "none", or empty for models without reasoning control.
+      PROBELOOP_CLOUD_REASONING_OFF: ${PROBELOOP_CLOUD_REASONING_OFF-none}
     volumes:
       - data:/data
     networks: [default, internal]

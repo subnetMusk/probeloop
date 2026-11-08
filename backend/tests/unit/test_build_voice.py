@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ports import ChatMessage, ChatRequest
 from probeloop.bootstrap import build, build_voice, scripted_moves
 from probeloop.interview.domain.model import Language
@@ -68,5 +67,5 @@ def test_scripted_moves_ask_numbered_questions_then_say_goodbye() -> None:
 
 def test_the_fake_language_model_is_selected_by_the_settings(tmp_path: Path) -> None:
     container = build(settings(data_dir=tmp_path, llm_fake=True, speech_fake=True))
-    assert isinstance(container.model, FakeChatModel)
+    assert container.model.model_ref == "fake:scripted"
     assert container.sessions.voice is not None

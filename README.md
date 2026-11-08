@@ -113,6 +113,21 @@ The restore refuses a database or data directory that is not empty, and archives
 paths. "Delete all my data" removes every interview, document, profile, report, export and log,
 and resets the browser preferences.
 
+**Cloud models (optional).** By default every model runs locally. To offer the cloud profile,
+put an OpenAI API key in a `.env` file next to `compose.yaml` and restart the backend:
+
+```bash
+echo "PROBELOOP_CLOUD_API_KEY=sk-..." >> .env
+```
+
+Settings → Execution profile then switches the interviewer, document analysis and evaluation
+between the local models and the cloud ones (`gpt-6.1-terra` by default; see
+`PROBELOOP_CLOUD_*_MODEL` in `compose.yaml`). Speech recognition and synthesis always stay local.
+With the cloud profile your CV, documents, transcripts and answers are sent to the provider;
+audio is not. The key is read only from the environment and never stored by ProbeLoop. Any
+server with an OpenAI-compatible Chat Completions API works through `PROBELOOP_CLOUD_BASE_URL`.
+The design is in [ADR 0013](docs/adr/0013-cloud-execution-profile.md).
+
 **What a session leaves** in the `probeloop_data` volume: the database `probeloop.db` (SQLite),
 and under `sessions/<id>/` the files: `transcript.md` and `transcript.json` (the whole
 conversation, rewritten after every correction), `audio/interview.wav` (both voices in one file)
@@ -247,7 +262,8 @@ That log contains personal data, so it is off by default.
 
 ProbeLoop processes personal data: CVs, job offers, voice recordings and transcripts.
 
-- All of it is stored locally in Docker volumes.
+- All of it is stored locally in Docker volumes. Only the optional cloud execution profile sends
+  text (not audio) to a cloud provider, after an explicit confirmation in Settings.
 - Audio retention is configurable per session.
 - Deleting an interview removes its rows and recordings. Removing a resource profile removes the
   reusable set; documents and extraction caches remain stored locally. Global data deletion is

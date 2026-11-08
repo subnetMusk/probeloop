@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,19 @@ class Settings(BaseSettings):
     # docs/research/evaluation-latency.md before enabling it.
     evaluation_judge_reasoning: Literal["off", "default"] = "off"
     keep_alive: str = "30m"
+
+    # Cloud execution profile (docs/adr/0013-cloud-execution-profile.md). Without an API key the
+    # profile is not offered. The interviewer, document analysis and evaluation then run on a
+    # Chat Completions endpoint; speech recognition and synthesis always stay local.
+    cloud_api_key: SecretStr | None = None
+    cloud_base_url: str = "https://api.openai.com/v1"
+    cloud_interviewer_model: str = "gpt-6.1-terra"
+    cloud_analysis_model: str = "gpt-6.1-terra"
+    cloud_evaluation_model: str = "gpt-6.1-terra"
+    # The reasoning_effort sent when a request turns reasoning off: "none" where the models
+    # support it, "low" where they do not, empty for models without reasoning control.
+    cloud_reasoning_off: str | None = "none"
+    cloud_context_window: int = 128_000
     llm_debug_log: bool = False
     llm_fake: bool = False  # scripted interviewer moves, for end-to-end tests
 
@@ -49,6 +63,11 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+
+    @field_validator("cloud_api_key", "cloud_reasoning_off", mode="before")
+    @classmethod
+    def _empty_is_unset(cls, value: object) -> object:
+        return None if value == "" else value
 
     @property
     def effective_database_url(self) -> str:

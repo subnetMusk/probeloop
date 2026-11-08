@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
+from probeloop.ai.openai import OpenAIChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
+from probeloop.ai.profiles import ProfiledChatModel
 from probeloop.ai.scheduled import ScheduledChatModel
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
@@ -54,6 +56,7 @@ from probeloop.storage.sql_context import SqlContextStore
 from probeloop.storage.sql_jobs import SqlJobRepository
 from probeloop.storage.sql_reports import SqlReportStore
 from probeloop.storage.sql_sessions import SqlSessionStore
+from probeloop.workspace.execution import ExecutionProfiles, Profile
 from probeloop.workspace.service import DataService
 
 
@@ -77,6 +80,9 @@ class Container:
     assessment: AssessmentService
     export_report: Callable[[Report, str], bytes]
     data: DataService
+    profiles: ExecutionProfiles
+    # The interviewer, analysis and evaluation roles, each with a model per profile.
+    roles: Mapping[str, ProfiledChatModel]
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
@@ -190,11 +196,39 @@ def build(
                 context_window=settings.analysis_context_window,
                 keep_alive=settings.keep_alive,
             )
+    if assessment_model is None:
+        assessment_model = (
+            FakeChatModel([scripted_assessment])
+            if settings.llm_fake
+            else OllamaChatModel(
+                base_url=settings.ollama_base_url,
+                model=settings.evaluation_model,
+                context_window=settings.evaluation_context_window,
+                keep_alive=settings.keep_alive,
+                timeout_s=600.0,
+            )
+        )
+    local = {"interviewer": model, "analysis": analysis_model, "evaluation": assessment_model}
+    cloud = build_cloud(settings, local)
+    available: tuple[Profile, ...] = ("local", "cloud") if cloud else ("local",)
+    profiles = ExecutionProfiles(settings.data_dir / "execution-profile.json", available)
+    roles = {
+        role: ProfiledChatModel(
+            {"local": local[role]} | ({"cloud": cloud[role]} if cloud else {}),
+            lambda: profiles.current,
+        )
+        for role in local
+    }
+    model, analysis_model, assessment_model = (
+        roles["interviewer"],
+        roles["analysis"],
+        roles["evaluation"],
+    )
     if settings.llm_debug_log:
         log = settings.data_dir / "logs" / "llm.jsonl"
         model = DebugLogChatModel(model, log)
-        if analysis_model is not model:
-            analysis_model = DebugLogChatModel(analysis_model, log)
+        analysis_model = DebugLogChatModel(analysis_model, log)
+        assessment_model = DebugLogChatModel(assessment_model, log)
     if voice is None:
         voice = build_voice(settings)
     clock = SystemClock()
@@ -228,22 +262,6 @@ def build(
         new_id=new_id,
     )
     jobs.register(ANALYSE_JOB, context.analyse)
-    if assessment_model is None:
-        assessment_model = (
-            FakeChatModel([scripted_assessment])
-            if settings.llm_fake
-            else OllamaChatModel(
-                base_url=settings.ollama_base_url,
-                model=settings.evaluation_model,
-                context_window=settings.evaluation_context_window,
-                keep_alive=settings.keep_alive,
-                timeout_s=600.0,
-            )
-        )
-    if settings.llm_debug_log:
-        assessment_model = DebugLogChatModel(
-            assessment_model, settings.data_dir / "logs" / "llm.jsonl"
-        )
     assessment_model = ScheduledChatModel(assessment_model, access.acquire)
     assessment = AssessmentService(
         store=SqlReportStore(db),
@@ -298,7 +316,38 @@ def build(
         assessment=assessment,
         export_report=export_report,
         data=data,
+        profiles=profiles,
+        roles=roles,
     )
+
+
+def build_cloud(settings: Settings, local: Mapping[str, ChatModel]) -> dict[str, ChatModel] | None:
+    """The models of the cloud profile per role, or None when the profile is not configured.
+
+    With scripted models (`llm_fake`) the cloud profile reuses them, so that selecting a profile
+    can be tested end to end without a provider.
+    """
+    if settings.llm_fake:
+        return dict(local)
+    if settings.cloud_api_key is None:
+        return None
+    api_key = settings.cloud_api_key.get_secret_value()
+
+    def cloud_model(name: str, timeout_s: float) -> OpenAIChatModel:
+        return OpenAIChatModel(
+            model=name,
+            api_key=api_key,
+            base_url=settings.cloud_base_url,
+            context_window=settings.cloud_context_window,
+            reasoning_off=settings.cloud_reasoning_off,
+            timeout_s=timeout_s,
+        )
+
+    return {
+        "interviewer": cloud_model(settings.cloud_interviewer_model, 60.0),
+        "analysis": cloud_model(settings.cloud_analysis_model, 300.0),
+        "evaluation": cloud_model(settings.cloud_evaluation_model, 600.0),
+    }
 
 
 def build_refiner(settings: Settings) -> SpeechToText | None:

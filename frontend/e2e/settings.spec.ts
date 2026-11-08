@@ -29,6 +29,34 @@ test('language, keyboard volume and system theme persist across reloads', async 
   )
 })
 
+// The test backend scripts every model, and its cloud profile reuses the scripted models.
+test('the cloud execution profile is selected only after confirmation', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
+  })
+  const reset = await page.request.put('/api/settings/execution', { data: { profile: 'local' } })
+  expect(reset.ok()).toBe(true)
+  await page.goto('/settings')
+  const local = page.getByRole('radio', { name: /^Local/ })
+  const cloud = page.getByRole('radio', { name: /^Cloud/ })
+  await expect(local).toBeChecked()
+  page.once('dialog', (dialog) => void dialog.dismiss())
+  await cloud.click()
+  await expect(local).toBeChecked()
+  page.once('dialog', (dialog) => {
+    expect(dialog.message()).toContain('sent to the cloud provider')
+    void dialog.accept()
+  })
+  await cloud.click()
+  await expect(cloud).toBeChecked()
+  await expect(page.getByRole('note')).toContainText('Cloud profile active')
+  await page.reload()
+  await expect(cloud).toBeChecked()
+  await local.click()
+  await expect(local).toBeChecked()
+  await expect(page.getByRole('note')).toHaveCount(0)
+})
+
 test('the Italian preparation page has no serious accessibility violations', async ({ page }) => {
   await page.goto('/')
   await expect(

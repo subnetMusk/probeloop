@@ -40,11 +40,19 @@ class DataService:
         self.busy = False
         self._downloads: dict[str, Path] = {}
 
+    async def ensure_idle(self) -> None:
+        """Raise unless no live interview is connected and no job is queued or running.
+
+        Callers hold `write_lock`, as the API does for every mutating request, so that no new
+        work starts between the check and their change.
+        """
+        if self._connected() or await self._pending():
+            raise DataBusyError("close live interviews and wait for background jobs first")
+
     @asynccontextmanager
     async def operation(self) -> AsyncIterator[None]:
         async with self.write_lock:
-            if self._connected() or await self._pending():
-                raise DataBusyError("close live interviews and wait for background jobs first")
+            await self.ensure_idle()
             self.busy = True
             try:
                 yield

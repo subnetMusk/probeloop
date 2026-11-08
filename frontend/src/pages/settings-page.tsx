@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/select'
 import { setLanguage, setTheme, setVolume, usePreferences } from '@/settings/preferences'
 import { DataControls } from '@/settings/data-controls'
+import { ExecutionProfileSettings } from '@/settings/execution-profile'
 
 export function SettingsPage() {
   const preferences = usePreferences()
@@ -81,6 +82,7 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      <ExecutionProfileSettings />
       <DataControls />
     </main>
   )

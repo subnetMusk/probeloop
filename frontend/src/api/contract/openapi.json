@@ -467,6 +467,90 @@
         "title": "EvidenceData",
         "type": "object"
       },
+      "ExecutionChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ExecutionChoice",
+        "type": "object"
+      },
+      "ExecutionModels": {
+        "properties": {
+          "analysis": {
+            "title": "Analysis",
+            "type": "string"
+          },
+          "evaluation": {
+            "title": "Evaluation",
+            "type": "string"
+          },
+          "interviewer": {
+            "title": "Interviewer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "interviewer",
+          "analysis",
+          "evaluation"
+        ],
+        "title": "ExecutionModels",
+        "type": "object"
+      },
+      "ExecutionProfileView": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "models": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionModels"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "available",
+          "models"
+        ],
+        "title": "ExecutionProfileView",
+        "type": "object"
+      },
+      "ExecutionView": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionProfileView"
+            },
+            "title": "Profiles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile",
+          "profiles"
+        ],
+        "title": "ExecutionView",
+        "type": "object"
+      },
       "FactKind": {
         "enum": [
           "role",
@@ -965,6 +1049,13 @@
         ],
         "title": "PrepareIn",
         "type": "object"
+      },
+      "Profile": {
+        "enum": [
+          "local",
+          "cloud"
+        ],
+        "type": "string"
       },
       "ProfileIn": {
         "additionalProperties": false,
@@ -3388,6 +3479,60 @@
           }
         },
         "summary": "Review Interview"
+      }
+    },
+    "/api/settings/execution": {
+      "get": {
+        "operationId": "execution_api_settings_execution_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Execution"
+      },
+      "put": {
+        "operationId": "select_execution_api_settings_execution_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecutionChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Execution"
       }
     },
     "/api/snapshots/{snapshot_id}": {

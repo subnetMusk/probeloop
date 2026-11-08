@@ -132,7 +132,7 @@ showed four problems:
 │  Fact/Evidence, ContextSnapshot, Rubric, Report, TimePolicy, EvidencePolicy        │
 ├────────────────────────────────────────────────────────────────────────────────────┤
 │ Ports (typing.Protocol) ← Adapters (infrastructure)                                │
-│  ChatModel/ModelCatalog → Ollama | OpenAI (later) | Fake                           │
+│  ChatModel/ModelCatalog → Ollama | OpenAI-compat. | Fake                           │
 │  SpeechToText → HTTP → stt-worker (faster-whisper CPU|CUDA, Parakeet) | Fake      │
 │  TextToSpeech → Piper (separate process, HTTP) | browser Web Speech (later) | Fake │
 │  DocumentTextExtractor → pypdf/pdfplumber in a process pool                        │
@@ -975,6 +975,10 @@ code paths.
 **Model profiles per role** (interviewer, extractor, evaluator, planner) each define `provider`,
 `base_url`, `model`, `num_ctx` and `reasoning`.
 
+**Execution profiles** ([ADR 0013](adr/0013-cloud-execution-profile.md)) choose between the local
+models and an OpenAI-compatible cloud endpoint for the interviewer, analysis and evaluation roles,
+from Settings. Speech always stays local.
+
 - On a Mac, pointing `base_url` at the PC's Ollama is enough.
 - Roles sharing the same Ollama model must use the same `num_ctx`. Configuration validation
   enforces this, because a different value forces a reload.
@@ -1088,7 +1092,7 @@ milestone starts.
 - Hypothesis stateful tests;
 - SSE, OpenTelemetry and an S3 blob store;
 - LAN authentication;
-- the OpenAI adapter, and further STT/TTS engines (for example MLX on a Mac);
+- further STT/TTS engines (for example MLX on a Mac);
 - voice activity detection for barge-in.
 
 ## 23. Decision records
@@ -1106,6 +1110,8 @@ milestone starts.
 | [0009](adr/0009-speech-recognition.md) | Parakeet on CPU for live transcription; Whisper turbo refinement pass after the interview | M1 |
 | [0010](adr/0010-speech-synthesis.md) | Piper in its own container; default voice pending a listening test | M1 |
 | [0011](adr/0011-interviewer-move-format.md) | Constrained JSON for the interviewer move, parsed incrementally | M1 |
-| 0012 | In-process job runner with database-backed jobs | M5 |
-| 0013 | Prompts and rubrics as versioned files | M2 / M7 |
-| 0014 | Evidence-grounded evaluation with score aggregation in code | M7 |
+| [0012](adr/0012-interview-evaluation-pipeline.md) | Evidence-first interview judging without thinking; both anchor orders kept | M7 |
+| [0013](adr/0013-cloud-execution-profile.md) | Optional cloud execution profile through an OpenAI-compatible adapter; speech stays local | M7 |
+| (planned) | In-process job runner with database-backed jobs | M5 |
+| (planned) | Prompts and rubrics as versioned files | M2 / M7 |
+| (planned) | Evidence-grounded evaluation with score aggregation in code | M7 |

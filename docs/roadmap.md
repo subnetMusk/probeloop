@@ -366,7 +366,9 @@ recording persistence), strict typing, linting, nine dependency contracts and re
 IT/EN scaffolding are implemented. Remaining translation, final rebuilt-app/E2E checks and
 accessibility acceptance are recorded in the [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
 The implemented settings currently cover proposal section 7, not every older configuration and
-diagnostics deliverable below.
+diagnostics deliverable below. The provider choice is the execution profile (local or an
+OpenAI-compatible cloud endpoint, [ADR 0013](adr/0013-cloud-execution-profile.md)); models are
+chosen in the environment, not in the UI.
 
 - **Deliverables**
   - The Phase A wizard, polished review screens and the Phase D summary.

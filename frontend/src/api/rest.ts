@@ -19,6 +19,8 @@ export type ReviewIn = components['schemas']['ReviewIn']
 export type AddFactIn = components['schemas']['AddFactIn']
 export type ReportData = components['schemas']['ReportData']
 export type ProgressGroup = components['schemas']['ProgressGroupView']
+export type ExecutionView = components['schemas']['ExecutionView']
+export type ExecutionProfile = ExecutionView['profile']
 
 export class ApiError extends Error {
   constructor(
@@ -65,6 +67,9 @@ export const api = {
   deleteAllData: () =>
     request<undefined>('/api/data/delete-all', json('POST', { confirmation: 'DELETE ALL DATA' })),
   pendingJobs: () => request<JobView[]>('/api/jobs'),
+  executionProfile: () => request<ExecutionView>('/api/settings/execution'),
+  selectExecutionProfile: (profile: ExecutionProfile) =>
+    request<ExecutionView>('/api/settings/execution', json('PUT', { profile })),
   interviewReports: (id: string) => request<ReportData[]>(`${sessionPath(id)}/reports`),
   reviewInterview: (id: string, language: 'it' | 'en') =>
     request<JobView>(`${sessionPath(id)}/reports`, json('POST', { language })),

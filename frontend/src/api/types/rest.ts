@@ -565,6 +565,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Execution */
+        get: operations["execution_api_settings_execution_get"];
+        /** Select Execution */
+        put: operations["select_execution_api_settings_execution_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/snapshots/{snapshot_id}": {
         parameters: {
             query?: never;
@@ -822,6 +840,32 @@ export interface components {
             /** Turn Seq */
             turn_seq?: number | null;
         };
+        /** ExecutionChoice */
+        ExecutionChoice: {
+            profile: components["schemas"]["Profile"];
+        };
+        /** ExecutionModels */
+        ExecutionModels: {
+            /** Analysis */
+            analysis: string;
+            /** Evaluation */
+            evaluation: string;
+            /** Interviewer */
+            interviewer: string;
+        };
+        /** ExecutionProfileView */
+        ExecutionProfileView: {
+            /** Available */
+            available: boolean;
+            id: components["schemas"]["Profile"];
+            models: components["schemas"]["ExecutionModels"] | null;
+        };
+        /** ExecutionView */
+        ExecutionView: {
+            profile: components["schemas"]["Profile"];
+            /** Profiles */
+            profiles: components["schemas"]["ExecutionProfileView"][];
+        };
         /**
          * FactKind
          * @enum {string}
@@ -972,6 +1016,8 @@ export interface components {
              */
             resources?: components["schemas"]["ResourceIn"][];
         };
+        /** @enum {string} */
+        Profile: "local" | "cloud";
         /** ProfileIn */
         ProfileIn: {
             /** Name */
@@ -2404,6 +2450,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execution_api_settings_execution_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+        };
+    };
+    select_execution_api_settings_execution_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecutionChoice"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
                 };
             };
             /** @description Validation Error */

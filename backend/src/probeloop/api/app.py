@@ -45,6 +45,7 @@ from probeloop.api.schemas import (
     incoming_adapter,
     pong_message,
 )
+from probeloop.api.settings_routes import settings_router
 from probeloop.bootstrap import Container, build
 from probeloop.context.application.service import ContextNotFoundError
 from probeloop.context.application.snapshots import candidate_brief, job_brief
@@ -373,6 +374,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(context_router(container.context, jobs))
     app.include_router(assessment_router(container.assessment, jobs, container.export_report))
     app.include_router(data_router(container.data))
+    app.include_router(settings_router(container.profiles, container.roles, container.data))
 
     if settings.static_dir is not None:
         _serve_spa(app, settings.static_dir)

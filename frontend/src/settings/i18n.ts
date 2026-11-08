@@ -269,6 +269,7 @@ export const IT: Readonly<Record<string, string>> = {
   'close live interviews and wait for background jobs first':
     'Chiudi i colloqui in corso e attendi la fine delle elaborazioni',
   'backup no longer available': 'Backup non più disponibile',
+  'the cloud profile is not configured': 'Il profilo cloud non è configurato',
   'unknown job kind': 'Tipo di elaborazione sconosciuto',
   'report not found': 'Report non trovato',
   'session not found': 'Colloquio non trovato',
