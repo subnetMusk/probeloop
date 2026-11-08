@@ -1,22 +1,62 @@
-"""Classify, judge twice, verify and aggregate a frozen transcript with its approved context."""
+"""Classify, judge twice, check corrections, verify and aggregate a frozen transcript.
+
+Model calls per review, all sequential on one local model:
+
+- one classification call per eight answer units;
+- two judging passes per scored unit, with the rubric anchors in ascending and in descending
+  order (the scores of both are averaged in code); only the ascending pass also returns
+  observations and requirement coverage, so the two passes do not duplicate them;
+- one independent check per statement that a judge reported as a technical error;
+- one editorial synthesis call that selects existing observations by id and writes a summary.
+
+The approved context is compacted once per review and placed first in every judging request,
+so the provider can reuse the processed prefix between calls.
+"""
 
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, replace
+import time
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, replace
+from typing import Any, Literal
+
+from pydantic import BaseModel
 
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import complete_structured
 from probeloop.assessment.application.evidence import Source, checked_evidence, checked_judgements
 from probeloop.assessment.application.rubrics import Rubric, load_rubric
-from probeloop.assessment.application.schemas import SynthesisOut, UnitJudgementsOut
-from probeloop.assessment.application.segmentation import KindsOut, answer_units, classified
+from probeloop.assessment.application.schemas import (
+    ClaimCheckOut,
+    SynthesisOut,
+    unit_coverage,
+    unit_judgements,
+    unit_output,
+)
+from probeloop.assessment.application.segmentation import (
+    KindsOut,
+    answer_units,
+    classified,
+    past_examples,
+)
 from probeloop.assessment.domain.model import AnswerUnit, Check, Evidence, Observation, Score
 from probeloop.assessment.domain.units import aggregate_scores, paired_scores
-from probeloop.context.domain.model import ContextSnapshot, FactKind
+from probeloop.context.domain.model import ContextSnapshot, DocumentKind, FactKind
 from probeloop.interview.domain.model import CandidateTurn, InterviewSession, Turn
 from probeloop.platform.jobs import Progress
+
+type Reasoning = Literal["off", "default"]
+
+# Output budgets sized to the schemas, plus room for thinking when it is enabled.
+_JUDGE_TOKENS = {True: 2000, False: 1400}
+_THINKING_TOKENS = 7000
+_CLAIM_TOKENS = 500
+_SYNTHESIS_TOKENS = 800
+# The model's default presence penalty (1.5 for qwen3.5) penalises tokens that were already
+# generated, such as a quotation repeated for several criteria, and verbatim quotes are required.
+_PRESENCE_PENALTY = 0.0
 
 
 def turn_data(turn: Turn) -> dict[str, object]:
@@ -28,6 +68,60 @@ def turn_data(turn: Turn) -> dict[str, object]:
     }
 
 
+def evaluation_context(
+    session: InterviewSession, snapshot: ContextSnapshot | None
+) -> dict[str, object]:
+    """The approved context for the judges, without metadata or repeated content.
+
+    Documents are sent once, as approved. Facts are reduced to their reviewed statements: their
+    quotations repeat the documents. Without a snapshot the interviewer briefs are the context.
+    """
+    topics = [{"id": t.id, "title": t.title} for t in session.context.topics]
+    if snapshot is None:
+        return {
+            "topics": topics,
+            "candidate_brief": session.context.candidate_brief,
+            "job_brief": session.context.job_brief,
+            "requirements": [],
+            "documents": [],
+        }
+    status = {m.requirement_id: m.status.value for m in snapshot.matches}
+    return {
+        "topics": topics,
+        "job_mode": snapshot.job_mode.value,
+        "target_area": (
+            {"area": snapshot.area.area, "seniority": snapshot.area.seniority}
+            if snapshot.area
+            else None
+        ),
+        "requirements": [
+            {"id": f.id, "kind": f.kind.value, "text": f.text, "cv_match": status.get(f.id)}
+            for f in snapshot.job_facts
+            if f.kind in (FactKind.REQUIREMENT, FactKind.NICE_TO_HAVE)
+        ],
+        "candidate_facts": [
+            {"kind": f.kind.value, "text": f.text} for f in snapshot.candidate_facts
+        ],
+        "documents": [
+            {"kind": d.kind.value, "title": d.title, "text": d.text} for d in snapshot.documents
+        ],
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class CallTrace:
+    """Diagnostics of one logical model call, repairs included. Never holds prompt text."""
+
+    phase: str
+    unit_id: str | None
+    reasoning: str
+    attempts: int
+    prompt_tokens: int | None
+    output_tokens: int | None
+    duration_s: float
+    stop_reasons: tuple[str | None, ...]
+
+
 @dataclass(frozen=True)
 class InterviewJudgement:
     units: tuple[AnswerUnit, ...]
@@ -36,15 +130,38 @@ class InterviewJudgement:
     observations: tuple[Observation, ...]
     dropped: int
     coverage: tuple[Check, ...]
+    calls: tuple[CallTrace, ...] = ()
+    disputed: int = 0
 
 
 class InterviewReviewer:
-    def __init__(self, model: ChatModel) -> None:
+    def __init__(
+        self,
+        model: ChatModel,
+        *,
+        judge_reasoning: Reasoning = "off",
+        presence_penalty: float | None = _PRESENCE_PENALTY,
+    ) -> None:
         self.model = model
+        self.judge_reasoning: Reasoning = judge_reasoning
+        self.presence_penalty = presence_penalty
         self.rubrics = {
             name: load_rubric(name) for name in ("hr", "behavioral", "technical", "hypothetical")
         }
+        self._outputs = {
+            (name, full): unit_output(tuple(c.id for c in rubric.criteria), observations=full)
+            for name, rubric in self.rubrics.items()
+            for full in (True, False)
+        }
         self._prompts = PromptRenderer("probeloop.assessment")
+
+    @property
+    def prompt_ref(self) -> str:
+        judging = "think" if self.judge_reasoning == "default" else "off"
+        return (
+            f"classify_units@v2:off+judge_unit@v3:asc,desc-scores:{judging}"
+            "+check_claim@v1:off+synthesise@v3:off"
+        )
 
     async def review(
         self,
@@ -53,21 +170,14 @@ class InterviewReviewer:
         language: str,
         progress: Progress,
     ) -> InterviewJudgement:
-        units = answer_units(session)
-        turns = {t.seq: t for t in session.turns}
-        result_units: list[AnswerUnit] = []
-        for offset in range(0, len(units), 8):
-            batch = units[offset : offset + 8]
-            classification_data = [
-                {"unit_id": u.id, "questions": [turn_data(turns[n]) for n in u.question_seqs]}
-                for u in batch
-            ]
-            request = self._request("classify_units", classification_data, tokens=1200)
-            classification = (await complete_structured(self.model, request, KindsOut)).value
-            result_units.extend(classified(batch, classification))
-        units = tuple(result_units)
-        unit_scores: list[Score] = []
-        observations: list[Observation] = []
+        calls: list[CallTrace] = []
+        units, past = await self._classify(session, calls)
+        context = evaluation_context(session, snapshot)
+        references = [
+            {"title": d.title, "text": d.text}
+            for d in (snapshot.documents if snapshot else ())
+            if d.kind is DocumentKind.RESOURCE
+        ]
         requirements = (
             {
                 f.id: f
@@ -77,114 +187,99 @@ class InterviewReviewer:
             if snapshot
             else {}
         )
+        topics = {t.id: t.title for t in session.context.topics}
+        unit_scores: list[Score] = []
+        observations: list[Observation] = []
         coverage: dict[str, list[Evidence]] = {}
+        checked_claims: dict[str, str] = {}
         dropped = sum(u.kind == "unclassified" for u in units)
+        disputed = 0
         for index, unit in enumerate(units):
-            await progress(index / max(1, len(units)), f"{index + 1}/{len(units)}")
+            await progress(index / (max(1, len(units)) + 1), f"{index + 1}/{len(units)}")
             if unit.kind not in self.rubrics:
                 continue
             rubric = self.rubrics[unit.kind]
-            sources = {
-                f"turn-{answer.seq}": Source(answer.text, answer.seq)
-                for answer in session.candidate_turns()
-                if answer.seq in unit.answer_seqs
-            }
-            selected = set((*unit.question_seqs, *unit.answer_seqs))
-            unit_turns = [turn_data(t) for t in session.turns if t.seq in selected]
-            positions = [i for i, t in enumerate(session.turns) if t.seq in selected]
-            surrounding = [
-                turn_data(t)
-                for t in session.turns[max(0, min(positions) - 2) : max(positions) + 3]
-                if t.seq not in selected
-            ]
-            judge_data = {
+            answers = [t for t in session.candidate_turns() if t.seq in unit.answer_seqs]
+            sources = {f"turn-{t.seq}": Source(t.text, t.seq) for t in answers}
+            selected = {*unit.question_seqs, *unit.answer_seqs}
+            # Each unit is judged on its own turns only (proposal section 5.2). Neighbouring
+            # answers were observed to leak into judgements in both directions; follow-ups that
+            # depend on an answer already belong to the same unit.
+            unit_data: dict[str, object] = {
                 "unit_id": unit.id,
                 "kind": unit.kind,
-                "turns": unit_turns,
-                "surrounding_turns": surrounding,
-                "approved_snapshot": asdict(snapshot) if snapshot else None,
-                "interview_context": asdict(session.context),
+                "topic": topics.get(unit.topic_id),
                 "difficulty": session.config.difficulty.value,
+                "turns": [turn_data(t) for t in session.turns if t.seq in selected],
             }
-            judgements = []
+            passes: list[tuple[Score, ...]] = []
+            notes: tuple[Observation, ...] = ()
             for descending in (False, True):
-                request = self._request(
-                    "judge_unit",
-                    judge_data,
-                    tokens=9000,
-                    language=language,
-                    rubric=rubric,
-                    descending=descending,
+                full = not descending
+                output = await self._call(
+                    calls,
+                    "judge_descending" if descending else "judge_ascending",
+                    unit.id,
+                    self._judge_request(context, rubric, unit_data, descending, language),
+                    self._outputs[(unit.kind, full)],
                 )
-                judgement = (
-                    await complete_structured(self.model, request, UnitJudgementsOut)
-                ).value
-                scores, notes, rejected = checked_judgements(
-                    judgement,
-                    rubric,
-                    sources,
-                    language=language,
-                    unit_id=unit.id,
+                scores, pass_notes, rejected = checked_judgements(
+                    unit_judgements(output), rubric, sources, language=language, unit_id=unit.id
                 )
-                if len(unit.question_seqs) < 2:
-                    scores = tuple(
-                        replace(
-                            s,
-                            value=None,
-                            reason="Approfondimento non richiesto."
-                            if language == "it"
-                            else "Follow-up not elicited.",
-                        )
-                        if s.criterion_id == "followup_depth"
-                        else s
-                        for s in scores
-                    )
-                judgements.append(scores)
-                observations.extend(notes)
-                for claim in judgement.coverage:
-                    evidence = checked_evidence(claim.evidence, sources)
-                    if claim.requirement_id in requirements and evidence:
-                        coverage.setdefault(claim.requirement_id, []).extend(evidence)
-                    else:
-                        dropped += 1
                 dropped += rejected
+                passes.append(_without_unelicited(scores, unit, past[unit.id], language))
+                if full:
+                    notes = pass_notes
+                    for claim in unit_coverage(output):
+                        evidence = checked_evidence(claim.evidence, sources)
+                        if claim.requirement_id in requirements and evidence:
+                            coverage.setdefault(claim.requirement_id, []).extend(evidence)
+                        else:
+                            dropped += 1
+            kept: list[Observation] = []
+            unit_disputed = False
+            for note in _distinct(notes):
+                if note.kind == "technical_error" and unit.kind != "technical":
+                    # Corrections concern technical statements; on other units the label was
+                    # observed to carry judgements about the candidate instead.
+                    dropped += 1
+                    continue
+                if note.kind == "technical_error":
+                    statement = " … ".join(e.quote for e in note.evidence)
+                    if statement not in checked_claims:
+                        checked_claims[statement] = await self._check_claim(
+                            calls, unit, session, statement, references, language
+                        )
+                    if checked_claims[statement] != "incorrect":
+                        # Two model readings disagree: the correction is not shown as an error
+                        # and the unit's accuracy score is marked as unstable.
+                        dropped += 1
+                        disputed += 1
+                        unit_disputed = True
+                        continue
+                kept.append(note)
+            observations.extend(kept)
+            paired = paired_scores(passes[0], passes[1])
+            if unit_disputed:
+                paired = tuple(
+                    replace(s, unstable=True)
+                    if s.criterion_id == "accuracy" and s.value is not None
+                    else s
+                    for s in paired
+                )
             unit_scores.extend(
-                replace(s, criterion_id=f"{unit.kind}.{s.criterion_id}")
-                for s in paired_scores(*judgements)
+                replace(s, criterion_id=f"{unit.kind}.{s.criterion_id}") for s in paired
             )
         scores = aggregate_scores(tuple(unit_scores))
-        # Synthesis consumes verified evidence in bounded groups. Every candidate turn remains
-        # available to at least one group; long input is rejected rather than silently truncated.
-        assessed_units = tuple(u for u in units if u.kind in self.rubrics)
-        for offset in range(0, len(assessed_units), 2):
-            batch = assessed_units[offset : offset + 2]
-            selected_answers = {n for u in batch for n in u.answer_seqs}
-            selected_units = {u.id for u in batch}
-            candidates = [t for t in session.candidate_turns() if t.seq in selected_answers]
-            synthesis_data = {
-                "turns": [turn_data(t) for t in candidates],
-                "observations": [asdict(n) for n in observations if n.unit_id in selected_units],
-                "scores": [
-                    {"criterion_id": s.criterion_id, "value": s.value, "unstable": s.unstable}
-                    for s in unit_scores
-                    if s.unit_id in selected_units
-                ],
-            }
-            request = self._request("synthesise", synthesis_data, tokens=2400, language=language)
-            synthesis = (await complete_structured(self.model, request, SynthesisOut)).value
-            sources = {f"turn-{t.seq}": Source(t.text, t.seq) for t in candidates}
-            _, notes, rejected = checked_judgements(
-                synthesis, self.rubrics["hr"], sources, language=language
-            )
-            observations.extend(
-                n for n in notes if n.kind in ("summary", "strength", "improvement", "question")
-            )
-            dropped += rejected
+        await progress(len(units) / (len(units) + 1), None)
+        unique = _distinct(observations)
+        summary, ordered, rejected = await self._synthesise(calls, scores, unique, language)
+        dropped += rejected
         return InterviewJudgement(
             units,
             tuple(unit_scores),
             scores,
-            tuple(dict.fromkeys(observations)),
+            (*summary, *ordered),
             dropped,
             tuple(
                 Check(
@@ -195,30 +290,230 @@ class InterviewReviewer:
                 )
                 for key, fact in requirements.items()
             ),
+            tuple(calls),
+            disputed,
         )
 
-    def _request(
+    async def _classify(
+        self, session: InterviewSession, calls: list[CallTrace]
+    ) -> tuple[tuple[AnswerUnit, ...], dict[str, bool]]:
+        units = answer_units(session)
+        turns = {t.seq: t for t in session.turns}
+        result: list[AnswerUnit] = []
+        past: dict[str, bool] = {}
+        for offset in range(0, len(units), 8):
+            batch = units[offset : offset + 8]
+            data = [
+                {"unit_id": u.id, "questions": [turn_data(turns[n]) for n in u.question_seqs]}
+                for u in batch
+            ]
+            prompt = self._prompts.render("classify_units", 2)
+            request = ChatRequest(
+                instructions=prompt.text,
+                messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),
+                temperature=0.1,
+                presence_penalty=self.presence_penalty,
+                max_output_tokens=200 + 60 * len(batch),
+                reasoning="off",
+            )
+            kinds = await self._call(calls, "classify", None, request, KindsOut)
+            result.extend(classified(batch, kinds))
+            past.update(past_examples(batch, kinds))
+        return tuple(result), past
+
+    def _judge_request(
         self,
-        name: str,
-        data: object,
-        *,
-        tokens: int,
-        language: str = "en",
-        rubric: Rubric | None = None,
-        descending: bool = False,
+        context: dict[str, object],
+        rubric: Rubric,
+        unit: dict[str, object],
+        descending: bool,
+        language: str,
     ) -> ChatRequest:
-        prompt = self._prompts.render(
-            name,
-            2 if name in ("judge_unit", "synthesise") else 1,
-            language_name="Italian" if language == "it" else "English",
-            rubric_ref=rubric.ref if rubric else "",
-            rubric=rubric.prompt(descending=descending) if rubric else "",
-        )
+        prompt = self._prompts.render("judge_unit", 3, language_name=_language_name(language))
+        payload = {
+            # The approved context comes first and is identical in every judging request.
+            "approved_context": context,
+            "rubric": {
+                "id": rubric.ref,
+                "anchor_order": "descending" if descending else "ascending",
+                "criteria": rubric.data(descending=descending),
+            },
+            "unit": unit,
+            "task": (
+                "Score every criterion. This pass returns scores only."
+                if descending
+                else "Score every criterion, then give observations and coverage."
+            ),
+        }
+        thinking = self.judge_reasoning == "default"
         return ChatRequest(
-            instructions=prompt.text
-            + "\nLimit internal reasoning to 600 tokens; reserve the rest for valid JSON.",
-            messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),
+            instructions=prompt.text,
+            messages=(ChatMessage("user", json.dumps(payload, ensure_ascii=False)),),
             temperature=0.1,
-            max_output_tokens=tokens,
-            reasoning="default" if name == "judge_unit" else "off",
+            presence_penalty=self.presence_penalty,
+            max_output_tokens=_JUDGE_TOKENS[not descending] + (_THINKING_TOKENS if thinking else 0),
+            reasoning=self.judge_reasoning,
         )
+
+    async def _check_claim(
+        self,
+        calls: list[CallTrace],
+        unit: AnswerUnit,
+        session: InterviewSession,
+        statement: str,
+        references: list[dict[str, str]],
+        language: str,
+    ) -> str:
+        """Ask for an independent verdict, without showing the judge's correction."""
+        turns = {t.seq: t for t in session.turns}
+        payload = {
+            "references": references,
+            "question": " / ".join(str(turn_data(turns[n])["text"]) for n in unit.question_seqs),
+            "answer": " / ".join(str(turn_data(turns[n])["text"]) for n in unit.answer_seqs),
+            "statement": statement,
+        }
+        prompt = self._prompts.render("check_claim", 1, language_name=_language_name(language))
+        request = ChatRequest(
+            instructions=prompt.text,
+            messages=(ChatMessage("user", json.dumps(payload, ensure_ascii=False)),),
+            temperature=0.1,
+            presence_penalty=self.presence_penalty,
+            max_output_tokens=_CLAIM_TOKENS,
+            reasoning="off",
+        )
+        return (await self._call(calls, "check_claim", unit.id, request, ClaimCheckOut)).verdict
+
+    async def _synthesise(
+        self,
+        calls: list[CallTrace],
+        scores: tuple[Score, ...],
+        observations: Sequence[Observation],
+        language: str,
+    ) -> tuple[tuple[Observation, ...], tuple[Observation, ...], int]:
+        """A summary over existing observations, which are referenced and never copied."""
+        if not observations:
+            return (), (), 0
+        ids = {f"o{n + 1}": note for n, note in enumerate(observations)}
+        payload = {
+            "scale": "1 weakest to 5 strongest; null is not assessable",
+            "scores": [
+                {
+                    "criterion_id": s.criterion_id,
+                    "label": s.label,
+                    "value": s.value,
+                    "band": _band(s.value),
+                    "answers": s.reason,
+                }
+                for s in scores
+            ],
+            "observations": [
+                {
+                    "id": key,
+                    "unit_id": note.unit_id,
+                    "kind": note.kind,
+                    "text": note.text,
+                    "quotes": [e.quote for e in note.evidence],
+                }
+                for key, note in ids.items()
+            ],
+        }
+        prompt = self._prompts.render("synthesise", 3, language_name=_language_name(language))
+        request = ChatRequest(
+            instructions=prompt.text,
+            messages=(ChatMessage("user", json.dumps(payload, ensure_ascii=False)),),
+            temperature=0.1,
+            presence_penalty=self.presence_penalty,
+            max_output_tokens=_SYNTHESIS_TOKENS,
+            reasoning="off",
+        )
+        output = await self._call(calls, "synthesise", None, request, SynthesisOut)
+        chosen = list(dict.fromkeys((*output.priorities, *output.strengths)))
+        selected = [ids[key] for key in chosen if key in ids]
+        rejected = len(chosen) - len(selected)
+        rest = tuple(note for note in observations if note not in selected)
+        if not selected:
+            # A summary that rests on no verified observation is not shown.
+            return (), tuple(observations), rejected + 1
+        evidence = tuple(dict.fromkeys(e for note in selected for e in note.evidence))[:3]
+        summary = Observation("summary", output.summary, evidence)
+        return (summary,), (*selected, *rest), rejected
+
+    async def _call[T: BaseModel](
+        self,
+        calls: list[CallTrace],
+        phase: str,
+        unit_id: str | None,
+        request: ChatRequest,
+        output: type[T],
+    ) -> T:
+        started = time.perf_counter()
+        result = await complete_structured(self.model, request, output)
+        attempts = result.attempts or (result.usage,)
+        calls.append(
+            CallTrace(
+                phase=phase,
+                unit_id=unit_id,
+                reasoning=request.reasoning,
+                attempts=len(attempts),
+                prompt_tokens=_total(a.prompt_tokens for a in attempts),
+                output_tokens=_total(a.output_tokens for a in attempts),
+                duration_s=round(time.perf_counter() - started, 3),
+                stop_reasons=tuple(a.stop_reason for a in attempts),
+            )
+        )
+        return result.value
+
+
+_PAST_CRITERIA = ("experience", "results", "reflection")
+
+
+def _without_unelicited(
+    scores: tuple[Score, ...], unit: AnswerUnit, past_example: bool, language: str
+) -> tuple[Score, ...]:
+    """Not assessable when the questions did not ask for it, whatever the judge scored."""
+    it = language == "it"
+    reasons = {}
+    if len(unit.question_seqs) < 2:
+        reasons["followup_depth"] = (
+            "Approfondimento non richiesto." if it else "Follow-up not elicited."
+        )
+    if not past_example:
+        for criterion in _PAST_CRITERIA:
+            reasons[criterion] = (
+                "Nessuna domanda chiedeva un esempio passato."
+                if it
+                else "No question asked for a past example."
+            )
+    return tuple(
+        replace(s, value=None, evidence=(), reason=reasons[s.criterion_id])
+        if s.criterion_id in reasons
+        else s
+        for s in scores
+    )
+
+
+def _distinct(observations: Sequence[Observation]) -> tuple[Observation, ...]:
+    """One observation per unit, kind and quoted evidence; the first wording is kept."""
+    seen: dict[tuple[Any, ...], Observation] = {}
+    for note in observations:
+        key = (note.unit_id, note.kind, tuple(e.quote for e in note.evidence))
+        seen.setdefault(key, note)
+    return tuple(seen.values())
+
+
+def _total(values: Iterable[int | None]) -> int | None:
+    numbers = [v for v in values if v is not None]
+    return sum(numbers) if numbers else None
+
+
+def _band(value: float | None) -> str:
+    """Words for the synthesis, computed here so the summary cannot misread the scale."""
+    if value is None:
+        return "not assessable"
+    if value <= 2:
+        return "weak"
+    return "strong" if value >= 4 else "mixed"
+
+
+def _language_name(language: str) -> str:
+    return "Italian" if language == "it" else "English"

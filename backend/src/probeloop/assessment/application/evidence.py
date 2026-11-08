@@ -12,6 +12,8 @@ from probeloop.assessment.application.schemas import EvidenceData, JudgementsOut
 from probeloop.assessment.domain.model import Evidence, Observation, Score
 from probeloop.context.application.analysis import normalise
 
+_WORD = re.compile(r"\w")
+
 
 @dataclass(frozen=True, slots=True)
 class Source:
@@ -19,22 +21,49 @@ class Source:
     turn_seq: int | None = None
 
 
+def source_span(quote: str, text: str) -> str | None:
+    """The passage of `text` that a quotation matches after normalisation, as the source writes it.
+
+    Matching ignores case and punctuation, as transcripts punctuate freely; what is stored and
+    shown is the source's own text, never the model's rendering of it (for example with an
+    added ellipsis).
+    """
+    needle = normalise(quote)
+    chars: list[str] = []
+    origin: list[int] = []
+    gap = False
+    for index, char in enumerate(text):
+        if not _WORD.fullmatch(char):
+            gap = True
+            continue
+        if gap and chars:
+            chars.append(" ")
+            origin.append(index)
+        for lowered in char.lower():
+            chars.append(lowered)
+            origin.append(index)
+        gap = False
+    start = "".join(chars).find(needle) if needle else -1
+    if start < 0:
+        return None
+    return text[origin[start] : origin[start + len(needle) - 1] + 1]
+
+
 def checked_evidence(items: list[EvidenceData], sources: dict[str, Source]) -> tuple[Evidence, ...]:
     verified: dict[tuple[str, str], Evidence] = {}
     for item in items:
         source = sources.get(item.source_id)
         quote = normalise(item.quote)
+        span = source_span(item.quote, source.text) if source is not None else None
         if (
             source is not None
+            and span is not None
             and item.turn_seq in (None, source.turn_seq)
             and len(quote) >= 8
-            and quote in normalise(source.text)
         ):
             # The source registry owns turn identity. An omitted redundant turn number is
             # resolved from it; an explicitly conflicting number is rejected.
-            verified[(item.source_id, quote)] = Evidence(
-                item.source_id, item.quote, source.turn_seq
-            )
+            verified[(item.source_id, quote)] = Evidence(item.source_id, span, source.turn_seq)
     return tuple(verified.values())
 
 

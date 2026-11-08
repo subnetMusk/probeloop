@@ -45,6 +45,14 @@ class Rubric(BaseModel):
     def digest(self) -> str:
         return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
 
+    def data(self, *, descending: bool = False) -> list[dict[str, object]]:
+        """The criteria as prompt data; the anchor order is part of the bias mitigation."""
+        order = (5, 3, 1) if descending else (1, 3, 5)
+        return [
+            {"id": c.id, "label": c.label, "anchors": {str(n): c.anchors[n] for n in order}}
+            for c in self.criteria
+        ]
+
     def prompt(self, *, descending: bool = False) -> str:
         order = (5, 3, 1) if descending else (1, 3, 5)
         return "\n".join(

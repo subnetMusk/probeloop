@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
     analysis_context_window: int = 8192
     evaluation_model: str = "qwen3.5:9b"
     evaluation_context_window: int = 16384
+    # Thinking for the interview judging passes. "off" relies on the evidence-first schema; see
+    # docs/research/evaluation-latency.md before enabling it.
+    evaluation_judge_reasoning: Literal["off", "default"] = "off"
     keep_alive: str = "30m"
     llm_debug_log: bool = False
     llm_fake: bool = False  # scripted interviewer moves, for end-to-end tests

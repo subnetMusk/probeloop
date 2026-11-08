@@ -12,7 +12,7 @@ from typing import Any
 from probeloop.ai.ports import ContextOverflowError
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
-from probeloop.assessment.application.interview_review import InterviewReviewer
+from probeloop.assessment.application.interview_review import CallTrace, InterviewReviewer
 from probeloop.assessment.application.ports import ReportStore
 from probeloop.assessment.domain.model import (
     Check,
@@ -179,6 +179,7 @@ class AssessmentService:
         except Exception as exc:
             logger.error("interview review failed", extra={"error_type": type(exc).__name__})
             raise JobError("interview review could not be completed; try again") from None
+        logger.info("interview review completed", extra=_cost(result.calls))
         previous = await self.store.reports(ReportKind.INTERVIEW, session.id)
         rubric_hash = hashlib.sha256(
             "".join(r.digest for _, r in sorted(self.interviewer.rubrics.items())).encode()
@@ -222,7 +223,7 @@ class AssessmentService:
             rubric_id="interview.v1",
             rubric_hash=rubric_hash,
             model_ref=self.interviewer.model.model_ref,
-            prompt_ref="classify_units@v1:off+judge_unit@v2:asc,desc:think+synthesise@v2:off",
+            prompt_ref=self.interviewer.prompt_ref,
             input_fingerprint=fingerprint,
             snapshot_id=session.snapshot_id,
             session_id=session.id,
@@ -252,3 +253,20 @@ class AssessmentService:
         )
         await self.store.save(report)
         return {"report_id": report.id, "version": report.version, "dropped": report.dropped}
+
+
+def _cost(calls: tuple[CallTrace, ...]) -> dict[str, object]:
+    """Counts and timings per phase, for the log; no prompt or output text."""
+    phases: dict[str, dict[str, float]] = {}
+    for call in calls:
+        phase = phases.setdefault(call.phase, {"calls": 0, "attempts": 0, "tokens": 0, "s": 0.0})
+        phase["calls"] += 1
+        phase["attempts"] += call.attempts
+        phase["tokens"] += call.output_tokens or 0
+        phase["s"] = round(phase["s"] + call.duration_s, 2)
+    return {
+        "model_calls": sum(c.attempts for c in calls),
+        "output_tokens": sum(c.output_tokens or 0 for c in calls),
+        "truncated": sum(r == "length" for c in calls for r in c.stop_reasons),
+        "phases": phases,
+    }

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from probeloop.assessment.domain.model import (
     AnswerUnit,
@@ -57,14 +57,78 @@ class RequirementOut(Strict):
     evidence: list[EvidenceData] = Field(min_length=1, max_length=3)
 
 
-class UnitJudgementsOut(JudgementsOut):
-    observations: list[ObservationOut] = Field(max_length=2)
-    coverage: list[RequirementOut] = Field(default_factory=list, max_length=30)
+class CriterionOut(Strict):
+    """One criterion of an answer unit. Quotation, reason and score come in that order: with
+    constrained decoding the model commits to its evidence and rationale before the number."""
+
+    evidence: list[EvidenceData] = Field(max_length=2)
+    reason: str = Field(min_length=1, max_length=300)
+    score: int | None = Field(ge=1, le=5)
 
 
-class SynthesisOut(JudgementsOut):
-    scores: list[JudgementOut] = Field(max_length=0)
-    observations: list[ObservationOut] = Field(max_length=4)
+class UnitObservationOut(Strict):
+    kind: Literal["strength", "improvement", "technical_error", "question"]
+    evidence: list[EvidenceData] = Field(min_length=1, max_length=2)
+    text: str = Field(min_length=1, max_length=400)
+
+
+class ClaimCheckOut(Strict):
+    """An independent check of one statement that a judge reported as a technical error."""
+
+    analysis: str = Field(min_length=1, max_length=500)
+    verdict: Literal["correct", "incorrect", "uncertain"]
+
+
+class SynthesisOut(Strict):
+    """Editorial selection over verified observations, referenced by id; no new evidence."""
+
+    priorities: list[str] = Field(max_length=3)
+    strengths: list[str] = Field(max_length=2)
+    summary: str = Field(min_length=1, max_length=800)
+
+
+def unit_output(criteria: tuple[str, ...], *, observations: bool) -> type[Strict]:
+    """The schema of one judging pass: every rubric criterion exactly once, in rubric order.
+
+    The pass that lists the anchors in descending order exists to average out position bias in
+    the scores, so it returns scores only; observations and coverage come from the other pass.
+    """
+    scores: dict[str, Any] = {c: (CriterionOut, ...) for c in criteria}
+    fields: dict[str, Any] = {
+        "scores": (create_model("CriteriaOut", __base__=Strict, **scores), ...)
+    }
+    if observations:
+        fields["observations"] = (list[UnitObservationOut], Field(max_length=3))
+        fields["coverage"] = (list[RequirementOut], Field(max_length=10))
+    return create_model("UnitJudgementOut", __base__=Strict, **fields)
+
+
+def unit_judgements(output: Strict) -> JudgementsOut:
+    """Convert a validated pass into the shape shared with the evidence checks."""
+    data = output.model_dump()
+    return JudgementsOut(
+        scores=[
+            JudgementOut(
+                criterion_id=criterion,
+                score=item["score"],
+                reason=item["reason"],
+                evidence=[EvidenceData(**e) for e in item["evidence"]],
+            )
+            for criterion, item in data["scores"].items()
+        ],
+        observations=[
+            ObservationOut(
+                kind=item["kind"],
+                text=item["text"],
+                evidence=[EvidenceData(**e) for e in item["evidence"]],
+            )
+            for item in data.get("observations", [])
+        ],
+    )
+
+
+def unit_coverage(output: Strict) -> list[RequirementOut]:
+    return [RequirementOut.model_validate(c) for c in output.model_dump().get("coverage", [])]
 
 
 class ScoreData(Strict):

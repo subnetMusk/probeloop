@@ -20,6 +20,9 @@ from probeloop.interview.domain.model import (
 class KindOut(Strict):
     unit_id: str
     kind: Literal["hr", "behavioral", "technical", "hypothetical", "logistics"]
+    # Whether a question asks what the candidate actually did. Decided from the questions alone,
+    # because judges were observed to score a plan as missing experience.
+    past_example: bool
 
 
 class KindsOut(Strict):
@@ -44,6 +47,13 @@ def answer_units(session: InterviewSession) -> tuple[AnswerUnit, ...]:
         elif isinstance(turn, CandidateTurn) and units:
             units[-1] = replace(units[-1], answer_seqs=(*units[-1].answer_seqs, turn.seq))
     return tuple(u for u in units if u.answer_seqs)
+
+
+def past_examples(units: tuple[AnswerUnit, ...], output: KindsOut) -> dict[str, bool]:
+    """Units whose questions ask for a past example; ambiguous answers default to asking."""
+    counts = {u.id: sum(item.unit_id == u.id for item in output.units) for u in units}
+    flags = {item.unit_id: item.past_example for item in output.units}
+    return {u.id: flags[u.id] if counts[u.id] == 1 else True for u in units}
 
 
 def classified(units: tuple[AnswerUnit, ...], output: KindsOut) -> tuple[AnswerUnit, ...]:

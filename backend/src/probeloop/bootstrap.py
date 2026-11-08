@@ -248,7 +248,9 @@ def build(
     assessment = AssessmentService(
         store=SqlReportStore(db),
         reviewer=CvReviewer(assessment_model, load_rubric("cv")),
-        interviewer=InterviewReviewer(assessment_model),
+        interviewer=InterviewReviewer(
+            assessment_model, judge_reasoning=settings.evaluation_judge_reasoning
+        ),
         sessions=store,
         delivery=DeliveryAnalyser(store, voice.vad if voice else None),
         snapshot=context.snapshot,
