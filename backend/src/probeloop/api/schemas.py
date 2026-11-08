@@ -58,6 +58,9 @@ class CreateSession(Strict):
     custom_instructions: str = Field(default="", max_length=MAX_CUSTOM_INSTRUCTIONS)
     candidate_brief: str | None = Field(default=None, max_length=MAX_BRIEF)
     job_brief: str | None = Field(default=None, max_length=MAX_BRIEF)
+    # An approved context (from /api/preparations/{id}/approve): the briefs, the topic plan and
+    # the vocabulary come from it instead of the sample brief.
+    snapshot_id: str | None = Field(default=None, max_length=32)
 
 
 class WordView(BaseModel):
@@ -139,6 +142,7 @@ class SessionView(BaseModel):
     topics: list[dict[str, str]]
     coverage: dict[str, str]
     turns: list[TurnView]
+    snapshot_id: str | None
 
     @classmethod
     def of(
@@ -206,6 +210,7 @@ class SessionView(BaseModel):
             topics=[{"id": t.id, "title": t.title} for t in s.context.topics],
             coverage={k: v.value for k, v in s.coverage.items()},
             turns=turns,
+            snapshot_id=s.snapshot_id,
         )
 
 

@@ -180,6 +180,7 @@ def _fill_session(row: SessionRow, s: InterviewSession) -> None:
         "candidate_brief": s.context.candidate_brief,
         "job_brief": s.context.job_brief,
         "topics": [{"id": t.id, "title": t.title} for t in s.context.topics],
+        "vocabulary": list(s.context.vocabulary),
     }
     row.coverage = {k: v.value for k, v in s.coverage.items()}
     row.started_at = s.started_at
@@ -190,6 +191,7 @@ def _fill_session(row: SessionRow, s: InterviewSession) -> None:
     row.paused_total_s = s.paused_total_s
     row.paused_phase = s.paused_phase.value if s.paused_phase else None
     row.final_question_asked = s.final_question_asked
+    row.snapshot_id = s.snapshot_id
 
 
 def _turn_row(session_id: str, turn: Turn) -> TurnRow:
@@ -247,6 +249,7 @@ def _session(row: SessionRow) -> InterviewSession:
             candidate_brief=ctx["candidate_brief"],
             job_brief=ctx["job_brief"],
             topics=tuple(Topic(id=t["id"], title=t["title"]) for t in ctx["topics"]),
+            vocabulary=tuple(ctx.get("vocabulary", ())),
         ),
         status=SessionStatus(row.status),
         phase=Phase(row.phase) if row.phase else None,
@@ -260,6 +263,7 @@ def _session(row: SessionRow) -> InterviewSession:
         paused_total_s=row.paused_total_s,
         paused_phase=Phase(row.paused_phase) if row.paused_phase else None,
         final_question_asked=row.final_question_asked,
+        snapshot_id=row.snapshot_id,
     )
 
 

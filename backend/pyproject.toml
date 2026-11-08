@@ -20,6 +20,10 @@ dependencies = [
   "aiosqlite>=0.21",
   "asyncpg>=0.30",
   "alembic>=1.17",
+  "python-multipart>=0.0.20",
+  "pdfplumber>=0.11.7",
+  "python-docx>=1.2",
+  "rapidfuzz>=3.14",
 ]
 
 [project.optional-dependencies]
@@ -43,7 +47,6 @@ dev = [
   "ruff>=0.14",
   "import-linter>=2.5",
   "types-pyyaml>=6.0.12",
-  "rapidfuzz>=3.14",
 ]
 
 [build-system]
@@ -181,4 +184,35 @@ forbidden_modules = [
   "probeloop.bootstrap",
   "sqlalchemy",
   "fastapi",
+]
+
+[[tool.importlinter.contracts]]
+name = "Context domain is plain Python"
+type = "forbidden"
+source_modules = ["probeloop.context.domain"]
+forbidden_modules = [
+  "pydantic",
+  "sqlalchemy",
+  "fastapi",
+  "probeloop.ai",
+  "probeloop.context.application",
+  "probeloop.context.infrastructure",
+  "probeloop.storage",
+  "probeloop.api",
+]
+
+[[tool.importlinter.contracts]]
+name = "Context depends on neither the interview nor the adapters"
+type = "forbidden"
+source_modules = ["probeloop.context.domain", "probeloop.context.application"]
+forbidden_modules = [
+  "probeloop.interview",
+  "probeloop.context.infrastructure",
+  "probeloop.storage",
+  "probeloop.api",
+  "probeloop.bootstrap",
+  "sqlalchemy",
+  "fastapi",
+  "pdfplumber",
+  "docx",
 ]

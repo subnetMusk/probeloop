@@ -1,6 +1,105 @@
 {
   "components": {
     "schemas": {
+      "AddFactIn": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/FactKind"
+          },
+          "statement": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/Subject"
+          }
+        },
+        "required": [
+          "subject",
+          "kind",
+          "statement"
+        ],
+        "title": "AddFactIn",
+        "type": "object"
+      },
+      "AreaIn": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Area",
+            "type": "string"
+          },
+          "seniority": {
+            "maxLength": 40,
+            "title": "Seniority",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "seniority"
+        ],
+        "title": "AreaIn",
+        "type": "object"
+      },
+      "AreaView": {
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "seniority": {
+            "title": "Seniority",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "seniority",
+          "rationale",
+          "confirmed"
+        ],
+        "title": "AreaView",
+        "type": "object"
+      },
+      "Body_upload_document_api_documents_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "file"
+        ],
+        "title": "Body_upload_document_api_documents_post",
+        "type": "object"
+      },
       "CreateSession": {
         "additionalProperties": false,
         "properties": {
@@ -55,6 +154,18 @@
           "modality": {
             "$ref": "#/components/schemas/Modality",
             "default": "text"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
           }
         },
         "required": [
@@ -72,6 +183,134 @@
         "title": "Difficulty",
         "type": "string"
       },
+      "DocumentKind": {
+        "enum": [
+          "cv",
+          "job_offer",
+          "resource"
+        ],
+        "title": "DocumentKind",
+        "type": "string"
+      },
+      "DocumentTextView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "DocumentTextView",
+        "type": "object"
+      },
+      "DocumentView": {
+        "properties": {
+          "chars": {
+            "title": "Chars",
+            "type": "integer"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "origin",
+          "media_type",
+          "filename",
+          "chars",
+          "warnings",
+          "preview"
+        ],
+        "title": "DocumentView",
+        "type": "object"
+      },
+      "DraftRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 3000,
+            "minLength": 10,
+            "title": "Description",
+            "type": "string"
+          },
+          "language": {
+            "default": "it",
+            "enum": [
+              "it",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "DraftRequest",
+        "type": "object"
+      },
+      "DraftView": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "DraftView",
+        "type": "object"
+      },
       "EditAnswer": {
         "additionalProperties": false,
         "properties": {
@@ -85,6 +324,103 @@
           "text"
         ],
         "title": "EditAnswer",
+        "type": "object"
+      },
+      "FactKind": {
+        "enum": [
+          "role",
+          "project",
+          "skill",
+          "achievement",
+          "education",
+          "certification",
+          "language",
+          "other",
+          "requirement",
+          "nice_to_have",
+          "responsibility",
+          "company"
+        ],
+        "title": "FactKind",
+        "type": "string"
+      },
+      "FactView": {
+        "properties": {
+          "corrected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "review": {
+            "title": "Review",
+            "type": "string"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "kind",
+          "statement",
+          "text",
+          "origin",
+          "document_id",
+          "quote",
+          "review",
+          "corrected"
+        ],
+        "title": "FactView",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -108,6 +444,15 @@
           "mixed"
         ],
         "title": "InterviewType",
+        "type": "string"
+      },
+      "JobMode": {
+        "enum": [
+          "offer",
+          "generated",
+          "none"
+        ],
+        "title": "JobMode",
         "type": "string"
       },
       "JobView": {
@@ -217,6 +562,37 @@
         "title": "Language",
         "type": "string"
       },
+      "MatchView": {
+        "properties": {
+          "fact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fact Ids",
+            "type": "array"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "requirement_id": {
+            "title": "Requirement Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "status",
+          "fact_ids",
+          "rationale"
+        ],
+        "title": "MatchView",
+        "type": "object"
+      },
       "Modality": {
         "enum": [
           "text",
@@ -224,6 +600,296 @@
         ],
         "title": "Modality",
         "type": "string"
+      },
+      "PreparationView": {
+        "properties": {
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "area": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AreaView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentView"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/FactView"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "job_mode": {
+            "title": "Job Mode",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchView"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "vocabulary": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Vocabulary",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "language",
+          "job_mode",
+          "documents",
+          "facts",
+          "matches",
+          "area",
+          "vocabulary",
+          "error",
+          "snapshot_id",
+          "analysis"
+        ],
+        "title": "PreparationView",
+        "type": "object"
+      },
+      "PrepareIn": {
+        "additionalProperties": false,
+        "properties": {
+          "cv_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Id"
+          },
+          "job_mode": {
+            "$ref": "#/components/schemas/JobMode"
+          },
+          "job_offer_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Offer Id"
+          },
+          "language": {
+            "default": "it",
+            "enum": [
+              "it",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "resources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ResourceIn"
+            },
+            "maxItems": 20,
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "job_mode"
+        ],
+        "title": "PrepareIn",
+        "type": "object"
+      },
+      "ProfileIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceIn"
+            },
+            "maxItems": 20,
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "resources"
+        ],
+        "title": "ProfileIn",
+        "type": "object"
+      },
+      "ProfileView": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentView"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at",
+          "resources"
+        ],
+        "title": "ProfileView",
+        "type": "object"
+      },
+      "ResourceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "document_id": {
+            "maxLength": 32,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 120,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "document_id"
+        ],
+        "title": "ResourceIn",
+        "type": "object"
+      },
+      "Review": {
+        "enum": [
+          "pending",
+          "confirmed",
+          "corrected",
+          "excluded"
+        ],
+        "title": "Review",
+        "type": "string"
+      },
+      "ReviewIn": {
+        "additionalProperties": false,
+        "properties": {
+          "corrected": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected"
+          },
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          }
+        },
+        "required": [
+          "review"
+        ],
+        "title": "ReviewIn",
+        "type": "object"
       },
       "RevisionView": {
         "properties": {
@@ -376,6 +1042,17 @@
             ],
             "title": "Phase"
           },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -416,9 +1093,51 @@
           "failure",
           "topics",
           "coverage",
-          "turns"
+          "turns",
+          "snapshot_id"
         ],
         "title": "SessionView",
+        "type": "object"
+      },
+      "SnapshotView": {
+        "properties": {
+          "candidate_brief": {
+            "title": "Candidate Brief",
+            "type": "string"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "job_brief": {
+            "title": "Job Brief",
+            "type": "string"
+          },
+          "job_mode": {
+            "title": "Job Mode",
+            "type": "string"
+          },
+          "vocabulary": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Vocabulary",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "content_hash",
+          "job_mode",
+          "candidate_brief",
+          "job_brief",
+          "vocabulary"
+        ],
+        "title": "SnapshotView",
         "type": "object"
       },
       "SpeechStatusView": {
@@ -456,6 +1175,14 @@
         ],
         "title": "SpeechStatusView",
         "type": "object"
+      },
+      "Subject": {
+        "enum": [
+          "candidate",
+          "job"
+        ],
+        "title": "Subject",
+        "type": "string"
       },
       "TurnView": {
         "properties": {
@@ -550,6 +1277,38 @@
         "title": "TurnView",
         "type": "object"
       },
+      "TypedDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "generated": {
+            "default": false,
+            "title": "Generated",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "text": {
+            "maxLength": 60000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "text"
+        ],
+        "title": "TypedDocument",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -633,6 +1392,161 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/documents": {
+      "post": {
+        "description": "A CV, job offer or resource as a file: txt, md, json, xml, html, docx or pdf.",
+        "operationId": "upload_document_api_documents_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_document_api_documents_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Document"
+      }
+    },
+    "/api/documents/text": {
+      "post": {
+        "operationId": "typed_document_api_documents_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypedDocument"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Typed Document"
+      }
+    },
+    "/api/documents/{document_id}": {
+      "get": {
+        "operationId": "document_text_api_documents__document_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentTextView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Document Text"
+      }
+    },
+    "/api/job-offers/draft": {
+      "post": {
+        "description": "A plausible job offer written from a short description, for the user to edit.",
+        "operationId": "draft_job_offer_api_job_offers_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Job Offer"
+      }
+    },
     "/api/jobs/{job_id}": {
       "get": {
         "operationId": "get_job_api_jobs__job_id__get",
@@ -690,6 +1604,416 @@
           }
         },
         "summary": "Llm Status"
+      }
+    },
+    "/api/preparations": {
+      "post": {
+        "description": "Analyse the documents of an interview; poll the preparation until it is in review.",
+        "operationId": "prepare_api_preparations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare"
+      }
+    },
+    "/api/preparations/{preparation_id}": {
+      "get": {
+        "operationId": "get_preparation_api_preparations__preparation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Preparation"
+      }
+    },
+    "/api/preparations/{preparation_id}/approve": {
+      "post": {
+        "operationId": "approve_api_preparations__preparation_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve"
+      }
+    },
+    "/api/preparations/{preparation_id}/area": {
+      "put": {
+        "operationId": "set_area_api_preparations__preparation_id__area_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AreaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Area"
+      }
+    },
+    "/api/preparations/{preparation_id}/facts": {
+      "post": {
+        "operationId": "add_fact_api_preparations__preparation_id__facts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFactIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Fact"
+      }
+    },
+    "/api/preparations/{preparation_id}/facts/{fact_id}": {
+      "put": {
+        "operationId": "review_fact_api_preparations__preparation_id__facts__fact_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fact_id",
+            "required": true,
+            "schema": {
+              "title": "Fact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Fact"
+      }
+    },
+    "/api/profiles": {
+      "get": {
+        "operationId": "list_profiles_api_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileView"
+                  },
+                  "title": "Response List Profiles Api Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Profiles"
+      },
+      "post": {
+        "operationId": "create_profile_api_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Profile"
+      }
+    },
+    "/api/profiles/{profile_id}": {
+      "delete": {
+        "operationId": "delete_profile_api_profiles__profile_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Profile"
+      },
+      "put": {
+        "operationId": "overwrite_profile_api_profiles__profile_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overwrite Profile"
       }
     },
     "/api/sessions": {
@@ -1049,6 +2373,45 @@
           }
         },
         "summary": "Refine Transcript"
+      }
+    },
+    "/api/snapshots/{snapshot_id}": {
+      "get": {
+        "operationId": "get_snapshot_api_snapshots__snapshot_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Snapshot"
       }
     },
     "/api/speech": {

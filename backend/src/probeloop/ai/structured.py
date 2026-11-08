@@ -14,7 +14,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 from pydantic_core import from_json
 
-from probeloop.ai.ports import ChatModel, ChatRequest, ChatUsage, LlmError
+from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, ChatUsage, LlmError
 
 
 class StructuredOutputError(LlmError):
@@ -83,3 +83,43 @@ async def stream_structured[T: BaseModel](
             f"{model.model_ref} returned invalid {output.__name__}: {exc.error_count()} errors"
         ) from exc
     yield StructuredResult(value=value, raw=raw, usage=usage)
+
+
+async def complete_structured[T: BaseModel](
+    model: ChatModel,
+    request: ChatRequest,
+    output: type[T],
+    *,
+    attempts: int = 2,
+) -> StructuredResult[T]:
+    """Generate a JSON object constrained to `output`'s schema and validate it.
+
+    When validation fails, the errors are sent back to the model for one repair attempt (ADR
+    0011): constrained decoding guarantees the shape, not the lengths and limits.
+    """
+    constrained = replace(request, response_schema=output.model_json_schema())
+    last_error: ValidationError | None = None
+    messages = constrained.messages
+    for _ in range(max(1, attempts)):
+        result = await model.complete(replace(constrained, messages=messages))
+        try:
+            value = output.model_validate_json(result.text)
+        except ValidationError as exc:
+            last_error = exc
+            problems = "; ".join(
+                f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()[:10]
+            )
+            messages = (
+                *constrained.messages,
+                ChatMessage(role="assistant", content=result.text),
+                ChatMessage(
+                    role="user",
+                    content=f"The JSON is not valid: {problems}. Return the corrected JSON only.",
+                ),
+            )
+            continue
+        return StructuredResult(value=value, raw=result.text, usage=result.usage)
+    assert last_error is not None
+    raise StructuredOutputError(
+        f"{model.model_ref} returned invalid {output.__name__}: {last_error.error_count()} errors"
+    ) from last_error

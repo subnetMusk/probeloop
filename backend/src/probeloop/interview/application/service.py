@@ -111,7 +111,13 @@ class SessionService:
     def voice(self) -> VoiceServices | None:
         return self._voice
 
-    async def create(self, config: InterviewConfig, context: InterviewContext) -> InterviewSession:
+    async def create(
+        self,
+        config: InterviewConfig,
+        context: InterviewContext,
+        *,
+        snapshot_id: str | None = None,
+    ) -> InterviewSession:
         if config.modality is Modality.VOICE:
             if self._voice is None:
                 raise InvalidConfigError("voice interviews need the speech services")
@@ -120,7 +126,11 @@ class SessionService:
                     f"no voice is configured for language '{config.language.value}'"
                 )
         session = InterviewSession(
-            id=self._new_id(), config=config, context=context, created_at=self._clock.now()
+            id=self._new_id(),
+            config=config,
+            context=context,
+            created_at=self._clock.now(),
+            snapshot_id=snapshot_id,
         )
         await self._store.save(session)
         return session

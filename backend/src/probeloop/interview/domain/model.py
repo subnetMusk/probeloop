@@ -75,6 +75,7 @@ class InterviewContext:
     candidate_brief: str
     job_brief: str
     topics: tuple[Topic, ...]
+    vocabulary: tuple[str, ...] = ()  # technical terms from the documents, for recognition
 
     def __post_init__(self) -> None:
         if not self.topics:
@@ -255,6 +256,7 @@ class InterviewSession:
     paused_total_s: float = 0.0
     paused_phase: Phase | None = None
     final_question_asked: bool = False
+    snapshot_id: str | None = None  # the approved context the interview was prepared from
 
     def __post_init__(self) -> None:
         for topic in self.context.topics:

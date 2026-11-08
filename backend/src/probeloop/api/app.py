@@ -27,6 +27,7 @@ from pydantic import ValidationError
 
 from probeloop import logging_setup
 from probeloop.ai.ports import LlmError
+from probeloop.api.context_routes import context_router
 from probeloop.api.schemas import (
     MAX_AUDIO_FRAME_BYTES,
     CreateSession,
@@ -43,6 +44,8 @@ from probeloop.api.schemas import (
     pong_message,
 )
 from probeloop.bootstrap import Container, build
+from probeloop.context.application.service import ContextNotFoundError
+from probeloop.context.application.snapshots import candidate_brief, job_brief
 from probeloop.interview.application.catalog import default_context
 from probeloop.interview.application.events import SessionEvent
 from probeloop.interview.application.service import (
@@ -53,6 +56,7 @@ from probeloop.interview.application.service import (
 from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptNotFoundError
 from probeloop.interview.domain.model import (
     InterviewConfig,
+    InterviewContext,
     InterviewSession,
     InvalidConfigError,
     InvalidTransitionError,
@@ -138,14 +142,34 @@ def create_app(container: Container | None = None) -> FastAPI:
                 custom_instructions=body.custom_instructions,
                 modality=body.modality,
             )
-            context = default_context(
-                body.interview_type,
-                candidate_brief=body.candidate_brief,
-                job_brief=body.job_brief,
+            if body.snapshot_id is None:
+                context = default_context(
+                    body.interview_type,
+                    candidate_brief=body.candidate_brief,
+                    job_brief=body.job_brief,
+                )
+            else:
+                context = await prepared_context(config, body.snapshot_id)
+            return session_view(
+                await sessions.create(config, context, snapshot_id=body.snapshot_id)
             )
-            return session_view(await sessions.create(config, context))
         except InvalidConfigError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    async def prepared_context(config: InterviewConfig, snapshot_id: str) -> InterviewContext:
+        """The interviewer's context from an approved snapshot, with a topic plan for it."""
+        try:
+            snapshot = await container.context.snapshot(snapshot_id)
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="context not found") from exc
+        candidate, job = candidate_brief(snapshot), job_brief(snapshot)
+        topics = await container.planner.plan(config, candidate, job)
+        return InterviewContext(
+            candidate_brief=candidate,
+            job_brief=job,
+            topics=topics,
+            vocabulary=snapshot.vocabulary,
+        )
 
     @app.get("/api/sessions")
     async def list_sessions() -> list[SessionSummaryView]:
@@ -316,6 +340,8 @@ def create_app(container: Container | None = None) -> FastAPI:
                     await commands[message.type]()
             except (InvalidTransitionError, ValueError) as exc:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
+
+    app.include_router(context_router(container.context, jobs))
 
     if settings.static_dir is not None:
         _serve_spa(app, settings.static_dir)

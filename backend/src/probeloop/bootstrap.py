@@ -13,8 +13,14 @@ from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
+from probeloop.context.application.analysis import ContextAnalyser
+from probeloop.context.application.service import ANALYSE_JOB, ContextService
+from probeloop.context.application.snapshots import vocabulary_prompt
+from probeloop.context.infrastructure.fake_analysis import scripted_analysis
+from probeloop.context.infrastructure.text_extraction import TextExtractor
 from probeloop.ids import new_id
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
+from probeloop.interview.application.planner import TopicPlanner
 from probeloop.interview.application.service import SessionService
 from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptService
 from probeloop.interview.application.voice import VoiceServices
@@ -28,6 +34,7 @@ from probeloop.speech.ports import SpeechToText
 from probeloop.speech.silero import SileroVad
 from probeloop.storage.database import create_engine, migrate, sessionmaker
 from probeloop.storage.session_files import SessionFiles
+from probeloop.storage.sql_context import SqlContextStore
 from probeloop.storage.sql_jobs import SqlJobRepository
 from probeloop.storage.sql_sessions import SqlSessionStore
 
@@ -43,9 +50,12 @@ class Container:
     model: ChatModel
     sessions: SessionService
     transcripts: TranscriptService
+    context: ContextService
+    planner: TopicPlanner
     jobs: JobRunner
     store: SqlSessionStore
     engine: AsyncEngine
+    extractor: TextExtractor
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
@@ -56,6 +66,7 @@ class Container:
         await self.sessions.shutdown()
         await self.jobs.stop()
         await self.engine.dispose()
+        self.extractor.close()
 
 
 def build_voice(settings: Settings) -> VoiceServices | None:
@@ -101,6 +112,18 @@ def scripted_moves(questions: int = 3) -> Callable[[ChatRequest], str]:
     """
 
     def move(request: ChatRequest) -> str:
+        if "topics" in (request.response_schema or {}).get("properties", {}):
+            return json.dumps(
+                {
+                    "topics": [
+                        {"title": "Relevant project experience", "reason": "Candidate context."},
+                        {
+                            "title": "Technical reasoning and trade-offs",
+                            "reason": "Role requirements.",
+                        },
+                    ]
+                }
+            )
         asked = sum(1 for message in request.messages if message.role == "assistant")
         if asked >= questions:
             action, utterance = "end", "Grazie, il colloquio di prova è terminato."
@@ -117,6 +140,7 @@ def build(
     settings: Settings,
     *,
     model: ChatModel | None = None,
+    analysis_model: ChatModel | None = None,
     voice: VoiceServices | None = None,
 ) -> Container:
     if model is None and settings.llm_fake:
@@ -128,15 +152,34 @@ def build(
             context_window=settings.context_window,
             keep_alive=settings.keep_alive,
         )
+    if analysis_model is None:
+        analysis_model = model
+        if settings.llm_fake:
+            analysis_model = FakeChatModel([scripted_analysis])
+        if not settings.llm_fake and settings.analysis_model != settings.interviewer_model:
+            analysis_model = OllamaChatModel(
+                base_url=settings.ollama_base_url,
+                model=settings.analysis_model,
+                context_window=settings.analysis_context_window,
+                keep_alive=settings.keep_alive,
+            )
     if settings.llm_debug_log:
-        model = DebugLogChatModel(model, settings.data_dir / "logs" / "llm.jsonl")
+        log = settings.data_dir / "logs" / "llm.jsonl"
+        model = DebugLogChatModel(model, log)
+        if analysis_model is not model:
+            analysis_model = DebugLogChatModel(analysis_model, log)
     if voice is None:
         voice = build_voice(settings)
     clock = SystemClock()
     engine = create_engine(settings.effective_database_url)
     db = sessionmaker(engine)
     store = SqlSessionStore(db, SessionFiles(settings.data_dir / "sessions"))
-    transcripts = TranscriptService(store=store, clock=clock, refiner=build_refiner(settings))
+    transcripts = TranscriptService(
+        store=store,
+        clock=clock,
+        refiner=build_refiner(settings),
+        vocabulary=lambda session: vocabulary_prompt(session.context.vocabulary),
+    )
     holder: dict[str, SessionService] = {}
 
     async def gate() -> None:
@@ -144,6 +187,17 @@ def build(
 
     jobs = JobRunner(SqlJobRepository(db), now=clock.now, new_id=new_id, gate=gate)
     jobs.register(REFINE_JOB, transcripts.refine)
+    extractor = TextExtractor()
+    context_store = SqlContextStore(db, settings.data_dir / "blobs")
+    context = ContextService(
+        store=context_store,
+        analyser=ContextAnalyser(analysis_model, cache=context_store),
+        extractor=extractor,
+        submit=jobs.submit,
+        now=clock.now,
+        new_id=new_id,
+    )
+    jobs.register(ANALYSE_JOB, context.analyse)
 
     async def on_finished(session: InterviewSession) -> None:
         if session.config.modality is Modality.VOICE and transcripts.can_refine:
@@ -162,9 +216,12 @@ def build(
         model=model,
         sessions=sessions,
         transcripts=transcripts,
+        context=context,
+        planner=TopicPlanner(model),
         jobs=jobs,
         store=store,
         engine=engine,
+        extractor=extractor,
     )
 
 

@@ -56,6 +56,7 @@ class SessionRow(Base):
     paused_total_s: Mapped[float] = mapped_column(Float)
     paused_phase: Mapped[str | None] = mapped_column(String(32))
     final_question_asked: Mapped[bool]
+    snapshot_id: Mapped[str | None] = mapped_column(String(32))
 
     turns: Mapped[list[TurnRow]] = relationship(
         order_by="TurnRow.seq", cascade="all, delete-orphan", passive_deletes=True
@@ -105,6 +106,79 @@ class TurnMetricsRow(Base):
         ForeignKey("interview_sessions.id", ondelete="CASCADE"), index=True
     )
     record: Mapped[dict[str, Any]]
+
+
+class DocumentRow(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(String(200))
+    origin: Mapped[str] = mapped_column(String(16))
+    text: Mapped[str] = mapped_column(Text)
+    media_type: Mapped[str] = mapped_column(String(100))
+    filename: Mapped[str | None] = mapped_column(String(255))
+    sha256: Mapped[str | None] = mapped_column(String(64), index=True)
+    warnings: Mapped[list[Any]]
+    created_at: Mapped[float] = mapped_column(Float)
+
+
+class ContextExtractionRow(Base):
+    __tablename__ = "context_extractions"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    data: Mapped[dict[str, Any]]
+
+
+class ProfileRow(Base):
+    __tablename__ = "profiles"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[float] = mapped_column(Float)
+    updated_at: Mapped[float] = mapped_column(Float)
+
+    resources: Mapped[list[ProfileResourceRow]] = relationship(
+        order_by="ProfileResourceRow.position", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class ProfileResourceRow(Base):
+    __tablename__ = "profile_resources"
+
+    profile_id: Mapped[str] = mapped_column(
+        ForeignKey("profiles.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"))
+
+
+class PreparationRow(Base):
+    __tablename__ = "preparations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    created_at: Mapped[float] = mapped_column(Float)
+    language: Mapped[str] = mapped_column(String(8))
+    job_mode: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16))
+    document_ids: Mapped[list[Any]]
+    facts: Mapped[list[Any]]
+    matches: Mapped[list[Any]]
+    area: Mapped[dict[str, Any] | None]
+    vocabulary: Mapped[list[Any]]
+    error: Mapped[str | None] = mapped_column(Text)
+    profile_id: Mapped[str | None] = mapped_column(String(32))
+    snapshot_id: Mapped[str | None] = mapped_column(String(32))
+
+
+class SnapshotRow(Base):
+    __tablename__ = "context_snapshots"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    preparation_id: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[float] = mapped_column(Float)
+    content_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    data: Mapped[dict[str, Any]]
 
 
 class JobRow(Base):

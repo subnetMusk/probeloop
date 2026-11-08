@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://host.docker.internal:11434"
     interviewer_model: str = "ministral-3:8b"
     context_window: int = 8192
+    # Document analysis and job offer drafting: not latency-bound, so the larger model.
+    analysis_model: str = "qwen3.5:9b"
+    analysis_context_window: int = 8192
     keep_alive: str = "30m"
     llm_debug_log: bool = False
     llm_fake: bool = False  # scripted interviewer moves, for end-to-end tests

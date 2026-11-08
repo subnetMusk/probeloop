@@ -26,7 +26,7 @@ from probeloop.interview.domain.model import (
 # Template versions. Version 2 of the system and state templates followed the M2 persona
 # evaluation: compound questions, markdown emphasis and invented names were frequent with v1.
 SYSTEM_PROMPT_VERSION = 2
-CONTEXT_PROMPT_VERSION = 1
+CONTEXT_PROMPT_VERSION = 2  # 2: the vocabulary of technical terms from the documents
 STATE_PROMPT_VERSION = 2
 
 LANGUAGE_NAMES = {Language.ITALIAN: "Italian", Language.ENGLISH: "English"}
@@ -152,6 +152,7 @@ class LlmInterviewer:
             job_brief=context.job_brief,
             candidate_brief=context.candidate_brief,
             topics=context.topics,
+            vocabulary=", ".join(context.vocabulary),
             custom_instructions=config.custom_instructions.strip(),
         )
         state = self._prompts.render(
