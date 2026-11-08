@@ -8,12 +8,15 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.assessment.domain.model import (
+    AnswerUnit,
     Check,
+    DeliveryMetric,
     Evidence,
     Observation,
     Report,
     ReportKind,
     Score,
+    TranscriptVersion,
 )
 
 
@@ -38,7 +41,7 @@ class JudgementOut(Strict):
 
 
 class ObservationOut(Strict):
-    kind: Literal["strength", "improvement", "technical_error", "rewrite", "question"]
+    kind: Literal["strength", "improvement", "technical_error", "rewrite", "question", "summary"]
     text: str = Field(min_length=1, max_length=600)
     evidence: list[EvidenceData] = Field(min_length=1, max_length=3)
     replacement: str | None = Field(default=None, max_length=600)
@@ -47,6 +50,21 @@ class ObservationOut(Strict):
 class JudgementsOut(Strict):
     scores: list[JudgementOut] = Field(max_length=7)
     observations: list[ObservationOut] = Field(max_length=12)
+
+
+class RequirementOut(Strict):
+    requirement_id: str = Field(max_length=80)
+    evidence: list[EvidenceData] = Field(min_length=1, max_length=3)
+
+
+class UnitJudgementsOut(JudgementsOut):
+    observations: list[ObservationOut] = Field(max_length=2)
+    coverage: list[RequirementOut] = Field(default_factory=list, max_length=30)
+
+
+class SynthesisOut(JudgementsOut):
+    scores: list[JudgementOut] = Field(max_length=0)
+    observations: list[ObservationOut] = Field(max_length=4)
 
 
 class ScoreData(Strict):
@@ -97,6 +115,35 @@ class CheckData(Strict):
         return Check(self.id, self.status, self.detail, tuple(e.domain() for e in self.evidence))
 
 
+class UnitData(Strict):
+    id: str
+    topic_id: str
+    kind: str
+    question_seqs: list[int]
+    answer_seqs: list[int]
+
+    def domain(self) -> AnswerUnit:
+        return AnswerUnit(
+            self.id, self.topic_id, self.kind, tuple(self.question_seqs), tuple(self.answer_seqs)
+        )
+
+
+class DeliveryData(Strict):
+    id: str
+    value: float | None
+    unit: str
+    detail: str
+    turn_seq: int | None
+
+    def domain(self) -> DeliveryMetric:
+        return DeliveryMetric(self.id, self.value, self.unit, self.detail, self.turn_seq)
+
+
+class VersionData(Strict):
+    seq: int
+    revision: int
+
+
 class ReportData(Strict):
     id: str
     kind: ReportKind
@@ -120,6 +167,10 @@ class ReportData(Strict):
     dropped: int
     duration_s: float
     disclaimer: str
+    units: list[UnitData]
+    unit_scores: list[ScoreData]
+    delivery: list[DeliveryData]
+    revisions: list[VersionData]
 
     @classmethod
     def of(cls, report: Report) -> ReportData:
@@ -149,4 +200,8 @@ class ReportData(Strict):
             dropped=self.dropped,
             duration_s=self.duration_s,
             disclaimer=self.disclaimer,
+            units=tuple(u.domain() for u in self.units),
+            unit_scores=tuple(s.domain() for s in self.unit_scores),
+            delivery=tuple(d.domain() for d in self.delivery),
+            revisions=tuple(TranscriptVersion(r.seq, r.revision) for r in self.revisions),
         )

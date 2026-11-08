@@ -1,0 +1,34 @@
+id: behavioral
+version: 1
+minimum_assessed_share: 0.6
+criteria:
+  - id: ownership
+    label: Ownership
+    anchors:
+      1: Only describes the team and cannot identify personal actions.
+      3: Personal actions are mixed with the team's.
+      5: Explains own decisions, reasons and others' contribution.
+  - id: specificity
+    label: Specificity
+    anchors:
+      1: Generic or hypothetical account of a past event.
+      3: One actual situation with few details.
+      5: Concrete situation, constraints and actions.
+  - id: results
+    label: Results
+    anchors:
+      1: No outcome despite a question about an outcome.
+      3: An outcome with limited context.
+      5: Concrete contextualised outcome, qualitative or quantitative, including what failed.
+  - id: reflection
+    label: Reflection
+    anchors:
+      1: No lesson or a stock phrase.
+      3: States a lesson without applying it.
+      5: Explains a concrete lesson and its effect on later work.
+  - id: followup_depth
+    label: Depth under follow-up
+    anchors:
+      1: Contradicts or repeats when probed.
+      3: Adds some details.
+      5: Stays consistent and explains decisions two levels deeper.

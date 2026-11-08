@@ -13,6 +13,10 @@ RUN useradd --create-home --uid 1000 app \
     && mkdir -p /data \
     && chown app:app /data
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
 # The single-page app, built once and served by the backend at runtime.
 FROM node:24.22.0-trixie-slim AS frontend

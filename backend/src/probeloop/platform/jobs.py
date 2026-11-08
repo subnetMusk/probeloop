@@ -142,6 +142,9 @@ class JobRunner:
     async def for_subject(self, subject_id: str) -> list[Job]:
         return await self._repository.for_subject(subject_id)
 
+    async def pending(self) -> list[Job]:
+        return await self._repository.unfinished()
+
     async def wait_idle(self) -> None:
         """Wait until the queue is empty and no job runs (for tests and tools)."""
         await self._idle.wait()

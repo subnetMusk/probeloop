@@ -10,6 +10,7 @@ from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import complete_structured
 from probeloop.assessment.application.cv_checks import cv_checks
 from probeloop.assessment.application.evidence import Source, checked_judgements
+from probeloop.assessment.application.labels import label
 from probeloop.assessment.application.rubrics import Rubric
 from probeloop.assessment.application.schemas import JudgementsOut
 from probeloop.assessment.domain.model import Check, Observation, Score
@@ -91,7 +92,7 @@ class CvReviewer:
                 aggregated.append(
                     Score(
                         criterion.id,
-                        criterion.label,
+                        label(criterion.label, language),
                         round(sum(values) / len(values), 2),
                         "\n".join(dict.fromkeys(s.reason for s in available)),
                         tuple(dict.fromkeys(e for s in available for e in s.evidence)),
@@ -101,7 +102,7 @@ class CvReviewer:
                 aggregated.append(
                     Score(
                         criterion.id,
-                        criterion.label,
+                        label(criterion.label, language),
                         None,
                         "Evidenza insufficiente." if language == "it" else "Insufficient evidence.",
                     )

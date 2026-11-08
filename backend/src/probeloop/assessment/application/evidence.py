@@ -6,6 +6,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
+from probeloop.assessment.application.labels import label
 from probeloop.assessment.application.rubrics import Rubric
 from probeloop.assessment.application.schemas import EvidenceData, JudgementsOut
 from probeloop.assessment.domain.model import Evidence, Observation, Score
@@ -25,11 +26,15 @@ def checked_evidence(items: list[EvidenceData], sources: dict[str, Source]) -> t
         quote = normalise(item.quote)
         if (
             source is not None
-            and source.turn_seq == item.turn_seq
+            and item.turn_seq in (None, source.turn_seq)
             and len(quote) >= 8
             and quote in normalise(source.text)
         ):
-            verified[(item.source_id, quote)] = item.domain()
+            # The source registry owns turn identity. An omitted redundant turn number is
+            # resolved from it; an explicitly conflicting number is rejected.
+            verified[(item.source_id, quote)] = Evidence(
+                item.source_id, item.quote, source.turn_seq
+            )
     return tuple(verified.values())
 
 
@@ -61,7 +66,7 @@ def checked_judgements(
         scores.append(
             Score(
                 criterion.id,
-                criterion.label,
+                label(criterion.label, language),
                 item.score if valid and item else None,
                 item.reason if evidence and item else unavailable,
                 evidence,

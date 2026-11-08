@@ -1,0 +1,40 @@
+id: technical
+version: 1
+minimum_assessed_share: 0.6
+criteria:
+  - id: accuracy
+    label: Accuracy
+    anchors:
+      1: Core claims are incorrect.
+      3: Mostly correct with imprecisions.
+      5: Correct, precise and appropriately qualified; corrects errors.
+  - id: depth
+    label: Technical depth
+    anchors:
+      1: Names tools and terms only.
+      3: Explains how something works.
+      5: Explains internals, reasons, limits and failure modes.
+  - id: problem_solving
+    label: Problem solving
+    anchors:
+      1: Jumps to a solution without understanding the problem.
+      3: Clarifies some points and proposes a workable approach.
+      5: Clarifies constraints, decomposes the problem and compares approaches.
+  - id: tradeoffs
+    label: Trade-offs
+    anchors:
+      1: Presents one option as universally right.
+      3: Mentions alternatives.
+      5: Weighs costs, benefits and conditions for choosing differently.
+  - id: experience
+    label: Practical experience
+    anchors:
+      1: No first-hand example when requested.
+      3: Examples with few implementation details.
+      5: Concrete first-hand decisions and outcomes.
+  - id: reasoning
+    label: Communication of reasoning
+    anchors:
+      1: Reasoning is hard to follow.
+      3: Understandable with gaps.
+      5: Structured, precise reasoning adapted to the question.

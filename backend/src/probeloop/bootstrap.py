@@ -15,8 +15,16 @@ from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
 from probeloop.ai.scheduled import ScheduledChatModel
 from probeloop.assessment.application.cv_review import CvReviewer
+from probeloop.assessment.application.delivery import DeliveryAnalyser
+from probeloop.assessment.application.interview_review import InterviewReviewer
 from probeloop.assessment.application.rubrics import load_rubric
-from probeloop.assessment.application.service import CV_REVIEW_JOB, AssessmentService
+from probeloop.assessment.application.service import (
+    CV_REVIEW_JOB,
+    INTERVIEW_REVIEW_JOB,
+    AssessmentService,
+)
+from probeloop.assessment.domain.model import Report
+from probeloop.assessment.infrastructure.exports import export_report
 from probeloop.assessment.infrastructure.fake import scripted_assessment
 from probeloop.context.application.analysis import ContextAnalyser
 from probeloop.context.application.service import ANALYSE_JOB, ContextService
@@ -64,6 +72,7 @@ class Container:
     engine: AsyncEngine
     extractor: TextExtractor
     assessment: AssessmentService
+    export_report: Callable[[Report, str], bytes]
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
@@ -230,12 +239,16 @@ def build(
     assessment = AssessmentService(
         store=SqlReportStore(db),
         reviewer=CvReviewer(assessment_model, load_rubric("cv")),
+        interviewer=InterviewReviewer(assessment_model),
+        sessions=store,
+        delivery=DeliveryAnalyser(store, voice.vad if voice else None),
         snapshot=context.snapshot,
         submit=jobs.submit,
         now=clock.now,
         new_id=new_id,
     )
     jobs.register(CV_REVIEW_JOB, assessment.review_cv)
+    jobs.register(INTERVIEW_REVIEW_JOB, assessment.review_interview)
 
     async def on_finished(session: InterviewSession) -> None:
         if session.config.modality is Modality.VOICE and transcripts.can_refine:
@@ -250,6 +263,7 @@ def build(
         background_busy=lambda: jobs.running or access.busy,
     )
     holder["sessions"] = sessions
+
     return Container(
         settings=settings,
         model=model,
@@ -262,6 +276,7 @@ def build(
         engine=engine,
         extractor=extractor,
         assessment=assessment,
+        export_report=export_report,
     )
 
 

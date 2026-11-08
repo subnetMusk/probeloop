@@ -86,6 +86,7 @@ class _ReplyTiming:
     first_text_at: float | None = None
     move_recorded_at: float | None = None
     first_audio_at: float | None = None
+    answer_latency_s: float | None = None
 
 
 class SessionOrchestrator:
@@ -125,6 +126,8 @@ class SessionOrchestrator:
         self._transcriber: TurnTranscriber | None = None
         self._answer_seq = 0
         self._answer_warned = False
+        self._playback_ended_at: float | None = None
+        self._answer_latency_s: float | None = None
         self._exported = False
         self.dropped_frames = 0
 
@@ -165,11 +168,17 @@ class SessionOrchestrator:
     async def playback_finished(self) -> None:
         async with self._lock:
             self.session.finish_speaking(self._clock.now())
+            self._playback_ended_at = self._timer()
             await self._commit()
 
     async def start_answer(self) -> None:
         async with self._lock:
             self.session.start_answer(self._clock.now())
+            self._answer_latency_s = (
+                max(0.0, self._timer() - self._playback_ended_at)
+                if self._playback_ended_at is not None
+                else None
+            )
             if self.is_voice and self._transcriber is None:
                 # After a reconnection the same answer continues: the transcriber is kept.
                 assert self._voice is not None
@@ -283,7 +292,12 @@ class SessionOrchestrator:
             )
         except OSError:
             logger.exception("answer audio not stored", extra={"session_id": self.session.id})
-        return _ReplyTiming(transcript=transcript, answer_seq=self._answer_seq, ended_at=ended_at)
+        return _ReplyTiming(
+            transcript=transcript,
+            answer_seq=self._answer_seq,
+            ended_at=ended_at,
+            answer_latency_s=self._answer_latency_s,
+        )
 
     async def _check_answer_length(self, audio_s: float) -> None:
         assert self._voice is not None
@@ -617,6 +631,7 @@ class SessionOrchestrator:
             tts_first_audio_s=since_end(timing.first_audio_at),
             tts_sentences=len(speech.sentences),
             tts_failed_sentences=len(speech.failed),
+            answer_latency_s=timing.answer_latency_s,
         )
         logger.info("turn metrics", extra={"session_id": self.session.id, **metrics.as_record()})
         try:

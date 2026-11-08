@@ -53,6 +53,30 @@ class Check:
 
 
 @dataclass(frozen=True, slots=True)
+class AnswerUnit:
+    id: str
+    topic_id: str
+    kind: str
+    question_seqs: tuple[int, ...]
+    answer_seqs: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryMetric:
+    id: str
+    value: float | None
+    unit: str
+    detail: str
+    turn_seq: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TranscriptVersion:
+    seq: int
+    revision: int
+
+
+@dataclass(frozen=True, slots=True)
 class Report:
     id: str
     kind: ReportKind
@@ -76,6 +100,10 @@ class Report:
     dropped: int
     duration_s: float
     disclaimer: str
+    units: tuple[AnswerUnit, ...] = ()
+    unit_scores: tuple[Score, ...] = ()
+    delivery: tuple[DeliveryMetric, ...] = ()
+    revisions: tuple[TranscriptVersion, ...] = ()
 
 
 def overall_score(scores: tuple[Score, ...], *, minimum_share: float = 0.6) -> float | None:

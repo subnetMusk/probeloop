@@ -1,0 +1,37 @@
+[
+  {
+    "id": "indexes",
+    "question": "Explain how PostgreSQL indexes affect writes. Describe a change you personally implemented, its constraints, alternatives, reasoning and observed outcome.",
+    "wrong_claim": "An index always makes inserts faster because it removes the need to update the table.",
+    "correct_fact": "Indexes add maintenance and storage overhead. Query benefit and write cost depend on the workload and indexed columns; measure both.",
+    "source": "https://www.postgresql.org/docs/current/indexes.html"
+  },
+  {
+    "id": "asyncio",
+    "question": "In ordinary GIL-enabled CPython, what happens when CPU-heavy Python runs directly inside async def? Describe an incident you owned, constraints, alternatives, reasoning and measured outcome.",
+    "wrong_claim": "Declaring async def automatically moves CPU-heavy Python code to another thread, so it cannot block the event loop.",
+    "correct_fact": "CPU-heavy code run directly in a coroutine blocks the event loop. Explicit offloading is needed; threads typically help blocking I/O, while CPU-bound pure Python under the GIL may need processes.",
+    "source": "https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread"
+  },
+  {
+    "id": "defaults",
+    "question": "Explain Python mutable default arguments. Describe a specific bug you personally fixed, why the fix works, alternatives, test cases and outcome.",
+    "wrong_claim": "A default list argument is recreated on every function call, so mutations cannot leak between calls.",
+    "correct_fact": "Default values are evaluated when the function is defined. A mutable default can be shared by calls; a sentinel and a new per-call object avoid unwanted sharing.",
+    "source": "https://docs.python.org/3/tutorial/controlflow.html#default-argument-values"
+  },
+  {
+    "id": "http",
+    "question": "Explain PUT and POST retry semantics. Describe an API you personally implemented, with constraints, alternatives, reasoning, failure tests and outcome.",
+    "wrong_claim": "POST is always idempotent, whereas every retry of PUT must create an additional resource.",
+    "correct_fact": "PUT is idempotent in its intended effect, although responses may differ. POST is not generally idempotent; applications can explicitly design retry-safe semantics.",
+    "source": "https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2"
+  },
+  {
+    "id": "transactions",
+    "question": "Explain transaction atomicity. Describe a database failure you personally reproduced, with constraints, alternatives, the reasoning behind the fix and its observed outcome.",
+    "wrong_claim": "Committing after every statement still leaves all previous statements in one atomic transaction that a later rollback can undo.",
+    "correct_fact": "Explicit transaction boundaries group operations atomically. Statements committed in earlier transactions are not undone by rolling back a later transaction.",
+    "source": "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+  }
+]

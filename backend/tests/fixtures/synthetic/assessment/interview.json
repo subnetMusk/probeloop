@@ -1,0 +1,7 @@
+[
+  {"action":"new_topic","question":"Tell me about a difficult delivery and your own contribution.","answer":"We built the service together and everything went well.","trait":"vague ownership"},
+  {"action":"follow_up","question":"What did you personally change and what happened?","answer":"I do not remember my specific contribution or the outcome.","trait":"unresolved ownership"},
+  {"action":"new_topic","question":"How does a PostgreSQL index affect writes?","answer":"An index always makes inserts faster because it removes the need to update the table.","trait":"technical error"},
+  {"action":"new_topic","question":"How would you roll out an index in production safely?","answer":"I would measure query plans and write load first. Concurrent index creation reduces write blocking but needs additional work and can leave an invalid index after failure. I would check validity, disk usage and latency, compare the same workload before and after, and prepare a rollback.","trait":"strong reasoning"},
+  {"action":"wrap_up","question":"Do you have any questions for us?","answer":"What does the team expect during the first month?","trait":"candidate question, do not score"}
+]

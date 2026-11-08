@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     analysis_model: str = "qwen3.5:9b"
     analysis_context_window: int = 8192
     evaluation_model: str = "qwen3.5:9b"
-    evaluation_context_window: int = 8192
+    evaluation_context_window: int = 16384
     keep_alive: str = "30m"
     llm_debug_log: bool = False
     llm_fake: bool = False  # scripted interviewer moves, for end-to-end tests

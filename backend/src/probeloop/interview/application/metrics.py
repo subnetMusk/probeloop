@@ -25,6 +25,9 @@ class TurnMetrics:
     tts_first_audio_s: float | None  # until the first sentence was ready to send
     tts_sentences: int
     tts_failed_sentences: int
+    answer_latency_s: float | None = (
+        None  # playback completion to capture start, excluding VAD lead-in
+    )
 
     def as_record(self) -> dict[str, object]:
         return {"kind": "turn", **asdict(self)}

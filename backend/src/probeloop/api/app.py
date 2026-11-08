@@ -93,6 +93,7 @@ def create_app(container: Container | None = None) -> FastAPI:
         await container.shutdown()
 
     app = FastAPI(title="ProbeLoop", version="0.1.0", lifespan=lifespan)
+
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(
         CORSMiddleware,
@@ -236,6 +237,10 @@ def create_app(container: Container | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="file not found")
         return FileResponse(path, headers={"Cache-Control": "no-cache"})
 
+    @app.get("/api/jobs")
+    async def pending_jobs() -> list[JobView]:
+        return [JobView.of(job) for job in await jobs.pending()]
+
     @app.get("/api/jobs/{job_id}")
     async def get_job(job_id: str) -> JobView:
         job = await jobs.get(job_id)
@@ -348,7 +353,7 @@ def create_app(container: Container | None = None) -> FastAPI:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
 
     app.include_router(context_router(container.context, jobs))
-    app.include_router(assessment_router(container.assessment, jobs))
+    app.include_router(assessment_router(container.assessment, jobs, container.export_report))
 
     if settings.static_dir is not None:
         _serve_spa(app, settings.static_dir)

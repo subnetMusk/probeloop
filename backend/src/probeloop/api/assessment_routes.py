@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Callable
+from dataclasses import asdict
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict
 
 from probeloop.api.schemas import JobView
 from probeloop.assessment.application.schemas import ReportData
 from probeloop.assessment.application.service import AssessmentService, ReportNotFoundError
-from probeloop.assessment.domain.model import ReportKind
+from probeloop.assessment.domain.model import Report, ReportKind
 from probeloop.context.application.service import ContextNotFoundError
 from probeloop.platform.jobs import JobRunner
 
@@ -20,8 +23,44 @@ class ReviewRequest(BaseModel):
     language: Literal["it", "en"] = "it"
 
 
-def assessment_router(assessment: AssessmentService, jobs: JobRunner) -> APIRouter:
+class ProgressPointView(BaseModel):
+    report_id: str
+    subject_id: str
+    session_id: str | None
+    created_at: float
+    version: int
+    overall: float | None
+    values: dict[str, float | None]
+    evidence_counts: dict[str, int]
+
+
+class ProgressGroupView(BaseModel):
+    id: str
+    kind: str
+    rubric_id: str
+    rubric_hash: str
+    model_ref: str
+    language: str
+    criteria: dict[str, str]
+    points: list[ProgressPointView]
+
+
+def assessment_router(
+    assessment: AssessmentService,
+    jobs: JobRunner,
+    export: Callable[[Report, str], bytes],
+) -> APIRouter:
     router = APIRouter(prefix="/api")
+
+    @router.get("/reports")
+    async def history() -> list[ReportData]:
+        return [ReportData.of(r) for r in await assessment.history()]
+
+    @router.get("/progress")
+    async def progress() -> list[ProgressGroupView]:
+        return [
+            ProgressGroupView.model_validate(asdict(group)) for group in await assessment.progress()
+        ]
 
     @router.post("/snapshots/{snapshot_id}/cv-reviews", status_code=202)
     async def review_cv(snapshot_id: str, body: ReviewRequest) -> JobView:
@@ -46,5 +85,38 @@ def assessment_router(assessment: AssessmentService, jobs: JobRunner) -> APIRout
             return ReportData.of(await assessment.report(report_id))
         except ReportNotFoundError as exc:
             raise HTTPException(404, "report not found") from exc
+
+    @router.post("/sessions/{session_id}/reports", status_code=202)
+    async def review_interview(session_id: str, body: ReviewRequest) -> JobView:
+        try:
+            return JobView.of(await assessment.submit_interview(session_id, body.language))
+        except ReportNotFoundError as exc:
+            raise HTTPException(404, "interview not found") from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @router.get("/sessions/{session_id}/reports")
+    async def interview_reports(session_id: str) -> list[ReportData]:
+        return [
+            ReportData.of(r) for r in await assessment.reports(ReportKind.INTERVIEW, session_id)
+        ]
+
+    @router.get("/reports/{report_id}/export/{format}")
+    async def export_report(report_id: str, format: Literal["md", "json", "pdf"]) -> Response:
+        try:
+            report = await assessment.report(report_id)
+        except ReportNotFoundError as exc:
+            raise HTTPException(404, "report not found") from exc
+        content = await asyncio.to_thread(export, report, format)
+        media_type = {"md": "text/markdown", "json": "application/json", "pdf": "application/pdf"}[
+            format
+        ]
+        return Response(
+            content,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="report-v{report.version}.{format}"',
+            },
+        )
 
     return router
