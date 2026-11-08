@@ -33,6 +33,7 @@ import {
 } from './resources'
 import type { ResourceRow } from './resources'
 import { PREPARATION_KEY } from './setup-state'
+import { setLanguage as saveLanguage, useLanguage } from '@/settings/preferences'
 
 const ACCEPT = '.txt,.md,.json,.xml,.html,.docx,.pdf'
 type Language = 'it' | 'en'
@@ -126,10 +127,11 @@ function DocumentEditor({
 }
 
 export function ContextWizard() {
+  const preferredLanguage = useLanguage()
   const [stage, setStage] = useState<'documents' | 'resources' | 'analysis'>(() =>
     sessionStorage.getItem(PREPARATION_KEY) ? 'analysis' : 'documents',
   )
-  const [language, setLanguage] = useState<Language>('it')
+  const [language, setLanguage] = useState<Language>(preferredLanguage)
   const [cv, setCv] = useState<DocumentInput>(emptyInput)
   const [offer, setOffer] = useState<DocumentInput>(emptyInput)
   const [offerMode, setOfferMode] = useState<OfferMode>('none')
@@ -327,6 +329,7 @@ export function ContextWizard() {
                 value={language}
                 onValueChange={(value) => {
                   setLanguage(value as Language)
+                  saveLanguage(value === 'en' ? 'en' : 'it')
                 }}
               >
                 <SelectTrigger aria-label="Analysis language">

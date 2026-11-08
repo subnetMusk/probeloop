@@ -343,8 +343,22 @@ M0 → M1 → M2 → M3 → M4 → M5 → CV review → M7 → M6 → M9       M
 The approved scope is [proposal section 3](proposals/2026-11-context-evaluation-reports.md#3-cv-review-new):
 versioned rubric YAML, deterministic checks, evidence-verified model judgements, a background job
 and a report page. The [CV rating requirements](proposals/2026-11-cv-rating-guidelines.md) incorporate
-the owner's general guidelines, evidence limits and draft anchors for calibration. This milestone
-is not implemented yet.
+the owner's general guidelines, evidence limits and draft anchors for calibration.
+
+**Status (2026-11-08): implemented and verified locally.** Reviews run as persisted jobs,
+retain immutable versions and expose verified quotations, deterministic diagnostics and explicit
+not-assessable checks. The report language follows the application preference; practice questions
+feed the interview planner as suggestions. Model work is serialised and waits during a live call.
+
+The synthetic CV smoke run on `qwen3.5:9b` with thinking took **91.82 seconds**, with seven
+assessable criteria and no rejected quotations. It detected the reversed date range and requested
+more decision/scope detail. A preceding run exposed an unsupported claim about an unvisited link;
+URL-only evidence is now rejected. This is a smoke measurement, not full calibration. See
+[the evaluation notes](research/cv-review-results.md).
+
+Validation: 401 backend tests, 23 targeted assessment/storage/job checks including PostgreSQL,
+26 frontend tests, four browser flows (the voice flow rerun separately after allowing for final
+recording persistence), strict typing, linting, nine dependency contracts and rebuilt artifacts.
 
 ## M6 — Final UI · 6–10 days
 

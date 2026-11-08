@@ -215,4 +215,24 @@ forbidden_modules = [
   "fastapi",
   "pdfplumber",
   "docx",
+  "probeloop.assessment",
+]
+
+[[tool.importlinter.contracts]]
+name = "Assessment domain is plain Python"
+type = "forbidden"
+source_modules = ["probeloop.assessment.domain"]
+forbidden_modules = [
+  "pydantic", "sqlalchemy", "fastapi", "ollama", "jinja2", "yaml",
+  "probeloop.ai", "probeloop.speech", "probeloop.storage", "probeloop.api",
+  "probeloop.assessment.application", "probeloop.assessment.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Assessment use cases do not import adapters"
+type = "forbidden"
+source_modules = ["probeloop.assessment.application"]
+forbidden_modules = [
+  "probeloop.storage", "probeloop.api", "probeloop.bootstrap",
+  "probeloop.assessment.infrastructure", "sqlalchemy", "fastapi",
 ]

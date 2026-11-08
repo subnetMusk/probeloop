@@ -100,6 +100,38 @@
         "title": "Body_upload_document_api_documents_post",
         "type": "object"
       },
+      "CheckData": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceData"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "detail",
+          "evidence"
+        ],
+        "title": "CheckData",
+        "type": "object"
+      },
       "CreateSession": {
         "additionalProperties": false,
         "properties": {
@@ -324,6 +356,39 @@
           "text"
         ],
         "title": "EditAnswer",
+        "type": "object"
+      },
+      "EvidenceData": {
+        "additionalProperties": false,
+        "properties": {
+          "quote": {
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 80,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "turn_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Seq"
+          }
+        },
+        "required": [
+          "source_id",
+          "quote"
+        ],
+        "title": "EvidenceData",
         "type": "object"
       },
       "FactKind": {
@@ -601,6 +666,57 @@
         "title": "Modality",
         "type": "string"
       },
+      "ObservationData": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceData"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "replacement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "evidence",
+          "replacement",
+          "unit_id"
+        ],
+        "title": "ObservationData",
+        "type": "object"
+      },
       "PreparationView": {
         "properties": {
           "analysis": {
@@ -835,6 +951,162 @@
         "title": "ProfileView",
         "type": "object"
       },
+      "ReportData": {
+        "additionalProperties": false,
+        "properties": {
+          "assessed": {
+            "title": "Assessed",
+            "type": "integer"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckData"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "criteria": {
+            "title": "Criteria",
+            "type": "integer"
+          },
+          "disclaimer": {
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "dropped": {
+            "title": "Dropped",
+            "type": "integer"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input_fingerprint": {
+            "title": "Input Fingerprint",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ReportKind"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "model_ref": {
+            "title": "Model Ref",
+            "type": "string"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationData"
+            },
+            "title": "Observations",
+            "type": "array"
+          },
+          "overall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall"
+          },
+          "prompt_ref": {
+            "title": "Prompt Ref",
+            "type": "string"
+          },
+          "rubric_hash": {
+            "title": "Rubric Hash",
+            "type": "string"
+          },
+          "rubric_id": {
+            "title": "Rubric Id",
+            "type": "string"
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreData"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "subject_id",
+          "version",
+          "created_at",
+          "language",
+          "rubric_id",
+          "rubric_hash",
+          "model_ref",
+          "prompt_ref",
+          "input_fingerprint",
+          "snapshot_id",
+          "session_id",
+          "scores",
+          "observations",
+          "checks",
+          "overall",
+          "assessed",
+          "criteria",
+          "dropped",
+          "duration_s",
+          "disclaimer"
+        ],
+        "title": "ReportData",
+        "type": "object"
+      },
+      "ReportKind": {
+        "enum": [
+          "cv",
+          "interview"
+        ],
+        "title": "ReportKind",
+        "type": "string"
+      },
       "ResourceIn": {
         "additionalProperties": false,
         "properties": {
@@ -891,6 +1163,22 @@
         "title": "ReviewIn",
         "type": "object"
       },
+      "ReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "default": "it",
+            "enum": [
+              "it",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          }
+        },
+        "title": "ReviewRequest",
+        "type": "object"
+      },
       "RevisionView": {
         "properties": {
           "created_at": {
@@ -929,6 +1217,67 @@
           "engine_ref"
         ],
         "title": "RevisionView",
+        "type": "object"
+      },
+      "ScoreData": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "title": "Criterion Id",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceData"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          },
+          "unstable": {
+            "title": "Unstable",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "label",
+          "value",
+          "reason",
+          "evidence",
+          "unstable",
+          "unit_id"
+        ],
+        "title": "ScoreData",
         "type": "object"
       },
       "SessionSummaryView": {
@@ -2016,6 +2365,45 @@
         "summary": "Overwrite Profile"
       }
     },
+    "/api/reports/{report_id}": {
+      "get": {
+        "operationId": "report_api_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportData"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report"
+      }
+    },
     "/api/sessions": {
       "get": {
         "operationId": "list_sessions_api_sessions_get",
@@ -2412,6 +2800,139 @@
           }
         },
         "summary": "Get Snapshot"
+      }
+    },
+    "/api/snapshots/{snapshot_id}/cv-reviews": {
+      "get": {
+        "operationId": "cv_reviews_api_snapshots__snapshot_id__cv_reviews_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportData"
+                  },
+                  "title": "Response Cv Reviews Api Snapshots  Snapshot Id  Cv Reviews Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cv Reviews"
+      },
+      "post": {
+        "operationId": "review_cv_api_snapshots__snapshot_id__cv_reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Cv"
+      }
+    },
+    "/api/snapshots/{snapshot_id}/jobs": {
+      "get": {
+        "operationId": "snapshot_jobs_api_snapshots__snapshot_id__jobs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobView"
+                  },
+                  "title": "Response Snapshot Jobs Api Snapshots  Snapshot Id  Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Snapshot Jobs"
       }
     },
     "/api/speech": {

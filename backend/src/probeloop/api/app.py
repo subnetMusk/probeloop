@@ -27,6 +27,7 @@ from pydantic import ValidationError
 
 from probeloop import logging_setup
 from probeloop.ai.ports import LlmError
+from probeloop.api.assessment_routes import assessment_router
 from probeloop.api.context_routes import context_router
 from probeloop.api.schemas import (
     MAX_AUDIO_FRAME_BYTES,
@@ -158,12 +159,17 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     async def prepared_context(config: InterviewConfig, snapshot_id: str) -> InterviewContext:
         """The interviewer's context from an approved snapshot, with a topic plan for it."""
+        if sessions.background_busy or sessions.any_active():
+            raise HTTPException(
+                409, "background processing or another interview is using the models"
+            )
         try:
             snapshot = await container.context.snapshot(snapshot_id)
         except ContextNotFoundError as exc:
             raise HTTPException(status_code=404, detail="context not found") from exc
         candidate, job = candidate_brief(snapshot), job_brief(snapshot)
-        topics = await container.planner.plan(config, candidate, job)
+        questions = await container.assessment.practice_questions(snapshot_id)
+        topics = await container.planner.plan(config, candidate, job, questions)
         return InterviewContext(
             candidate_brief=candidate,
             job_brief=job,
@@ -342,6 +348,7 @@ def create_app(container: Container | None = None) -> FastAPI:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
 
     app.include_router(context_router(container.context, jobs))
+    app.include_router(assessment_router(container.assessment, jobs))
 
     if settings.static_dir is not None:
         _serve_spa(app, settings.static_dir)

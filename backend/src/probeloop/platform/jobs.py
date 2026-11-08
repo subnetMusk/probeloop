@@ -86,6 +86,11 @@ class JobRunner:
         self._worker: asyncio.Task[None] | None = None
         self._idle = asyncio.Event()
         self._idle.set()
+        self._running = False
+
+    @property
+    def running(self) -> bool:
+        return self._running
 
     def register(self, kind: str, handler: Handler) -> None:
         self._handlers[kind] = handler
@@ -113,7 +118,11 @@ class JobRunner:
         if kind not in self._handlers:
             raise ValueError(f"unknown job kind {kind!r}")
         for existing in await self._repository.for_subject(subject_id):
-            if existing.kind == kind and not existing.finished:
+            if (
+                existing.kind == kind
+                and not existing.finished
+                and dict(existing.payload) == dict(payload or {})
+            ):
                 return existing
         job = Job(
             id=self._new_id(),
@@ -147,12 +156,16 @@ class JobRunner:
             try:
                 if self._gate is not None:
                     await self._gate()
+                self._running = True
                 await self._run(job_id)
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                logger.exception("job runner error", extra={"job_id": job_id})
+            except Exception as exc:
+                logger.error(
+                    "job runner error", extra={"job_id": job_id, "error_type": type(exc).__name__}
+                )
             finally:
+                self._running = False
                 if self._queue.empty():
                     self._idle.set()
 
@@ -187,7 +200,14 @@ class JobRunner:
                 current, status=JobStatus.FAILED, error=str(exc), finished_at=self._now()
             )
         except Exception as exc:
-            logger.exception("job failed", extra={"job_id": job.id, "kind": job.kind})
+            logger.error(
+                "job failed",
+                extra={
+                    "job_id": job.id,
+                    "kind": job.kind,
+                    "error_type": type(exc).__name__,
+                },
+            )
             current = replace(
                 current,
                 status=JobStatus.FAILED,

@@ -250,6 +250,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report */
+        get: operations["report_api_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions": {
         parameters: {
             query?: never;
@@ -394,6 +411,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/snapshots/{snapshot_id}/cv-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cv Reviews */
+        get: operations["cv_reviews_api_snapshots__snapshot_id__cv_reviews_get"];
+        put?: never;
+        /** Review Cv */
+        post: operations["review_cv_api_snapshots__snapshot_id__cv_reviews_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/snapshots/{snapshot_id}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Snapshot Jobs */
+        get: operations["snapshot_jobs_api_snapshots__snapshot_id__jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/speech": {
         parameters: {
             query?: never;
@@ -467,6 +519,17 @@ export interface components {
             kind: components["schemas"]["DocumentKind"];
             /** Title */
             title: string;
+        };
+        /** CheckData */
+        CheckData: {
+            /** Detail */
+            detail: string;
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceData"][];
+            /** Id */
+            id: string;
+            /** Status */
+            status: string;
         };
         /** CreateSession */
         CreateSession: {
@@ -552,6 +615,15 @@ export interface components {
         EditAnswer: {
             /** Text */
             text: string;
+        };
+        /** EvidenceData */
+        EvidenceData: {
+            /** Quote */
+            quote: string;
+            /** Source Id */
+            source_id: string;
+            /** Turn Seq */
+            turn_seq?: number | null;
         };
         /**
          * FactKind
@@ -644,6 +716,19 @@ export interface components {
          * @enum {string}
          */
         Modality: "text" | "voice";
+        /** ObservationData */
+        ObservationData: {
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceData"][];
+            /** Kind */
+            kind: string;
+            /** Replacement */
+            replacement: string | null;
+            /** Text */
+            text: string;
+            /** Unit Id */
+            unit_id: string | null;
+        };
         /** PreparationView */
         PreparationView: {
             analysis: components["schemas"]["JobView"] | null;
@@ -710,6 +795,57 @@ export interface components {
             /** Updated At */
             updated_at: number;
         };
+        /** ReportData */
+        ReportData: {
+            /** Assessed */
+            assessed: number;
+            /** Checks */
+            checks: components["schemas"]["CheckData"][];
+            /** Created At */
+            created_at: number;
+            /** Criteria */
+            criteria: number;
+            /** Disclaimer */
+            disclaimer: string;
+            /** Dropped */
+            dropped: number;
+            /** Duration S */
+            duration_s: number;
+            /** Id */
+            id: string;
+            /** Input Fingerprint */
+            input_fingerprint: string;
+            kind: components["schemas"]["ReportKind"];
+            /** Language */
+            language: string;
+            /** Model Ref */
+            model_ref: string;
+            /** Observations */
+            observations: components["schemas"]["ObservationData"][];
+            /** Overall */
+            overall: number | null;
+            /** Prompt Ref */
+            prompt_ref: string;
+            /** Rubric Hash */
+            rubric_hash: string;
+            /** Rubric Id */
+            rubric_id: string;
+            /** Scores */
+            scores: components["schemas"]["ScoreData"][];
+            /** Session Id */
+            session_id: string | null;
+            /** Snapshot Id */
+            snapshot_id: string | null;
+            /** Subject Id */
+            subject_id: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * ReportKind
+         * @enum {string}
+         */
+        ReportKind: "cv" | "interview";
         /** ResourceIn */
         ResourceIn: {
             /** Document Id */
@@ -728,6 +864,15 @@ export interface components {
             corrected?: string | null;
             review: components["schemas"]["Review"];
         };
+        /** ReviewRequest */
+        ReviewRequest: {
+            /**
+             * Language
+             * @default it
+             * @enum {string}
+             */
+            language?: "it" | "en";
+        };
         /** RevisionView */
         RevisionView: {
             /** Created At */
@@ -740,6 +885,23 @@ export interface components {
             source: string;
             /** Text */
             text: string;
+        };
+        /** ScoreData */
+        ScoreData: {
+            /** Criterion Id */
+            criterion_id: string;
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceData"][];
+            /** Label */
+            label: string;
+            /** Reason */
+            reason: string;
+            /** Unit Id */
+            unit_id: string | null;
+            /** Unstable */
+            unstable: boolean;
+            /** Value */
+            value: number | null;
         };
         /** SessionSummaryView */
         SessionSummaryView: {
@@ -1397,6 +1559,37 @@ export interface operations {
             };
         };
     };
+    report_api_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sessions_api_sessions_get: {
         parameters: {
             query?: never;
@@ -1691,6 +1884,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SnapshotView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cv_reviews_api_snapshots__snapshot_id__cv_reviews_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportData"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_cv_api_snapshots__snapshot_id__cv_reviews_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    snapshot_jobs_api_snapshots__snapshot_id__jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"][];
                 };
             };
             /** @description Validation Error */

@@ -48,6 +48,15 @@ test('an uploaded CV and an edited generated offer reach approval', async ({ pag
   await page.screenshot({ path: testInfo.outputPath('context-review.png'), fullPage: true })
   await page.getByRole('button', { name: 'Approve context and continue' }).click()
   await expect(page.getByTestId('enable-microphone')).toBeVisible()
+  const review = page.getByTestId('cv-review-panel')
+  await review.getByRole('button', { name: 'Genera revisione CV' }).click()
+  const first = review.getByRole('link', { name: /Apri revisione v1/ })
+  await expect(first).toBeVisible({ timeout: 30_000 })
+  await review.getByRole('button', { name: 'Genera revisione CV' }).click()
+  await expect(review.getByRole('link', { name: /Apri revisione v2/ })).toBeVisible()
+  await first.click()
+  await expect(page.getByRole('heading', { name: 'Revisione del CV', exact: true })).toBeVisible()
+  await expect(page.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
 })
 
 test('resource profiles can be created, overwritten, copied or used once', async ({

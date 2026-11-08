@@ -13,6 +13,11 @@ from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
+from probeloop.ai.scheduled import ScheduledChatModel
+from probeloop.assessment.application.cv_review import CvReviewer
+from probeloop.assessment.application.rubrics import load_rubric
+from probeloop.assessment.application.service import CV_REVIEW_JOB, AssessmentService
+from probeloop.assessment.infrastructure.fake import scripted_assessment
 from probeloop.context.application.analysis import ContextAnalyser
 from probeloop.context.application.service import ANALYSE_JOB, ContextService
 from probeloop.context.application.snapshots import vocabulary_prompt
@@ -26,6 +31,7 @@ from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptSe
 from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import InterviewSession, Language, Modality
 from probeloop.platform.jobs import JobRunner
+from probeloop.platform.model_access import BackgroundModelAccess
 from probeloop.settings import Settings
 from probeloop.speech.fake import FakeSpeechToText, FakeTextToSpeech
 from probeloop.speech.http_stt import HttpSpeechToText
@@ -36,6 +42,7 @@ from probeloop.storage.database import create_engine, migrate, sessionmaker
 from probeloop.storage.session_files import SessionFiles
 from probeloop.storage.sql_context import SqlContextStore
 from probeloop.storage.sql_jobs import SqlJobRepository
+from probeloop.storage.sql_reports import SqlReportStore
 from probeloop.storage.sql_sessions import SqlSessionStore
 
 
@@ -56,6 +63,7 @@ class Container:
     store: SqlSessionStore
     engine: AsyncEngine
     extractor: TextExtractor
+    assessment: AssessmentService
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
@@ -141,6 +149,7 @@ def build(
     *,
     model: ChatModel | None = None,
     analysis_model: ChatModel | None = None,
+    assessment_model: ChatModel | None = None,
     voice: VoiceServices | None = None,
 ) -> Container:
     if model is None and settings.llm_fake:
@@ -185,6 +194,9 @@ def build(
     async def gate() -> None:
         await holder["sessions"].wait_until_idle()
 
+    access = BackgroundModelAccess(gate, lambda: holder["sessions"].any_active())
+    analysis_model = ScheduledChatModel(analysis_model, access.acquire)
+    planning_model = ScheduledChatModel(model, access.acquire)
     jobs = JobRunner(SqlJobRepository(db), now=clock.now, new_id=new_id, gate=gate)
     jobs.register(REFINE_JOB, transcripts.refine)
     extractor = TextExtractor()
@@ -198,6 +210,32 @@ def build(
         new_id=new_id,
     )
     jobs.register(ANALYSE_JOB, context.analyse)
+    if assessment_model is None:
+        assessment_model = (
+            FakeChatModel([scripted_assessment])
+            if settings.llm_fake
+            else OllamaChatModel(
+                base_url=settings.ollama_base_url,
+                model=settings.evaluation_model,
+                context_window=settings.evaluation_context_window,
+                keep_alive=settings.keep_alive,
+                timeout_s=600.0,
+            )
+        )
+    if settings.llm_debug_log:
+        assessment_model = DebugLogChatModel(
+            assessment_model, settings.data_dir / "logs" / "llm.jsonl"
+        )
+    assessment_model = ScheduledChatModel(assessment_model, access.acquire)
+    assessment = AssessmentService(
+        store=SqlReportStore(db),
+        reviewer=CvReviewer(assessment_model, load_rubric("cv")),
+        snapshot=context.snapshot,
+        submit=jobs.submit,
+        now=clock.now,
+        new_id=new_id,
+    )
+    jobs.register(CV_REVIEW_JOB, assessment.review_cv)
 
     async def on_finished(session: InterviewSession) -> None:
         if session.config.modality is Modality.VOICE and transcripts.can_refine:
@@ -209,6 +247,7 @@ def build(
         clock=clock,
         voice=voice,
         on_finished=on_finished,
+        background_busy=lambda: jobs.running or access.busy,
     )
     holder["sessions"] = sessions
     return Container(
@@ -217,11 +256,12 @@ def build(
         sessions=sessions,
         transcripts=transcripts,
         context=context,
-        planner=TopicPlanner(model),
+        planner=TopicPlanner(planning_model),
         jobs=jobs,
         store=store,
         engine=engine,
         extractor=extractor,
+        assessment=assessment,
     )
 
 

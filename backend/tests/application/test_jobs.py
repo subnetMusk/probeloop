@@ -88,7 +88,7 @@ async def test_an_unfinished_job_for_the_same_subject_is_reused() -> None:
     await jobs.stop()
 
 
-async def test_failures_are_recorded_with_a_safe_message() -> None:
+async def test_failures_are_recorded_with_a_safe_message(caplog: pytest.LogCaptureFixture) -> None:
     repo = MemoryJobs()
     jobs = runner(repo)
 
@@ -111,12 +111,27 @@ async def test_failures_are_recorded_with_a_safe_message() -> None:
     assert (failed_a.status, failed_a.error) == (JobStatus.FAILED, "the audio was deleted")
     assert failed_b.status is JobStatus.FAILED
     assert failed_b.error == "internal error (RuntimeError)"
+    assert "secret detail" not in caplog.text
 
 
 async def test_unknown_kinds_are_refused() -> None:
     jobs = runner(MemoryJobs())
     with pytest.raises(ValueError, match="unknown job kind"):
         await jobs.submit("nope", "s1")
+
+
+async def test_different_job_inputs_are_not_silently_reused() -> None:
+    jobs = runner(MemoryJobs())
+
+    async def handler(job: Job, progress: Progress) -> None:
+        pass
+
+    jobs.register("review", handler)
+    first = await jobs.submit("review", "snapshot", {"language": "it"})
+    same = await jobs.submit("review", "snapshot", {"language": "it"})
+    other = await jobs.submit("review", "snapshot", {"language": "en"})
+    assert same.id == first.id
+    assert other.id != first.id
 
 
 async def test_jobs_interrupted_by_a_restart_run_again() -> None:

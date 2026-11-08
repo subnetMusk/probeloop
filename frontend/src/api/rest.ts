@@ -16,6 +16,7 @@ export type PrepareIn = components['schemas']['PrepareIn']
 export type ResourceIn = components['schemas']['ResourceIn']
 export type ReviewIn = components['schemas']['ReviewIn']
 export type AddFactIn = components['schemas']['AddFactIn']
+export type ReportData = components['schemas']['ReportData']
 
 export class ApiError extends Error {
   constructor(
@@ -53,6 +54,16 @@ const json = (method: string, body: unknown): RequestInit => ({
 })
 
 export const api = {
+  job: (id: string) => request<JobView>(`/api/jobs/${encodeURIComponent(id)}`),
+  report: (id: string) => request<ReportData>(`/api/reports/${encodeURIComponent(id)}`),
+  cvReviews: (snapshotId: string) =>
+    request<ReportData[]>(`/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`),
+  reviewCv: (snapshotId: string, language: 'it' | 'en') =>
+    request<JobView>(
+      `/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`,
+      json('POST', { language }),
+    ),
+  snapshotJobs: (id: string) => request<JobView[]>(`/api/snapshots/${encodeURIComponent(id)}/jobs`),
   documentText: (id: string) =>
     request<components['schemas']['DocumentTextView']>(`/api/documents/${encodeURIComponent(id)}`),
   uploadDocument: (kind: string, title: string, file: File) => {

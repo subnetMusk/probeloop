@@ -53,7 +53,8 @@ test('a voice interview from the setup page to the end of the call', async ({ pa
   await expect(transcript).toContainText('domanda di prova numero 2')
 
   await page.getByTestId('end-call').click()
-  await expect(page.getByText('The interview has ended')).toBeVisible()
+  // Ending persists the transcript and mixes the complete recording before publishing completion.
+  await expect(page.getByText('The interview has ended')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByTestId('ended-summary')).toContainText('1 answer')
 
   // After the call the answers are transcribed again; the transcript can then be corrected.

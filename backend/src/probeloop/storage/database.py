@@ -199,6 +199,24 @@ class JobRow(Base):
     finished_at: Mapped[float | None] = mapped_column(Float)
 
 
+class ReportRow(Base):
+    __tablename__ = "reports"
+    __table_args__ = (
+        Index("ix_reports_subject_version", "kind", "subject_id", "version", unique=True),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    subject_id: Mapped[str] = mapped_column(String(32))
+    version: Mapped[int]
+    created_at: Mapped[float] = mapped_column(Float)
+    session_id: Mapped[str | None] = mapped_column(
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"), index=True
+    )
+    snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("context_snapshots.id"))
+    data: Mapped[dict[str, Any]]
+
+
 def create_engine(url: str) -> AsyncEngine:
     engine = create_async_engine(url)
     if engine.dialect.name == "sqlite":

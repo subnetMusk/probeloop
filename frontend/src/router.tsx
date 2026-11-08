@@ -5,6 +5,7 @@ import { InterviewPage } from '@/pages/interview-page'
 import { SessionPage } from '@/pages/session-page'
 import { SessionsPage } from '@/pages/sessions-page'
 import { SetupPage } from '@/pages/setup-page'
+import { ReportPage } from '@/pages/report-page'
 
 const rootRoute = createRootRoute({ component: Layout })
 const setupRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: SetupPage })
@@ -25,8 +26,20 @@ const sessionRoute = createRoute({
   component: SessionPage,
 })
 
+const reportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reports/$reportId',
+  component: ReportPage,
+})
+
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([setupRoute, interviewRoute, sessionsRoute, sessionRoute]),
+  routeTree: rootRoute.addChildren([
+    setupRoute,
+    interviewRoute,
+    sessionsRoute,
+    sessionRoute,
+    reportRoute,
+  ]),
 })
 
 declare module '@tanstack/react-router' {

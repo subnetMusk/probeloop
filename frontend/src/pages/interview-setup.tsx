@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { PREPARATION_KEY } from '@/context/setup-state'
+import { CvReviewPanel } from '@/reports/cv-review-panel'
 import {
   Select,
   SelectContent,
@@ -102,6 +103,7 @@ export function InterviewSetup({
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [language, setLanguage] = useState<Language>(initialLanguage)
   const [minutes, setMinutes] = useState('10')
+  const [reviewBusy, setReviewBusy] = useState(false)
 
   const speech = useQuery({
     queryKey: ['speech-status'],
@@ -119,7 +121,11 @@ export function InterviewSetup({
   const voices = speech.data?.voices ?? {}
   const voice = voices[language]
   const canStart =
-    audio.kit !== null && speech.data?.ready === true && Boolean(voice) && !create.isPending
+    audio.kit !== null &&
+    speech.data?.ready === true &&
+    Boolean(voice) &&
+    !create.isPending &&
+    !reviewBusy
 
   return (
     <div className="bg-gradient-to-b from-indigo-50/60 to-background">
@@ -137,6 +143,7 @@ export function InterviewSetup({
           </p>
         </div>
 
+        {snapshotId && <CvReviewPanel snapshotId={snapshotId} onBusyChange={setReviewBusy} />}
         <div className="grid gap-6 md:grid-cols-[3fr_2fr]">
           <Card>
             <CardHeader>

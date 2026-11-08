@@ -1,0 +1,47 @@
+id: cv
+version: 1
+# A summary requires at least five of seven criteria; unavailable ones remain visible.
+minimum_assessed_share: 0.6
+criteria:
+  - id: relevance
+    label: Relevance to the target
+    anchors:
+      1: Little clear evidence related to the stated target.
+      3: Relevant evidence is present but important connections or priorities remain unclear.
+      5: Relevant evidence is prioritised and clearly connected to the requirements or confirmed area.
+  - id: impact
+    label: Evidence of impact
+    anchors:
+      1: Duties or unsupported outcomes dominate the descriptions.
+      3: Concrete outcomes or scope are present with incomplete context or attribution.
+      5: Specific contextualised outcomes are linked to actions, using appropriate qualitative or quantitative evidence.
+  - id: ownership
+    label: Specificity and ownership
+    anchors:
+      1: Generic statements leave individual contribution unclear.
+      3: Some specific actions and methods, with individual and team contributions mixed.
+      5: Context, individual actions, methods and contribution are clear, including relevant unpaid projects.
+  - id: clarity
+    label: Clarity and structure
+    anchors:
+      1: Observable wording or organisation makes important information difficult to locate.
+      3: Readable text with some repetition or uneven prioritisation.
+      5: Clear organisation and concise descriptions make relevant information easy to locate.
+  - id: consistency
+    label: Internal consistency
+    anchors:
+      1: Explicit contradictions or impossible dates materially undermine understanding.
+      3: Broadly coherent account with ambiguities needing clarification.
+      5: Dates, titles, scope and claims are coherent at their stated precision; a gap alone is not a weakness.
+  - id: depth
+    label: Depth for the target level
+    anchors:
+      1: Little detail about work expected at the confirmed target level.
+      3: Relevant tasks and methods with limited context on decisions, complexity or scope.
+      5: Evidence explains methods, decisions, complexity and scope appropriate to the target.
+  - id: readability
+    label: Machine readability
+    anchors:
+      1: An observed local extraction defect makes substantial available text unreliable.
+      3: Mostly usable text with demonstrated extraction issues needing review.
+      5: Coherent local extraction retains the information inspected, without certifying other ATS products.

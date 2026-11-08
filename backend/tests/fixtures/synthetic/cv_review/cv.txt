@@ -1,0 +1,18 @@
+Synthetic Applicant
+Backend developer
+applicant@example.test
+
+Experience
+2024-2022 Backend developer at Example Studio.
+2018-2020 Developer at Example Workshop.
+2023-2025 Backend developer at Example Services.
+Built a Python API and a documented recovery procedure for customer incidents.
+Reduced recovery time from 40 minutes to 20 minutes with a tested rollback procedure.
+
+Education
+2018 Computer Science degree at Example University.
+
+Skills
+Python, PostgreSQL, Docker.
+
+https://example.test/portfolio

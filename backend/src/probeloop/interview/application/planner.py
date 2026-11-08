@@ -23,7 +23,7 @@ from probeloop.interview.domain.model import InterviewConfig, Topic
 
 logger = logging.getLogger(__name__)
 
-PLAN_PROMPT_VERSION = 1
+PLAN_PROMPT_VERSION = 2
 CLOSING = "Candidate questions and closing"
 
 
@@ -51,7 +51,11 @@ class TopicPlanner:
         self._prompts = PromptRenderer("probeloop.interview")
 
     async def plan(
-        self, config: InterviewConfig, candidate_brief: str, job_brief: str
+        self,
+        config: InterviewConfig,
+        candidate_brief: str,
+        job_brief: str,
+        practice_questions: tuple[str, ...] = (),
     ) -> tuple[Topic, ...]:
         minutes = config.target_duration_s / 60
         count = topic_count(minutes)
@@ -65,6 +69,7 @@ class TopicPlanner:
             count=count,
             candidate_brief=candidate_brief,
             job_brief=job_brief,
+            practice_questions=practice_questions,
         )
         request = ChatRequest(
             instructions=prompt.text,

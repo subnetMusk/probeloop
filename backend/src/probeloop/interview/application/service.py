@@ -96,20 +96,27 @@ class SessionService:
         voice: VoiceServices | None = None,
         new_id: Callable[[], str] = uuid7_hex,
         on_finished: Callable[[InterviewSession], Awaitable[None]] | None = None,
+        background_busy: Callable[[], bool] = lambda: False,
     ) -> None:
         self._store = store
         self._on_finished = on_finished
+        self._background_busy = background_busy
         self._interviewer = interviewer
         self._clock = clock
         self._voice = voice
         self._new_id = new_id
         self._live: dict[str, LiveSession] = {}
         self._connected: set[str] = set()
+        self._entering: set[str] = set()
         self._lock = asyncio.Lock()
 
     @property
     def voice(self) -> VoiceServices | None:
         return self._voice
+
+    @property
+    def background_busy(self) -> bool:
+        return self._background_busy()
 
     async def create(
         self,
@@ -160,14 +167,24 @@ class SessionService:
         """Start the interview, unless another one is running: there is one candidate, one model
         and one set of speech services, and two interviews would talk over each other."""
         self._require_no_other_active(session_id)
-        await self._live_orchestrator(session_id).start()
+        self._entering.add(session_id)
+        try:
+            await self._live_orchestrator(session_id).start()
+        finally:
+            self._entering.discard(session_id)
 
     async def resume(self, session_id: str) -> None:
         self._require_no_other_active(session_id)
-        await self._live_orchestrator(session_id).resume()
+        self._entering.add(session_id)
+        try:
+            await self._live_orchestrator(session_id).resume()
+        finally:
+            self._entering.discard(session_id)
 
     def any_active(self) -> bool:
-        return any(live.orchestrator.is_active for live in self._live.values())
+        return bool(self._entering) or any(
+            live.orchestrator.is_active for live in self._live.values()
+        )
 
     async def wait_until_idle(self, poll_s: float = 2.0) -> None:
         """Return once no interview is starting or in progress (the gate of background jobs)."""
@@ -177,6 +194,12 @@ class SessionService:
             await asyncio.sleep(poll_s)
 
     def _require_no_other_active(self, session_id: str) -> None:
+        if self._background_busy():
+            raise InvalidTransitionError(
+                "background processing is running; wait before starting or resuming"
+            )
+        if self._entering - {session_id}:
+            raise InvalidTransitionError("another interview is starting")
         for other_id, live in self._live.items():
             if other_id != session_id and live.orchestrator.is_active:
                 raise InvalidTransitionError(
