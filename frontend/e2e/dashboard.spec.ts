@@ -113,10 +113,17 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await page.goto(`/cv-checks/${snapshotId}`)
   await expect(page).toHaveTitle('cv-check-detail | ProbeLoop')
   await expect(page.getByRole('heading', { name: 'Versions' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /^Version 1 ·/ })).toBeVisible()
+  const versions = await json<{ version: number }[]>(
+    request.get(`/api/snapshots/${snapshotId}/cv-reviews`),
+  )
+  const latestVersion = versions.at(-1)?.version ?? 1
+  const latestReport = page.getByRole('link', {
+    name: new RegExp(`^Version ${String(latestVersion)} ·`),
+  })
+  await expect(latestReport).toBeVisible()
   await expect(page.getByText('Typed text: there is no original file.')).toBeVisible()
   await noSeriousViolations(page)
-  await page.getByRole('link', { name: /^Version 1 ·/ }).click()
+  await latestReport.click()
   await expect(page).toHaveTitle('cv-report | ProbeLoop')
   await expect(page.getByRole('heading', { name: 'Document checks' })).toBeVisible()
   for (const theme of ['light', 'dark']) {

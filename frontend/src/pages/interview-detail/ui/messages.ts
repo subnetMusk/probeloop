@@ -20,7 +20,7 @@ export const transcriptMessages = defineMessages({
     refine: 'Accurate transcript',
     refineNote:
       'Review highlighted words and correct recognition mistakes before generating a report. Each correction is kept as a new revision.',
-    refined: (n: number) => `${String(n)} answers transcribed again.`,
+    refined: (n: number) => `${String(n)} ${n === 1 ? 'answer' : 'answers'} transcribed again.`,
     again: 'Transcribe again',
     refineStart: 'Transcribe accurately',
     refining: 'Transcribing your answers…',

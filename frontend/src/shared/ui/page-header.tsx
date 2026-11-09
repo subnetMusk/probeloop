@@ -23,7 +23,7 @@ export function PageHeader({
   children?: ReactNode
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+    <header className="flex flex-col items-stretch justify-between gap-x-6 gap-y-4 sm:flex-row sm:flex-wrap sm:items-end">
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {eyebrow && (
           <p className="text-xs font-semibold tracking-widest text-brand-text uppercase">

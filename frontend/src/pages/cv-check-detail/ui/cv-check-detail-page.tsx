@@ -9,6 +9,8 @@ import type { DocumentView } from '@/shared/api'
 import { defineMessages, useMessages } from '@/shared/i18n'
 import { score, shortDate } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
+import { usePaged } from '@/shared/lib/pagination'
+import { Pager } from '@/shared/ui/pager'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { PAGE_TITLE, Page, PageHeader } from '@/shared/ui/page-header'
@@ -144,6 +146,7 @@ export function CvCheckDetailPage() {
     queryFn: () => api.cvReviews(snapshotId),
   })
   const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
+  const versions = usePaged(reports.data?.toReversed() ?? [], 4)
   if (snapshot.isPending) return <Page>{t.loading}</Page>
   if (!snapshot.data)
     return (
@@ -194,7 +197,7 @@ export function CvCheckDetailPage() {
                 <p className="text-sm text-muted-foreground">{t.noVersions}</p>
               )}
               <ul className="flex flex-col divide-y text-sm">
-                {reports.data?.toReversed().map((report) => (
+                {versions.items.map((report) => (
                   <li key={report.id} className="flex items-center justify-between gap-3 py-2">
                     <Link
                       to="/cv-checks/$snapshotId/reports/$reportId"
@@ -211,6 +214,12 @@ export function CvCheckDetailPage() {
                   </li>
                 ))}
               </ul>
+              <Pager
+                label={t.versions}
+                page={versions.page}
+                pages={versions.pages}
+                onPage={versions.setPage}
+              />
             </CardContent>
           </Card>
         </div>

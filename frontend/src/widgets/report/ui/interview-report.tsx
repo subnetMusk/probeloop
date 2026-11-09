@@ -88,7 +88,7 @@ export function InterviewReport({ view }: { view: InterviewReportView }) {
       </ReportSection>
       <ReportSection id="requirements" title={t.requirements}>
         {view.requirements.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t.noNotes}</p>
+          <p className="text-sm text-muted-foreground">{t.noRequirements}</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-left text-sm">

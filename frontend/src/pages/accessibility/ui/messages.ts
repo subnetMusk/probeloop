@@ -3,7 +3,7 @@ import { defineMessages } from '@/shared/i18n'
 export const accessibilityMessages = defineMessages({
   en: {
     title: 'Accessibility statement',
-    updated: 'Self-assessment of 8 November 2026, not verified by a third party.',
+    updated: 'Self-assessment of 9 November 2026, not verified by a third party.',
     commitment: {
       title: 'Commitment',
       text: 'ProbeLoop aims to conform to the Web Content Accessibility Guidelines (WCAG) 2.2 at level AA.',
@@ -37,7 +37,7 @@ export const accessibilityMessages = defineMessages({
   },
   it: {
     title: 'Dichiarazione di accessibilità',
-    updated: 'Autovalutazione dell’8 novembre 2026, non verificata da terzi.',
+    updated: 'Autovalutazione del 9 novembre 2026, non verificata da terzi.',
     commitment: {
       title: 'Impegno',
       text: 'ProbeLoop punta alla conformità alle linee guida per l’accessibilità dei contenuti web (WCAG) 2.2, livello AA.',

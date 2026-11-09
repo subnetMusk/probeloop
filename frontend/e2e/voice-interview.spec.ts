@@ -77,7 +77,7 @@ test('a voice interview from the preparation to the end of the call', async ({ p
 
   // After the call the answers are transcribed again; the transcript can then be corrected.
   await page.getByTestId('review-transcript').click()
-  await expect(page.getByTestId('refine-done')).toContainText('1 answers', { timeout: 30_000 })
+  await expect(page.getByTestId('refine-done')).toContainText('1 answer', { timeout: 30_000 })
   const answerText = page.getByTestId('answer-text')
   await expect(answerText).toContainText('Segmento di prova')
   await page.getByRole('button', { name: 'Correct' }).click()
@@ -93,6 +93,14 @@ test('a voice interview from the preparation to the end of the call', async ({ p
     ).toEqual([])
   }
   await page.screenshot({ path: 'test-results/transcript.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  const metadata = await page.locator('main > header p').first().boundingBox()
+  expect(metadata?.height).toBeLessThanOrEqual(48)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
+    false,
+  )
+  await page.screenshot({ path: 'test-results/transcript-mobile.png' })
+  await page.setViewportSize({ width: 1280, height: 720 })
 
   // The report assesses the corrected revision in the background (scripted evaluator).
   const reports = page.getByTestId('interview-report-panel')
@@ -137,6 +145,12 @@ test('a voice interview from the preparation to the end of the call', async ({ p
     ).toEqual([])
   }
   await page.screenshot({ path: 'test-results/interview-report.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
+    false,
+  )
+  await page.screenshot({ path: 'test-results/interview-report-mobile.png' })
+  await page.setViewportSize({ width: 1280, height: 720 })
 
   // Regenerating keeps the earlier version.
   await page.goBack()

@@ -96,13 +96,19 @@ export function Criteria({ criteria }: { criteria: CriterionView[] }) {
             </span>
           </h3>
           {item.value !== null && (
-            <meter
-              min={1}
-              max={5}
-              value={item.value}
+            <div
+              role="meter"
+              aria-valuemin={1}
+              aria-valuemax={5}
+              aria-valuenow={item.value}
               aria-label={item.label}
-              className="h-2 w-full accent-brand"
-            />
+              className="h-1.5 overflow-hidden rounded-full bg-muted"
+            >
+              <div
+                className="h-full rounded-full bg-brand"
+                style={{ width: `${String((item.value / 5) * 100)}%` }}
+              />
+            </div>
           )}
           <p className="text-sm text-muted-foreground">{item.reason}</p>
           {item.unstable && (
