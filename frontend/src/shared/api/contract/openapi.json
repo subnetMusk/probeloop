@@ -1291,6 +1291,16 @@
             ],
             "title": "Profile Id"
           },
+          "role_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleProfileData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "snapshot_id": {
             "anyOf": [
               {
@@ -2087,6 +2097,71 @@
         "title": "RevisionView",
         "type": "object"
       },
+      "RoleProfileData": {
+        "additionalProperties": false,
+        "properties": {
+          "basis_fact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Basis Fact Ids",
+            "type": "array"
+          },
+          "competencies": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Competencies",
+            "type": "array"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "profession": {
+            "maxLength": 160,
+            "title": "Profession",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 800,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "responsibilities": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Responsibilities",
+            "type": "array"
+          },
+          "seniority": {
+            "maxLength": 160,
+            "title": "Seniority",
+            "type": "string"
+          },
+          "target_role": {
+            "maxLength": 160,
+            "title": "Target Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profession",
+          "target_role",
+          "seniority",
+          "responsibilities",
+          "competencies",
+          "basis_fact_ids",
+          "rationale",
+          "confirmed"
+        ],
+        "title": "RoleProfileData",
+        "type": "object"
+      },
       "ScoreData": {
         "additionalProperties": false,
         "properties": {
@@ -2344,6 +2419,16 @@
             ],
             "title": "Profile Id"
           },
+          "role_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleProfileData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "snapshot_id": {
             "anyOf": [
               {
@@ -2469,6 +2554,16 @@
             },
             "title": "Requirements",
             "type": "array"
+          },
+          "role_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleProfileData"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "vocabulary": {
             "items": {
@@ -3609,6 +3704,55 @@
           }
         },
         "summary": "Reopen"
+      }
+    },
+    "/api/preparations/{preparation_id}/role-profile": {
+      "put": {
+        "operationId": "set_role_profile_api_preparations__preparation_id__role_profile_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleProfileData"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Role Profile"
       }
     },
     "/api/profiles": {

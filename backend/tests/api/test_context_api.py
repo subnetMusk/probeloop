@@ -42,6 +42,20 @@ def wait_for_review(client: TestClient, preparation_id: str) -> dict[str, Any]:
     )
 
 
+def confirm_role(client: TestClient, view: dict[str, Any], **changes: Any) -> dict[str, Any]:
+    response = client.put(
+        f"/api/preparations/{view['id']}/role-profile",
+        json={
+            **view["role_profile"],
+            **changes,
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    result: dict[str, Any] = response.json()
+    return result
+
+
 def test_documents_upload_as_files_or_text(client: TestClient, tmp_path: Path) -> None:
     pdf = text_pdf(CV_TEXT.splitlines())
     response = client.post(
@@ -168,10 +182,11 @@ def test_from_documents_to_an_interview_with_its_own_plan(client: TestClient) ->
     )
     assert added.status_code == 201
 
+    confirm_role(client, view)
     snapshot = client.post(f"{base}/approve").json()
     assert "Go di base." in snapshot["candidate_brief"]
     assert "Esperta di Kafka." not in snapshot["candidate_brief"]
-    assert "Requirements the candidate's documents do not show" in snapshot["job_brief"]
+    assert "Confirmed target expectations" in snapshot["job_brief"]
     assert client.post(f"{base}/approve").status_code == 422  # already approved
     assert (snapshot["language"], snapshot["job_mode"], snapshot["area"]) == ("it", "offer", None)
     assert [d["kind"] for d in snapshot["documents"]] == ["cv", "job_offer"]
@@ -225,8 +240,10 @@ def test_without_a_job_offer_the_area_is_reviewed(client: TestClient) -> None:
         json={"area": "data engineering", "seniority": "senior"},
     )
     assert changed.json()["area"]["confirmed"] is True
+    confirm_role(client, view, profession="data engineering", seniority="senior")
     snapshot = client.post(f"/api/preparations/{view['id']}/approve").json()
-    assert "data engineering (senior)" in snapshot["job_brief"]
+    assert snapshot["role_profile"]["profession"] == "data engineering"
+    assert snapshot["role_profile"]["seniority"] == "senior"
 
     mismatch = client.post("/api/preparations", json={"job_mode": "offer", "cv_id": cv})
     assert mismatch.status_code == 422
@@ -256,6 +273,7 @@ def test_identical_documents_reuse_the_approved_snapshot(client: TestClient) -> 
             },
         )
         view = wait_for_review(client, response.json()["id"])
+        confirm_role(client, view)
         snapshot = client.post(f"/api/preparations/{view['id']}/approve")
         assert snapshot.status_code == 200, snapshot.text
         snapshots.append(snapshot.json()["id"])
@@ -302,3 +320,26 @@ def test_original_files_are_served_safely(client: TestClient, tmp_path: Path) ->
     lost = client.get(f"/api/documents/{pdf['id']}/original")
     assert (lost.status_code, lost.json()["detail"]) == (404, "original file not available")
     assert client.get("/api/documents/missing/original").status_code == 404
+
+
+def test_without_documents_the_target_profile_is_required_and_persisted(client: TestClient) -> None:
+    created = client.post("/api/preparations", json={"job_mode": "none"})
+    assert created.status_code == 202
+    view = created.json()
+    assert view["status"] == "review"
+    assert view["analysis"] is None
+    assert client.post(f"/api/preparations/{view['id']}/approve").status_code == 422
+    updated = confirm_role(
+        client,
+        view,
+        profession="Economics",
+        target_role="Research economist",
+        seniority="Junior under supervision",
+        competencies=["Interpreting economic evidence"],
+    )
+    assert updated["role_profile"]["confirmed"]
+    snapshot = client.post(f"/api/preparations/{view['id']}/approve").json()
+    assert snapshot["documents"] == []
+    assert "Marco" not in snapshot["candidate_brief"]
+    assert snapshot["role_profile"]["target_role"] == "Research economist"
+    assert client.get(f"/api/snapshots/{snapshot['id']}").json() == snapshot

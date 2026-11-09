@@ -5,6 +5,7 @@ import { Loader2Icon } from 'lucide-react'
 import { useDraft } from '@/entities/preparation'
 import { startAnalysis } from '@/features/edit-documents'
 import { FactReview } from '@/features/review-facts'
+import { RoleProfileEditor } from '@/features/confirm-role'
 import { api, localizeProblem } from '@/shared/api'
 import type { PreparationView } from '@/shared/api'
 import { useMessages } from '@/shared/i18n'
@@ -48,7 +49,10 @@ export function ReviewStep() {
     mutationFn: () => startAnalysis(draft.profile?.kind === 'saved' ? draft.profile.id : null),
   })
   const reviewable = view?.status === 'review' || view?.status === 'approved'
-  const areaMissing = view?.job_mode === 'none' && view.area?.confirmed !== true
+  const role = draft.roleProfile ?? view?.role_profile
+  const areaMissing = view?.role_profile
+    ? role?.confirmed !== true
+    : view?.job_mode === 'none' && view.area?.confirmed !== true
   const hint = !reviewable ? t.missing.analysing : areaMissing ? t.missing.area : undefined
   return (
     <StepFrame
@@ -107,10 +111,23 @@ export function ReviewStep() {
         </Alert>
       )}
       {view && reviewable && (
+        <RoleProfileEditor
+          preparation={view}
+          onChange={(updated) => client.setQueryData(key, updated)}
+        />
+      )}
+      {view && reviewable && view.documents.length > 0 && (
         <FactReview
           preparation={view}
           onChange={(updated: PreparationView) => {
             client.setQueryData(key, updated)
+            if (draft.roleProfile?.confirmed !== false)
+              draft.setRoleProfile(updated.role_profile ?? null)
+            else if (updated.role_profile)
+              draft.setRoleProfile({
+                ...draft.roleProfile,
+                basis_fact_ids: updated.role_profile.basis_fact_ids,
+              })
           }}
           onReopened={() => {
             draft.setSnapshot(null)

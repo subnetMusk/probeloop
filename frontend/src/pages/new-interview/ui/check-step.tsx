@@ -24,7 +24,7 @@ function Summary() {
       : profile?.kind === 'saved' || profile?.kind === 'new'
         ? profile.name
         : t.summary.once
-  const rows: [string, string, 'interview-settings' | 'resource-profile'][] = [
+  const rows: [string, string, 'interview-settings' | 'resource-profile' | 'fact-review'][] = [
     [t.summary.type, t.summary.types[settings.interviewType], 'interview-settings'],
     [t.summary.difficulty, t.summary.difficulties[settings.difficulty], 'interview-settings'],
     [t.summary.language, t.summary.languages[settings.language], 'interview-settings'],
@@ -36,6 +36,11 @@ function Summary() {
     ],
     [t.summary.profile, documents, 'resource-profile'],
   ]
+  if (draft.roleProfile)
+    rows.push(
+      [t.summary.targetRole, draft.roleProfile.target_role, 'fact-review'],
+      [t.summary.level, draft.roleProfile.seniority, 'fact-review'],
+    )
   return (
     <Card>
       <CardHeader>

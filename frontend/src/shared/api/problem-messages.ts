@@ -6,6 +6,13 @@ import type { Language } from '@/shared/lib/preferences'
  * shown as sent.
  */
 export const PROBLEMS_IT: Readonly<Record<string, string>> = {
+  'confirm the target role and level before approving':
+    'Conferma ruolo e livello target prima di approvare',
+  'confirm the target role and level': 'Conferma ruolo e livello target',
+  'role profile references an unavailable fact':
+    'Il profilo di ruolo fa riferimento a un fatto non più disponibile: confermalo di nuovo',
+  'confirm the target role again after excluding its source facts':
+    'Conferma di nuovo il ruolo target dopo aver escluso i fatti su cui si basava',
   'CV review could not be completed; try again':
     'Non è stato possibile completare la revisione del CV; riprova',
   'interview review could not be completed; try again':

@@ -27,6 +27,7 @@ from probeloop.context.domain.model import (
     PreparationStatus,
     Profile,
     Review,
+    RoleProfile,
     Subject,
 )
 from probeloop.platform.jobs import Job, JobError, Progress
@@ -223,8 +224,6 @@ class ContextService:
                 raise ContextError(f"document {document_id} is not a {kind.value}")
             documents.append(document)
         documents += await self._resources(resources)
-        if not documents:
-            raise ContextError("add at least a CV, a job offer or a resource")
         preparation = Preparation(
             id=self._new_id(),
             created_at=self._now(),
@@ -233,10 +232,14 @@ class ContextService:
             documents=documents,
             profile_id=profile_id,
             execution_profile=execution_profile,
+            role_profile=RoleProfile(),
         )
+        if not documents:
+            preparation.analysed([], [], None, ())
         await self._store.save_preparation(preparation)
         payload = {"execution": execution_profile} if execution_profile else None
-        await self._submit(ANALYSE_JOB, preparation.id, payload)
+        if documents:
+            await self._submit(ANALYSE_JOB, preparation.id, payload)
         return preparation
 
     async def preparation(self, preparation_id: str) -> Preparation:
@@ -258,6 +261,7 @@ class ContextService:
             result = await self._analyser.analyse(
                 preparation.documents, preparation.job_mode, preparation.language, report
             )
+            role_profile = await self._analyser.propose_role(result.facts, preparation.language)
         except Exception as exc:
             logger.error(
                 "context analysis failed",
@@ -277,6 +281,7 @@ class ContextService:
                 else "the documents could not be analysed"
             ) from exc
         preparation.analysed(result.facts, result.matches, result.area, result.vocabulary)
+        preparation.role_profile = role_profile
         await self._store.save_preparation(preparation)
         return {
             "facts": len(result.facts),
@@ -328,6 +333,12 @@ class ContextService:
             await self._store.save_snapshot(snapshot)
         await self._store.save_preparation(preparation)
         return snapshot
+
+    async def set_role_profile(self, preparation_id: str, profile: RoleProfile) -> Preparation:
+        preparation = await self.preparation(preparation_id)
+        preparation.set_role_profile(profile)
+        await self._store.save_preparation(preparation)
+        return preparation
 
     async def reopen(self, preparation_id: str) -> Preparation:
         preparation = await self.preparation(preparation_id)

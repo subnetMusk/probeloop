@@ -12,6 +12,7 @@ export type JobView = components['schemas']['JobView']
 export type DocumentView = components['schemas']['DocumentView']
 export type ProfileView = components['schemas']['ProfileView']
 export type PreparationView = components['schemas']['PreparationView']
+export type RoleProfileData = components['schemas']['RoleProfileData']
 export type FactView = components['schemas']['FactView']
 export type SnapshotView = components['schemas']['SnapshotView']
 export type PrepareIn = components['schemas']['PrepareIn']
@@ -65,6 +66,8 @@ const json = (method: string, body: unknown): RequestInit => ({
 })
 
 export const api = {
+  setRoleProfile: (id: string, body: RoleProfileData) =>
+    request<PreparationView>(`${preparationPath(id)}/role-profile`, json('PUT', body)),
   reportHistory: () => request<ReportData[]>('/api/reports'),
   progress: () => request<ProgressGroup[]>('/api/progress'),
   dataSummary: () => request<Record<string, number>>('/api/data/summary'),

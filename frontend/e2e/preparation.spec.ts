@@ -94,7 +94,9 @@ test('back and forward keep what was entered until the interview starts', async 
   await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
   await expect(page.getByTestId('context-review')).toBeVisible({ timeout: 30_000 })
   await expect(continueButton(page)).toBeDisabled()
-  await expect(page.getByText('Confirm your professional area to continue.')).toBeVisible()
+  await expect(
+    page.getByText('Confirm the target profession, role and level to continue.'),
+  ).toBeVisible()
   const doubtful = page.getByTestId('doubtful-facts').getByTestId('context-fact').first()
   await expect(doubtful).toContainText('Unverified model interpretation.')
   await doubtful.getByRole('button', { name: 'Exclude', exact: true }).click()
@@ -102,8 +104,18 @@ test('back and forward keep what was entered until the interview starts', async 
     'aria-pressed',
     'true',
   )
-  await page.getByRole('button', { name: 'Confirm area', exact: true }).click()
-  await expect(page.getByText('Area confirmed', { exact: true })).toBeVisible()
+  await page
+    .getByRole('textbox', { name: 'Target level or training grade', exact: true })
+    .fill('Junior under supervision')
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await continueButton(page).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Target level or training grade', exact: true }),
+  ).toHaveValue('Junior under supervision')
+  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
+  await expect(
+    page.getByTestId('role-profile').getByText('Confirmed', { exact: true }),
+  ).toBeVisible()
   await noSeriousViolations(page)
   await continueButton(page).click()
 
@@ -164,6 +176,7 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
   ).toContainText('Added by you')
   await page.reload()
   await expect(page.getByTestId('context-review')).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
   await continueButton(page).click()
 
   const check = page.getByTestId('cv-check')
@@ -188,7 +201,10 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
   await expect(page.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
 })
 
-test('a quick start goes straight to the final check', async ({ page }) => {
+test('a quick start requires an explicit role and level without demo facts', async ({
+  page,
+  request,
+}) => {
   await startOver(page)
   // The test backend has an interviewer voice for Italian only.
   await expect(page.getByRole('radio', { name: 'English', exact: true })).toBeDisabled()
@@ -196,7 +212,30 @@ test('a quick start goes straight to the final check', async ({ page }) => {
   await continueButton(page).click()
   await page.getByRole('radio', { name: 'No documents', exact: true }).click()
   await continueButton(page).click()
+  await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
+  await expect(continueButton(page)).toBeDisabled()
+  await page.getByRole('textbox', { name: 'Profession or field', exact: true }).fill('Economics')
+  await page.getByRole('textbox', { name: 'Target role', exact: true }).fill('Research economist')
+  await page
+    .getByRole('textbox', { name: 'Target level or training grade', exact: true })
+    .fill('Junior under supervision')
+  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
+  await continueButton(page).click()
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
+  const snapshotId = await page.evaluate(
+    () =>
+      (
+        JSON.parse(sessionStorage.getItem('probeloop.prepare-draft') ?? '{}') as {
+          state: { snapshotId: string }
+        }
+      ).state.snapshotId,
+  )
+  const snapshot = (await (await request.get(`/api/snapshots/${snapshotId}`)).json()) as {
+    candidate_brief: string
+    role_profile: { target_role: string }
+  }
+  expect(snapshot.candidate_brief).not.toContain('Marco')
+  expect(snapshot.role_profile.target_role).toBe('Research economist')
   await expect(page.getByTestId('cv-check')).toHaveCount(0)
   await expect(page.getByRole('navigation', { name: 'Preparation steps' })).toContainText('skipped')
   await expect(continueButton(page)).toBeDisabled()
@@ -204,7 +243,7 @@ test('a quick start goes straight to the final check', async ({ page }) => {
   await expect(page.getByText('Say something')).toBeVisible()
   await expect(continueButton(page)).toBeEnabled()
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await expect(page).toHaveURL(/\/new-interview\/resource-profile$/)
+  await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
 })
 
 test('a changed profile can be overwritten, copied or used once', async ({ page, request }) => {

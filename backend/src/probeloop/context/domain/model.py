@@ -164,6 +164,35 @@ class TargetArea:
     confirmed: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class RoleProfile:
+    """Target expectations, proposed from documents and explicitly confirmed by the user.
+
+    These describe the position being practised, not verified abilities of the candidate.
+    Seniority is free text because professional training grades differ between professions.
+    """
+
+    profession: str = ""
+    target_role: str = ""
+    seniority: str = ""
+    responsibilities: tuple[str, ...] = ()
+    competencies: tuple[str, ...] = ()
+    basis_fact_ids: tuple[str, ...] = ()
+    rationale: str = ""
+    confirmed: bool = False
+
+    def __post_init__(self) -> None:
+        for name in ("profession", "target_role", "seniority"):
+            value = getattr(self, name)
+            if len(value) > 160 or (self.confirmed and not value.strip()):
+                raise ContextError(f"{name} needs 1 to 160 characters when confirmed")
+        for items in (self.responsibilities, self.competencies):
+            if len(items) > 12 or any(not s.strip() or len(s) > 400 for s in items):
+                raise ContextError("provide at most 12 nonempty items of 400 characters")
+        if len(self.basis_fact_ids) > 24 or len(self.rationale) > 800:
+            raise ContextError("role profile provenance is too long")
+
+
 class JobMode(StrEnum):
     OFFER = "offer"  # a real job offer, uploaded or pasted
     GENERATED = "generated"  # drafted by the model from the user's description, then edited
@@ -195,6 +224,7 @@ class Preparation:
     profile_id: str | None = None
     snapshot_id: str | None = None
     execution_profile: str | None = None  # where the analysis runs (ADR 0015)
+    role_profile: RoleProfile | None = None  # None only for preparations predating this policy
 
     def __post_init__(self) -> None:
         kinds = [d.kind for d in self.documents]
@@ -249,6 +279,20 @@ class Preparation:
             corrected=corrected.strip() if review is Review.CORRECTED and corrected else None,
         )
         self.facts = [updated if f.id == fact_id else f for f in self.facts]
+        if (
+            self.role_profile
+            and fact_id in self.role_profile.basis_fact_ids
+            and review in (Review.CORRECTED, Review.EXCLUDED)
+        ):
+            self.role_profile = replace(
+                self.role_profile,
+                confirmed=False,
+                basis_fact_ids=tuple(
+                    i
+                    for i in self.role_profile.basis_fact_ids
+                    if i != fact_id or review is not Review.EXCLUDED
+                ),
+            )
         if review in (Review.CORRECTED, Review.EXCLUDED):
             # A changed statement no longer supports the model's original comparison.
             self.matches = [
@@ -287,8 +331,25 @@ class Preparation:
         rationale = self.area.rationale if self.area else ""
         self.area = TargetArea(area.strip(), seniority.strip(), rationale, confirmed=True)
 
+    def set_role_profile(self, profile: RoleProfile) -> None:
+        self._require_review()
+        known = {f.id for f in self.facts if f.included}
+        if not set(profile.basis_fact_ids) <= known:
+            raise ContextError("role profile references an unavailable fact")
+        if not profile.confirmed:
+            raise ContextError("confirm the target role and level")
+        self.role_profile = profile
+        if self.job_mode is JobMode.NONE:
+            self.area = TargetArea(profile.profession, profile.seniority, confirmed=True)
+
     def approve(self, snapshot_id: str) -> None:
         self._require_review()
+        if self.role_profile and not set(self.role_profile.basis_fact_ids) <= {
+            f.id for f in self.facts if f.included
+        }:
+            raise ContextError("confirm the target role again after excluding its source facts")
+        if self.role_profile is not None and not self.role_profile.confirmed:
+            raise ContextError("confirm the target role and level before approving")
         if self.job_mode is JobMode.NONE and (self.area is None or not self.area.confirmed):
             raise ContextError("confirm the professional area before approving")
         self.status = PreparationStatus.APPROVED
@@ -364,3 +425,4 @@ class ContextSnapshot:
     vocabulary: tuple[str, ...]
     documents: tuple[Document, ...]
     content_hash: str
+    role_profile: RoleProfile | None = None

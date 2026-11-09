@@ -69,17 +69,17 @@ describe('preparation draft', () => {
     expect(stepDone(draft, 'resource-profile')).toBe(true)
   })
 
-  it('a quick start skips the documents and their review', () => {
+  it('a quick start skips documents but requires a confirmed role', () => {
     const draft = initialDraft()
     draft.settings = { ...SETTINGS }
     draft.settingsDone = true
     draft.profile = { kind: 'quick' }
     expect(canOpen(draft, 'documents')).toBe(false)
-    expect(canOpen(draft, 'fact-review')).toBe(false)
-    expect(canOpen(draft, 'final-check')).toBe(true)
-    expect(firstOpenStep(draft)).toBe('final-check')
-    expect(nextStep(draft, 'resource-profile')).toBe('final-check')
-    expect(previousStep(draft, 'final-check')).toBe('resource-profile')
+    expect(canOpen(draft, 'fact-review')).toBe(true)
+    expect(canOpen(draft, 'final-check')).toBe(false)
+    expect(firstOpenStep(draft)).toBe('fact-review')
+    expect(nextStep(draft, 'resource-profile')).toBe('fact-review')
+    expect(previousStep(draft, 'final-check')).toBe('fact-review')
   })
 
   it('keeps the preparation until its inputs change', () => {

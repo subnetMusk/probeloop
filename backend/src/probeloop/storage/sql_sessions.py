@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,7 @@ from probeloop.storage.database import (
     TurnRow,
 )
 from probeloop.storage.session_files import SessionFiles
+from probeloop.storage.sql_context import fact_from_json, fact_to_json, role_from_json
 
 
 class SqlSessionStore:
@@ -203,6 +205,8 @@ def _fill_session(row: SessionRow, s: InterviewSession) -> None:
         "job_brief": s.context.job_brief,
         "topics": [{"id": t.id, "title": t.title} for t in s.context.topics],
         "vocabulary": list(s.context.vocabulary),
+        "role_profile": asdict(s.context.role_profile) if s.context.role_profile else None,
+        "facts": [fact_to_json(f) for f in s.context.facts],
     }
     row.coverage = {k: v.value for k, v in s.coverage.items()}
     row.started_at = s.started_at
@@ -274,6 +278,8 @@ def _session(row: SessionRow) -> InterviewSession:
             job_brief=ctx["job_brief"],
             topics=tuple(Topic(id=t["id"], title=t["title"]) for t in ctx["topics"]),
             vocabulary=tuple(ctx.get("vocabulary", ())),
+            role_profile=role_from_json(ctx.get("role_profile")),
+            facts=tuple(fact_from_json(f) for f in ctx.get("facts", ())),
         ),
         status=SessionStatus(row.status),
         phase=Phase(row.phase) if row.phase else None,

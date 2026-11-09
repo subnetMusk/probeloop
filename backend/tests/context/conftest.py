@@ -109,6 +109,18 @@ def scripted_analysis(
     def answer(request: ChatRequest) -> str:
         text = request.instructions
         content = request.messages[0].content
+        if "Propose the target professional profile" in text:
+            return json.dumps(
+                {
+                    "profession": "Software engineering",
+                    "target_role": "Backend engineer",
+                    "seniority": "mid",
+                    "responsibilities": ["Build reliable services"],
+                    "competencies": ["Professional reasoning"],
+                    "basis_fact_ids": [],
+                    "rationale": "Proposal.",
+                }
+            )
         if "list the facts" in text:
             return json.dumps(OFFER_FACTS if "Offerta" in content else CV_FACTS)
         if "compare the requirements" in text:

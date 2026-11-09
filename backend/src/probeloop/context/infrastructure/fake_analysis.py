@@ -10,6 +10,18 @@ from probeloop.ai.ports import ChatRequest
 def scripted_analysis(request: ChatRequest) -> str:
     properties = (request.response_schema or {}).get("properties", {})
     content = request.messages[0].content
+    if "target_role" in properties:
+        return json.dumps(
+            {
+                "profession": "Software engineering",
+                "target_role": "Backend engineer",
+                "seniority": "mid",
+                "responsibilities": ["Maintain reliable services"],
+                "competencies": ["Reasoning about reliability"],
+                "basis_fact_ids": [],
+                "rationale": "Synthetic proposal; confirm or correct before starting.",
+            }
+        )
     if "facts" in properties:
         text = content.split("<<<\n", 1)[-1].rsplit("\n>>>", 1)[0]
         job = "Document type: a job offer." in request.instructions

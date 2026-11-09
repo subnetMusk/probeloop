@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ from probeloop.context.domain.model import (
     Profile,
     RequirementMatch,
     Review,
+    RoleProfile,
     Subject,
     TargetArea,
 )
@@ -130,6 +132,9 @@ class SqlContextStore:
             row.facts = [fact_to_json(f) for f in preparation.facts]
             row.matches = [match_to_json(m) for m in preparation.matches]
             row.area = area_to_json(preparation.area)
+            row.role_profile = (
+                asdict(preparation.role_profile) if preparation.role_profile else None
+            )
             row.vocabulary = list(preparation.vocabulary)
             row.error = preparation.error
             row.profile_id = preparation.profile_id
@@ -152,6 +157,7 @@ class SqlContextStore:
             facts=[fact_from_json(f) for f in row.facts],
             matches=[match_from_json(m) for m in row.matches],
             area=area_from_json(row.area),
+            role_profile=role_from_json(row.role_profile),
             vocabulary=tuple(row.vocabulary),
             error=row.error,
             profile_id=row.profile_id,
@@ -167,6 +173,7 @@ class SqlContextStore:
             "job_facts": [fact_to_json(f) for f in snapshot.job_facts],
             "matches": [match_to_json(m) for m in snapshot.matches],
             "area": area_to_json(snapshot.area),
+            "role_profile": asdict(snapshot.role_profile) if snapshot.role_profile else None,
             "vocabulary": list(snapshot.vocabulary),
             "document_ids": [d.id for d in snapshot.documents],
         }
@@ -233,6 +240,7 @@ class SqlContextStore:
             job_facts=tuple(fact_from_json(f) for f in data["job_facts"]),
             matches=tuple(match_from_json(m) for m in data["matches"]),
             area=area_from_json(data["area"]),
+            role_profile=role_from_json(data.get("role_profile")),
             vocabulary=tuple(data["vocabulary"]),
             documents=tuple(await self.documents(list(data["document_ids"]))),
             content_hash=row.content_hash,
@@ -240,6 +248,21 @@ class SqlContextStore:
 
 
 # ---------------------------------------------------------------------- mapping
+
+
+def role_from_json(data: dict[str, Any] | None) -> RoleProfile | None:
+    if data is None:
+        return None
+    return RoleProfile(
+        profession=data["profession"],
+        target_role=data["target_role"],
+        seniority=data["seniority"],
+        responsibilities=tuple(data.get("responsibilities", ())),
+        competencies=tuple(data.get("competencies", ())),
+        basis_fact_ids=tuple(data.get("basis_fact_ids", ())),
+        rationale=data.get("rationale", ""),
+        confirmed=data.get("confirmed", False),
+    )
 
 
 def _document_row(d: Document) -> DocumentRow:

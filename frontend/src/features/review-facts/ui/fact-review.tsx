@@ -352,7 +352,9 @@ export function FactReview({
         </div>
       ))}
       <fieldset disabled={update.isPending} className="flex min-w-0 flex-col gap-6">
-        {preparation.job_mode === 'none' && <Area preparation={preparation} act={act} />}
+        {preparation.job_mode === 'none' && !preparation.role_profile && (
+          <Area preparation={preparation} act={act} />
+        )}
         <Card>
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="flex items-center gap-3">

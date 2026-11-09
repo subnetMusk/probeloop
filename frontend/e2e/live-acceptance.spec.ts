@@ -58,6 +58,7 @@ for (const profile of ['local', 'cloud'] as const) {
         'true',
       )
     }
+    await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
     await next.click()
     await expect(page).toHaveURL(/\/final-check$/)
     const draft = await page.evaluate(

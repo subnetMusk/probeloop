@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+from dataclasses import asdict
 from typing import Any
 
 from probeloop.context.domain.model import (
@@ -60,7 +62,7 @@ def snapshot_of(preparation: Preparation, snapshot_id: str, now: float) -> Conte
         if m.requirement_id in requirements
     )
     facts_by_id = {f.id: _fact_key(f) for f in (*candidate, *job)}
-    content = {
+    content: dict[str, Any] = {
         "language": preparation.language,
         "job_mode": preparation.job_mode.value,
         "candidate": [_fact_key(f) for f in candidate],
@@ -76,6 +78,8 @@ def snapshot_of(preparation: Preparation, snapshot_id: str, now: float) -> Conte
             for d in preparation.documents
         ],
     }
+    if preparation.role_profile is not None:
+        content["role_profile"] = asdict(preparation.role_profile)
     digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
     return ContextSnapshot(
         id=snapshot_id,
@@ -90,6 +94,7 @@ def snapshot_of(preparation: Preparation, snapshot_id: str, now: float) -> Conte
         vocabulary=preparation.vocabulary,
         documents=tuple(preparation.documents),
         content_hash=digest,
+        role_profile=preparation.role_profile,
     )
 
 
@@ -106,10 +111,29 @@ def _fact_key(fact: Fact) -> list[Any]:
 def candidate_brief(snapshot: ContextSnapshot) -> str:
     if not snapshot.candidate_facts:
         return "No information about the candidate was provided."
+    if snapshot.role_profile is not None:
+        profile = snapshot.role_profile
+        return selected_fact_brief(
+            snapshot.candidate_facts,
+            query=" ".join((profile.target_role, *profile.competencies)),
+            preferred_ids=profile.basis_fact_ids,
+        )
     return _limit(_facts_by_kind(snapshot.candidate_facts))
 
 
 def job_brief(snapshot: ContextSnapshot) -> str:
+    if snapshot.role_profile is not None:
+        profile = snapshot.role_profile
+        return (
+            "Confirmed target expectations (not candidate abilities):\n"
+            + json.dumps(asdict(profile), ensure_ascii=False)
+            + "\n"
+            + selected_fact_brief(
+                snapshot.job_facts,
+                query=" ".join(profile.competencies),
+                preferred_ids=profile.basis_fact_ids,
+            )
+        )
     if snapshot.job_mode is JobMode.NONE:
         area = snapshot.area
         target = f"{area.area} ({area.seniority})" if area else "the candidate's own field"
@@ -176,3 +200,35 @@ def _limit(text: str) -> str:
         return text
     cut = text[:MAX_BRIEF_CHARS].rsplit("\n", 1)[0]
     return cut + "\n- (more facts omitted)"
+
+
+def selected_fact_brief(
+    facts: tuple[Fact, ...],
+    *,
+    query: str = "",
+    preferred_ids: tuple[str, ...] = (),
+    max_chars: int = MAX_BRIEF_CHARS,
+) -> str:
+    """Select whole facts by objective links and lexical relevance, retaining source ids.
+
+    The full fact collection stays in the session for later turns. Selection does not change
+    a fact's provenance or turn a model interpretation into a documented candidate claim.
+    """
+    words = set(re.findall(r"\w{4,}", query.casefold()))
+    preferred = set(preferred_ids)
+    ranked = sorted(
+        enumerate(facts),
+        key=lambda pair: (
+            pair[1].id not in preferred,
+            -len(words & set(re.findall(r"\w{4,}", pair[1].text.casefold()))),
+            pair[0],
+        ),
+    )
+    lines: list[str] = []
+    for _, fact in ranked:
+        line = (
+            f"[{fact.id}; {fact.origin.value}; document={fact.document_id or 'user'}] {fact.text}"
+        )
+        if sum(len(s) + 1 for s in lines) + len(line) <= max_chars:
+            lines.append(line)
+    return "\n".join(lines) or "No relevant facts available."

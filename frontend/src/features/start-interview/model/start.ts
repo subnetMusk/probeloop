@@ -14,14 +14,13 @@ export function useStartInterview() {
     mutationFn: () => {
       const draft = getDraft()
       const settings = settingsSchema.parse(draft.settings)
-      const quick = draft.profile?.kind === 'quick'
       return api.createSession({
         interview_type: settings.interviewType,
         difficulty: settings.difficulty,
         language: settings.language,
         modality: 'voice',
         duration_minutes: settings.minutes,
-        snapshot_id: quick ? null : draft.snapshotId,
+        snapshot_id: draft.snapshotId,
         execution_profile: settings.execution,
         profile_id: draft.profile?.kind === 'saved' ? draft.profile.id : null,
       })

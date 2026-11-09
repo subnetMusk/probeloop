@@ -10,7 +10,7 @@ from probeloop.ai.fake import FakeChatModel
 from probeloop.context.application.analysis import ContextAnalyser
 from probeloop.context.application.ports import ExtractedText
 from probeloop.context.application.snapshots import snapshot_of
-from probeloop.context.domain.model import JobMode, Profile, Review
+from probeloop.context.domain.model import JobMode, Profile, Review, RoleProfile
 from probeloop.storage.database import sessionmaker
 from probeloop.storage.sql_context import SqlContextStore
 from tests.context.conftest import cv, offer, scripted_analysis
@@ -22,6 +22,7 @@ async def test_context_roundtrip_keeps_reviews_and_immutable_snapshots(
 ) -> None:
     store = SqlContextStore(sessionmaker(engine), tmp_path / "blobs")
     p = in_review()
+    p.set_role_profile(RoleProfile("Economics", "Economist", "junior", confirmed=True))
     for document in p.documents:
         await store.add_document(document)
     await store.save_preparation(p)

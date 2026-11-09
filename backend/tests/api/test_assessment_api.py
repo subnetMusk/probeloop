@@ -12,6 +12,7 @@ from probeloop.api.app import create_app
 from probeloop.bootstrap import build
 from probeloop.interview.domain.model import RevisionSource
 from probeloop.settings import Settings
+from tests.api.test_context_api import confirm_role
 from tests.assessment.support import synthetic_session
 
 CV = Path(__file__).parents[1] / "fixtures/synthetic/cv_review/cv.txt"
@@ -33,6 +34,7 @@ def test_cv_review_is_a_job_and_regeneration_preserves_versions(tmp_path: Path) 
                 break
             time.sleep(0.02)
         assert view["status"] == "review"
+        confirm_role(client, view)
         client.put(
             f"/api/preparations/{preparation['id']}/area",
             json={"area": "Backend", "seniority": "mid"},

@@ -3,6 +3,9 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { setTheme } from './helpers/theme.js'
+import type { components } from '../src/shared/api/types/rest.js'
+
+type RoleProfileData = components['schemas']['RoleProfileData']
 
 // The backend runs with scripted models (compose.test.yaml). The history is seeded through the
 // API, so these tests do not depend on what other specs left in the test volume.
@@ -36,8 +39,11 @@ async function seedCvCheck(request: APIRequestContext): Promise<string> {
       { timeout: 30_000 },
     )
     .toBe('review')
-  await request.put(`/api/preparations/${preparation.id}/area`, {
-    data: { area: 'Backend engineering', seniority: 'mid' },
+  const reviewed = await json<{ role_profile: RoleProfileData }>(
+    request.get(`/api/preparations/${preparation.id}`),
+  )
+  await request.put(`/api/preparations/${preparation.id}/role-profile`, {
+    data: { ...reviewed.role_profile, confirmed: true },
   })
   const snapshot = await json<{ id: string }>(
     request.post(`/api/preparations/${preparation.id}/approve`),

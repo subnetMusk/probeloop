@@ -28,7 +28,7 @@ export const profileMessages = defineMessages({
     quick: {
       title: 'No documents',
       description:
-        'A quick start: the interviewer knows nothing about you or the position, and there is no CV check.',
+        'Set your target role and level. The interviewer has no personal background or CV to assess.',
     },
   },
   it: {
@@ -59,7 +59,7 @@ export const profileMessages = defineMessages({
     quick: {
       title: 'Nessun documento',
       description:
-        'Un avvio rapido: l’intervistatore non sa nulla di te né della posizione, e non c’è il controllo del CV.',
+        'Imposta ruolo e livello target. L’intervistatore non ha esperienze personali o CV da valutare.',
     },
   },
 })

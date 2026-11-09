@@ -36,6 +36,7 @@ from probeloop.context.domain.model import (
     JobMode,
     MatchStatus,
     RequirementMatch,
+    RoleProfile,
     Subject,
     TargetArea,
 )
@@ -97,6 +98,18 @@ class AreaOut(BaseModel):
     area: str = Field(min_length=2, max_length=120)
     seniority: Literal["junior", "mid", "senior", "lead"]
     rationale: str = Field(max_length=600)
+
+
+class RoleOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profession: str = Field(max_length=160)
+    target_role: str = Field(max_length=160)
+    seniority: str = Field(max_length=160)
+    responsibilities: list[str] = Field(max_length=12)
+    competencies: list[str] = Field(max_length=12)
+    basis_fact_ids: list[str] = Field(max_length=24)
+    rationale: str = Field(max_length=800)
 
 
 class DraftOut(BaseModel):
@@ -254,6 +267,52 @@ class ContextAnalyser:
         )
         draft = (await complete_structured(self._model, request, DraftOut)).value
         return render_offer(draft, language)
+
+    async def propose_role(self, facts: list[Fact], language: str) -> RoleProfile:
+        if not facts:
+            return RoleProfile()
+        # Inferences without a verified quote cannot substantiate a proposed profile.
+        available = [f for f in facts if f.included and f.origin is not FactOrigin.INFERRED]
+        if not available:
+            return RoleProfile()
+        prompt = self._prompts.render(
+            "propose_role", 1, language_name=LANGUAGE_NAMES.get(language, "English")
+        )
+        out = await self._complete(
+            ChatRequest(
+                instructions=prompt.text,
+                messages=(
+                    ChatMessage(
+                        "user",
+                        json.dumps(
+                            [
+                                {
+                                    "id": f.id,
+                                    "subject": f.subject.value,
+                                    "kind": f.kind.value,
+                                    "text": f.text,
+                                }
+                                for f in available
+                            ],
+                            ensure_ascii=False,
+                        ),
+                    ),
+                ),
+                temperature=0.1,
+                max_output_tokens=1400,
+            ),
+            RoleOut,
+        )
+        known = {f.id for f in available}
+        return RoleProfile(
+            profession=out.profession.strip(),
+            target_role=out.target_role.strip(),
+            seniority=out.seniority.strip(),
+            responsibilities=tuple(s.strip()[:400] for s in out.responsibilities if s.strip()),
+            competencies=tuple(s.strip()[:400] for s in out.competencies if s.strip()),
+            basis_fact_ids=tuple(dict.fromkeys(i for i in out.basis_fact_ids if i in known)),
+            rationale=out.rationale,
+        )
 
     # ------------------------------------------------------------------ steps
 

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
+from probeloop.context.domain.model import RoleProfile
 from probeloop.interview.application.events import (
     AnswerRecorded,
     AnswerTimeWarning,
@@ -44,6 +46,33 @@ MAX_AUDIO_FRAME_BYTES = 64 * 1024  # two seconds of 16 kHz PCM16; the browser se
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class RoleProfileData(Strict):
+    profession: str = Field(max_length=160)
+    target_role: str = Field(max_length=160)
+    seniority: str = Field(max_length=160)
+    responsibilities: list[str] = Field(max_length=12)
+    competencies: list[str] = Field(max_length=12)
+    basis_fact_ids: list[str] = Field(max_length=24)
+    rationale: str = Field(max_length=800)
+    confirmed: bool
+
+    @classmethod
+    def of(cls, profile: RoleProfile) -> RoleProfileData:
+        return cls.model_validate(asdict(profile))
+
+    def domain(self) -> RoleProfile:
+        return RoleProfile(
+            profession=self.profession.strip(),
+            target_role=self.target_role.strip(),
+            seniority=self.seniority.strip(),
+            responsibilities=tuple(self.responsibilities),
+            competencies=tuple(self.competencies),
+            basis_fact_ids=tuple(self.basis_fact_ids),
+            rationale=self.rationale,
+            confirmed=self.confirmed,
+        )
 
 
 # ---------------------------------------------------------------------- REST
@@ -148,6 +177,7 @@ class SessionView(BaseModel):
     snapshot_id: str | None
     execution_profile: str | None
     profile_id: str | None
+    role_profile: RoleProfileData | None = None
 
     @classmethod
     def of(
@@ -202,6 +232,9 @@ class SessionView(BaseModel):
                 )
         return cls(
             id=s.id,
+            role_profile=RoleProfileData.of(s.context.role_profile)
+            if s.context.role_profile
+            else None,
             status=s.status.value,
             phase=s.phase.value if s.phase else None,
             interview_type=s.config.interview_type.value,

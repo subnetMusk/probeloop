@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
+from probeloop.context.domain.model import Fact, RoleProfile
+
 MAX_CUSTOM_INSTRUCTIONS = 1000
 MIN_DURATION_S = 5 * 60
 MAX_DURATION_S = 90 * 60
@@ -76,6 +78,8 @@ class InterviewContext:
     job_brief: str
     topics: tuple[Topic, ...]
     vocabulary: tuple[str, ...] = ()  # technical terms from the documents, for recognition
+    role_profile: RoleProfile | None = None
+    facts: tuple[Fact, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.topics:

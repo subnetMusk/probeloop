@@ -211,6 +211,8 @@ def create_app(container: Container | None = None) -> FastAPI:
             job_brief=job,
             topics=topics,
             vocabulary=snapshot.vocabulary,
+            role_profile=snapshot.role_profile,
+            facts=(*snapshot.candidate_facts, *snapshot.job_facts),
         )
 
     @app.get("/api/sessions")

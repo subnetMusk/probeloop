@@ -40,9 +40,11 @@ test('a voice interview from the preparation to the end of the call', async ({ p
     'aria-pressed',
     'true',
   )
-  await page.getByRole('textbox', { name: 'Professional area', exact: true }).fill('Backend APIs')
-  await page.getByRole('button', { name: 'Confirm area', exact: true }).click()
-  await expect(page.getByText('Area confirmed', { exact: true })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Profession or field', exact: true }).fill('Backend APIs')
+  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
+  await expect(
+    page.getByTestId('role-profile').getByText('Confirmed', { exact: true }),
+  ).toBeVisible()
   await next.click()
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   await page.getByTestId('enable-microphone').click()

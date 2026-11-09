@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.ai.ports import LlmError
 from probeloop.ai.profiles import using_profile
-from probeloop.api.schemas import JobView
+from probeloop.api.schemas import JobView, RoleProfileData
 from probeloop.context.application.ports import ExtractionError
 from probeloop.context.application.service import (
     ANALYSE_JOB,
@@ -203,6 +203,7 @@ class PreparationView(BaseModel):
     facts: list[FactView]
     matches: list[MatchView]
     area: AreaView | None
+    role_profile: RoleProfileData | None = None
     vocabulary: list[str]
     error: str | None
     snapshot_id: str | None
@@ -246,6 +247,7 @@ class PreparationView(BaseModel):
             created_at=p.created_at,
             profile_id=p.profile_id,
             execution_profile=p.execution_profile,
+            role_profile=RoleProfileData.of(p.role_profile) if p.role_profile else None,
             analysis=analysis,
         )
 
@@ -284,6 +286,7 @@ class SnapshotView(BaseModel):
     language: str
     job_mode: str
     area: AreaView | None
+    role_profile: RoleProfileData | None = None
     documents: list[DocumentView]
     requirements: list[RequirementView]
     candidate_brief: str
@@ -329,6 +332,7 @@ class SnapshotView(BaseModel):
             candidate_brief=candidate_brief(s),
             job_brief=job_brief(s),
             vocabulary=list(s.vocabulary),
+            role_profile=RoleProfileData.of(s.role_profile) if s.role_profile else None,
         )
 
 
@@ -540,6 +544,16 @@ def context_router(
         except ContextError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return await view(preparation)
+
+    @router.put("/preparations/{preparation_id}/role-profile")
+    async def set_role_profile(preparation_id: str, body: RoleProfileData) -> PreparationView:
+        try:
+            preparation = await context.set_role_profile(preparation_id, body.domain())
+            return await view(preparation)
+        except ContextNotFoundError as exc:
+            raise HTTPException(404, "preparation not found") from exc
+        except ContextError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @router.post("/preparations/{preparation_id}/approve")
     async def approve(preparation_id: str) -> SnapshotView:

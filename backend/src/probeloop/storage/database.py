@@ -172,6 +172,7 @@ class PreparationRow(Base):
     facts: Mapped[list[Any]]
     matches: Mapped[list[Any]]
     area: Mapped[dict[str, Any] | None]
+    role_profile: Mapped[dict[str, Any] | None]
     vocabulary: Mapped[list[Any]]
     error: Mapped[str | None] = mapped_column(Text)
     profile_id: Mapped[str | None] = mapped_column(String(32))

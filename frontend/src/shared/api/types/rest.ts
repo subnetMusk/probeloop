@@ -414,6 +414,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/preparations/{preparation_id}/role-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Role Profile */
+        put: operations["set_role_profile_api_preparations__preparation_id__role_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/profiles": {
         parameters: {
             query?: never;
@@ -1214,6 +1231,7 @@ export interface components {
             matches: components["schemas"]["MatchView"][];
             /** Profile Id */
             profile_id: string | null;
+            role_profile?: components["schemas"]["RoleProfileData"] | null;
             /** Snapshot Id */
             snapshot_id: string | null;
             /** Status */
@@ -1458,6 +1476,25 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** RoleProfileData */
+        RoleProfileData: {
+            /** Basis Fact Ids */
+            basis_fact_ids: string[];
+            /** Competencies */
+            competencies: string[];
+            /** Confirmed */
+            confirmed: boolean;
+            /** Profession */
+            profession: string;
+            /** Rationale */
+            rationale: string;
+            /** Responsibilities */
+            responsibilities: string[];
+            /** Seniority */
+            seniority: string;
+            /** Target Role */
+            target_role: string;
+        };
         /** ScoreData */
         ScoreData: {
             /** Criterion Id */
@@ -1532,6 +1569,7 @@ export interface components {
             phase: string | null;
             /** Profile Id */
             profile_id: string | null;
+            role_profile?: components["schemas"]["RoleProfileData"] | null;
             /** Snapshot Id */
             snapshot_id: string | null;
             /** Status */
@@ -1571,6 +1609,7 @@ export interface components {
             language: string;
             /** Requirements */
             requirements: components["schemas"]["RequirementView"][];
+            role_profile?: components["schemas"]["RoleProfileData"] | null;
             /** Vocabulary */
             vocabulary: string[];
         };
@@ -2326,6 +2365,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreparationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_role_profile_api_preparations__preparation_id__role_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preparation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleProfileData"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
