@@ -148,7 +148,9 @@ def markdown(report: Report, sources: ExportSources | None = None) -> str:
                 ("Talk share", delivery.talk_share, "%"),
                 ("Answer budget used", delivery.budget_share, "%"),
             ):
-                lines.append(f"- {loc(name)}: {value(number)}" + (f" {suffix}" if number is not None else ""))
+                lines.append(
+                    f"- {loc(name)}: {value(number)}" + (f" {suffix}" if number is not None else "")
+                )
             lines.append("")
         elif section == "original":
             lines.extend(
