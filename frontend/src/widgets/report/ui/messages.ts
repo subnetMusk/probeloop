@@ -6,6 +6,7 @@ export const reportMessages = defineMessages({
     cv: 'CV report',
     loading: 'Loading…',
     overall: 'Overall score',
+    overviewHint: 'Explore the evidence and feedback below.',
     unscored: 'Not enough evidence for an overall score',
     bands: { solid: 'Solid', developing: 'Developing', needs_work: 'Needs work' },
     assessed: (count: number, total: number) =>
@@ -80,6 +81,7 @@ export const reportMessages = defineMessages({
     cv: 'Report del CV',
     loading: 'Caricamento…',
     overall: 'Punteggio complessivo',
+    overviewHint: 'Esplora le evidenze e i suggerimenti qui sotto.',
     unscored: 'Evidenze insufficienti per un voto complessivo',
     bands: { solid: 'Solido', developing: 'In sviluppo', needs_work: 'Da migliorare' },
     assessed: (count: number, total: number) =>

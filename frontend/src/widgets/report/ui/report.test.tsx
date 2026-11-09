@@ -61,3 +61,14 @@ it('shows an unavailable overall score without inventing a midpoint', () => {
   expect(screen.getByText('Not enough evidence for an overall score')).toBeTruthy()
   expect(screen.queryByText('Developing')).toBeNull()
 })
+
+it('does not call feedback absent when only the generated summary is missing', () => {
+  const view = toCvReportView({
+    ...fixture.cv.report,
+    observations: fixture.cv.report.observations.filter((note) => note.kind !== 'summary'),
+  })
+  render(<CvReport view={view} />)
+  const hero = screen.getByRole('region', { name: 'Overall score' })
+  expect(hero.textContent).toContain('Explore the evidence and feedback below.')
+  expect(hero.textContent).not.toContain('No evidence-backed observations.')
+})

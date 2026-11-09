@@ -158,7 +158,7 @@ export function Hero({
         </div>
         <div className="flex flex-col gap-3">
           <p className="text-lg leading-relaxed">
-            {view.summary?.text ?? (view.overall === null ? t.unscored : t.noNotes)}
+            {view.summary?.text ?? (view.overall === null ? t.unscored : t.overviewHint)}
           </p>
           {view.summary && <Quotes quotes={view.summary.quotes} />}
           <p className="text-sm text-muted-foreground">
