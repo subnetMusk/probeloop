@@ -8,13 +8,16 @@ import {
 } from '@tanstack/react-router'
 
 import { SessionPage } from '@/legacy/pages/session-page'
-import { SessionsPage } from '@/legacy/pages/sessions-page'
 import { ReportPage } from '@/legacy/pages/report-page'
 import type { JSX } from 'react'
 
 import { canOpen, firstOpenStep, getDraft } from '@/entities/preparation'
 import type { Step } from '@/entities/preparation'
 import { AccessibilityPage } from '@/pages/accessibility'
+import { CvCheckDetailPage } from '@/pages/cv-check-detail'
+import { CvChecksPage } from '@/pages/cv-checks'
+import { DashboardPage } from '@/pages/dashboard'
+import { InterviewsPage } from '@/pages/interviews'
 import { InterviewPage } from '@/pages/live-interview'
 import {
   CheckStep,
@@ -25,6 +28,8 @@ import {
   SettingsStep,
 } from '@/pages/new-interview'
 import { NotFoundPage } from '@/pages/not-found'
+import { ProfileDetailPage } from '@/pages/profile-detail'
+import { ProfilesPage } from '@/pages/profiles'
 import { SettingsPage } from '@/pages/settings'
 import { api } from '@/shared/api'
 import { Root } from './root'
@@ -50,12 +55,11 @@ const indexRoute = createRoute({
   },
 })
 
-// Until the dashboard of the redesign exists, it shows the interview history.
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'dashboard',
   staticData: { slug: 'dashboard' },
-  component: SessionsPage,
+  component: DashboardPage,
 })
 
 // The preparation of a new interview, one route per step (ADR 0014). A step opens only when the
@@ -108,7 +112,7 @@ const interviewsRoute = createRoute({
 const interviewsIndexRoute = createRoute({
   getParentRoute: () => interviewsRoute,
   path: '/',
-  component: SessionsPage,
+  component: InterviewsPage,
 })
 const interviewRoute = createRoute({
   getParentRoute: () => interviewsRoute,
@@ -128,10 +132,6 @@ const interviewReportRoute = createRoute({
   component: ReportPage,
 })
 
-// The CV check list and detail pages come with the dashboard; until then they lead there.
-const toDashboard = () => {
-  throw redirect({ to: '/dashboard', replace: true })
-}
 const cvChecksRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'cv-checks',
@@ -141,7 +141,7 @@ const cvChecksRoute = createRoute({
 const cvChecksIndexRoute = createRoute({
   getParentRoute: () => cvChecksRoute,
   path: '/',
-  beforeLoad: toDashboard,
+  component: CvChecksPage,
 })
 const cvCheckRoute = createRoute({
   getParentRoute: () => cvChecksRoute,
@@ -152,13 +152,31 @@ const cvCheckRoute = createRoute({
 const cvCheckIndexRoute = createRoute({
   getParentRoute: () => cvCheckRoute,
   path: '/',
-  beforeLoad: toDashboard,
+  component: CvCheckDetailPage,
 })
 const cvReportRoute = createRoute({
   getParentRoute: () => cvCheckRoute,
   path: 'reports/$reportId',
   staticData: { slug: 'cv-report' },
   component: ReportPage,
+})
+
+const profilesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'profiles',
+  staticData: { slug: 'profiles' },
+  component: Outlet,
+})
+const profilesIndexRoute = createRoute({
+  getParentRoute: () => profilesRoute,
+  path: '/',
+  component: ProfilesPage,
+})
+const profileRoute = createRoute({
+  getParentRoute: () => profilesRoute,
+  path: '$profileId',
+  staticData: { slug: 'profile-detail' },
+  component: ProfileDetailPage,
 })
 
 const settingsRoute = createRoute({
@@ -229,6 +247,7 @@ export const router = createRouter({
       cvChecksIndexRoute,
       cvCheckRoute.addChildren([cvCheckIndexRoute, cvReportRoute]),
     ]),
+    profilesRoute.addChildren([profilesIndexRoute, profileRoute]),
     settingsRoute,
     accessibilityRoute,
     oldSessionsRoute,

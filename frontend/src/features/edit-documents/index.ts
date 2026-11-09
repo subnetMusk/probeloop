@@ -1,4 +1,10 @@
-export { UPLOAD_KEY, problemsOf } from './model/documents'
+export {
+  UPLOAD_KEY,
+  loadProfileDocuments,
+  problemsOf,
+  profileBody,
+  storeDocuments,
+} from './model/documents'
 export type { Problem } from './model/documents'
 export { startAnalysis, useCommitDocuments, useProfileDocuments } from './model/commit'
 export type { SaveChoice } from './model/commit'

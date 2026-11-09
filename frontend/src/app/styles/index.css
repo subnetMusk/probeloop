@@ -75,11 +75,13 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: #7c3aed;
+  /* Chart series in a fixed order, validated for colour-vision deficiencies against the card
+     surface (adjacent CVD ΔE >= 10). Slot 3 is below 3:1 here: charts carry a legend and a table. */
   --chart-1: #7c3aed;
   --chart-2: #ea580c;
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-3: #1baf7a;
+  --chart-4: #2a78d6;
+  --chart-5: oklch(0.556 0 0);
   --radius: 0.625rem;
   /* Identity (ADR 0014): accents for fills and graphics; the -text variants keep 4.5:1. */
   --brand: #7c3aed;
@@ -119,11 +121,11 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #a78bfa;
-  --chart-1: #a78bfa;
-  --chart-2: #fb923c;
-  --chart-3: oklch(0.708 0 0);
-  --chart-4: oklch(0.556 0 0);
-  --chart-5: oklch(0.439 0 0);
+  --chart-1: #9d7bf5;
+  --chart-2: #ea580c;
+  --chart-3: #199e70;
+  --chart-4: #3987e5;
+  --chart-5: oklch(0.708 0 0);
   --brand: #7c3aed;
   --brand-foreground: #ffffff;
   --brand-text: #a78bfa;

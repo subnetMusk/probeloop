@@ -55,6 +55,12 @@ export function Layout() {
               <Link to="/interviews" className={NAV_LINK} activeProps={NAV_ACTIVE}>
                 {t.nav.interviews}
               </Link>
+              <Link to="/cv-checks" className={NAV_LINK} activeProps={NAV_ACTIVE}>
+                {t.nav.cvChecks}
+              </Link>
+              <Link to="/profiles" className={NAV_LINK} activeProps={NAV_ACTIVE}>
+                {t.nav.profiles}
+              </Link>
               <Link to="/settings" className={NAV_LINK} activeProps={NAV_ACTIVE}>
                 {t.nav.settings}
               </Link>

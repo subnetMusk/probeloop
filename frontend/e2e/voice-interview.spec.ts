@@ -113,5 +113,7 @@ test('a voice interview from the preparation to the end of the call', async ({ p
   await expect(first).toBeVisible()
 
   await page.getByRole('link', { name: 'All interviews' }).click()
-  await expect(page.getByTestId('session-row').first()).toContainText('Ended')
+  const latest = page.getByTestId('interview-row').first()
+  await expect(latest).toContainText('HR screening')
+  await expect(latest).toContainText('1 answer')
 })

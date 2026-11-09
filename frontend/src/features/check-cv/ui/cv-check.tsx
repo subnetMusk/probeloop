@@ -10,6 +10,8 @@ import type { ExecutionProfile, JobView } from '@/shared/api'
 import { defineMessages, localise, useMessages } from '@/shared/i18n'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { score } from '@/shared/lib/format'
+import { useLanguage } from '@/shared/lib/preferences'
 import { Progress } from '@/shared/ui/progress'
 
 const messages = defineMessages({
@@ -67,6 +69,7 @@ export function CvCheck({
   onBusyChange: (busy: boolean) => void
 }) {
   const t = useMessages(messages)
+  const ui = useLanguage()
   const client = useQueryClient()
   const reportsKey = ['cv-reviews', snapshotId]
   const jobsKey = ['cv-jobs', snapshotId]
@@ -118,7 +121,7 @@ export function CvCheck({
         {latest && (
           <div className="flex flex-col gap-1 rounded-lg bg-muted/50 p-4" data-testid="cv-score">
             <p className="font-heading text-2xl font-semibold">
-              {latest.overall === null ? t.unavailable : t.score(latest.overall.toFixed(1))}
+              {latest.overall === null ? t.unavailable : t.score(score(latest.overall, ui))}
             </p>
             <p className="text-sm text-muted-foreground">
               {t.criteria(latest.assessed, latest.criteria)} · {t.version(latest.version)}
