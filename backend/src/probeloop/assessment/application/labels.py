@@ -68,6 +68,7 @@ ITALIAN = {
     "Career narrative": "Percorso professionale",
     "Communication": "Comunicazione",
     "Ownership": "Contributo personale",
+    "Individual contribution": "Contributo personale",
     "Specificity": "Specificità",
     "Results": "Risultati",
     "Reflection": "Riflessione",

@@ -106,6 +106,7 @@ def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path:
             report = client.get(f"/api/reports/{job['result']['report_id']}").json()
             assert report["version"] == version
             assert report["revisions"][0] == {"seq": 1, "revision": version}
+            assert "technical.v2" in report["rubric_id"]
             assert report["units"][-1]["kind"] == "logistics"
             assert report["unit_scores"]
             assert report["delivery"]

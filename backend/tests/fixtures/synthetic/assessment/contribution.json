@@ -1,0 +1,23 @@
+[
+  {
+    "action": "new_topic",
+    "question": "Explain how PostgreSQL indexes affect writes. Describe one change you personally implemented, including your responsibility, an alternative and the observed outcome.",
+    "answer": "We worked on a slow notification lookup. My responsibility was profiling the query and choosing the index columns; a colleague owned deployment. We compared an index with rewriting the query. I was responsible for replaying the same workload and checking both lookup latency and write latency before proposing the index. The lookup became faster, while the measured write overhead stayed within our agreed budget. We documented that extra storage and index maintenance still have a cost.",
+    "trait": "clear individual contribution inside teamwork",
+    "ownership_min": 4
+  },
+  {
+    "action": "new_topic",
+    "question": "Explain how PostgreSQL indexes affect writes. Describe one change you personally implemented, including your responsibility, an alternative and the observed outcome.",
+    "answer": "We added an index to help the queries. The team handled analysis, implementation and deployment together. We all shared decisions and the results were good. Indexes need extra storage and maintenance on writes. We do not have details of who chose the columns or how anyone checked the result.",
+    "trait": "vague individual contribution despite correct technical statement",
+    "ownership_max": 2
+  },
+  {
+    "action": "new_topic",
+    "question": "How would you roll out an index in production safely?",
+    "answer": "I would measure query plans and write load first. Concurrent index creation reduces write blocking but needs additional work and can leave an invalid index after failure. I would check validity, disk usage and latency, compare the same workload before and after, and prepare a rollback.",
+    "trait": "plan only; contribution must be unavailable",
+    "ownership_unavailable": true
+  }
+]

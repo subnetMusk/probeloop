@@ -288,7 +288,7 @@ class AssessmentService:
             version=len(previous) + 1,
             created_at=self._now(),
             language=language,
-            rubric_id="interview.v1",
+            rubric_id=self.interviewer.rubric_ref,
             rubric_hash=rubric_hash,
             model_ref=self.interviewer.model.model_ref,
             prompt_ref=self.interviewer.prompt_ref,

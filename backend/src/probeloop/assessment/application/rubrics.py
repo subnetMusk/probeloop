@@ -61,6 +61,6 @@ class Rubric(BaseModel):
         )
 
 
-def load_rubric(name: str) -> Rubric:
-    raw = files("probeloop.assessment").joinpath("rubrics", f"{name}.v1.yaml").read_text()
+def load_rubric(name: str, *, version: int = 1) -> Rubric:
+    raw = files("probeloop.assessment").joinpath("rubrics", f"{name}.v{version}.yaml").read_text()
     return Rubric.model_validate(yaml.safe_load(raw))

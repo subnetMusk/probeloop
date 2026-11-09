@@ -146,7 +146,8 @@ class InterviewReviewer:
         self.judge_reasoning: Reasoning = judge_reasoning
         self.presence_penalty = presence_penalty
         self.rubrics = {
-            name: load_rubric(name) for name in ("hr", "behavioral", "technical", "hypothetical")
+            name: load_rubric(name, version=2 if name == "technical" else 1)
+            for name in ("hr", "behavioral", "technical", "hypothetical")
         }
         self._outputs = {
             (name, full): unit_output(tuple(c.id for c in rubric.criteria), observations=full)
@@ -154,6 +155,10 @@ class InterviewReviewer:
             for full in (True, False)
         }
         self._prompts = PromptRenderer("probeloop.assessment")
+
+    @property
+    def rubric_ref(self) -> str:
+        return "+".join(r.ref for _, r in sorted(self.rubrics.items()))
 
     @property
     def prompt_ref(self) -> str:
@@ -468,7 +473,7 @@ class InterviewReviewer:
         return result.value
 
 
-_PAST_CRITERIA = ("experience", "results", "reflection")
+_PAST_CRITERIA = ("experience", "ownership", "results", "reflection")
 
 
 def _without_unelicited(

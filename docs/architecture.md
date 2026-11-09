@@ -831,39 +831,50 @@ and they are not recomputed if none of these changed.
 
 **Rubric files**
 
-- Rubrics are YAML files in the repository (`rubrics/<type>/<id>.v<N>.yaml`).
-- They are validated with Pydantic at startup and copied into the database, by hash, on first use.
+- Rubrics are YAML files in `backend/src/probeloop/assessment/rubrics/<type>.v<N>.yaml`.
+- They are validated with Pydantic at startup. Reports retain their component version references
+  and combined content hash; historical rubric files and reports remain unchanged.
 - The criteria are language-independent; their descriptions are translated.
 
 **Criteria by interview type**
 
 | Type | Criteria |
 |---|---|
-| Technical | Correctness, reasoning, domain knowledge, problem solving, trade-offs, technical communication |
-| HR | Motivation, role fit, clarity, self-awareness, expectations |
-| Behavioral | Structure (STAR), ownership, collaboration, conflict handling, stated impact |
-| Mixed | Weighted combination of the above |
+| Technical v2 | Accuracy, technical depth, problem solving, trade-offs, practical experience, communication of reasoning, individual contribution |
+| HR v1 | Motivation, relevant experience, career narrative, communication |
+| Behavioral v1 | Ownership, specificity, results, reflection, depth under follow-up |
+| Hypothetical v1 | Clarification, action plan, reasoning, risks, validation plan |
+| Mixed | Each answered unit uses its question's rubric; criterion identifiers retain the rubric namespace |
+
+Technical v2 adds individual contribution separately from practical experience. It concerns the
+actions and responsibility established by an answer, without automatic pronoun, metric or paid-work
+rules. It is unavailable when no question asked for an actual past example. Reports identify the
+complete rubric set, including `technical.v2`, and its changed hash creates a new progress group.
+See the [approved anchors](proposals/2026-11-technical-ownership-calibration.md).
 
 **Evaluation pipeline**
 
-1. Segment the transcript by topic.
-2. Analyse each segment, producing `Observation[]` with quotes. Each observation is classified as
-   an objective error, a subjective assessment, or insufficient evidence.
-3. Validate the quotes.
-4. Score each criterion on an anchored scale; `not_assessable` is allowed.
-5. **Aggregate in code**: a weighted mean, with non-assessable criteria excluded and flagged.
-6. Synthesise the summary and the suggestions.
-   - Suggestions must reference observations.
-   - Example answers are labelled "hypothetical example" and never attribute facts to the
-     candidate.
+1. Group recorded follow-ups with their answers; exclude a trailing unanswered question from
+   assessment while preserving it in the transcript.
+2. Classify question focuses and whether a past example was requested, using questions only.
+3. Judge each unit twice, with ascending and descending anchors. Each pass requires every
+   criterion and produces quotations before a reason and score; unavailable scores are allowed.
+4. Verify candidate quotations, apply elicitation guards, and independently check proposed
+   technical corrections. Corrections remain model opinions, including when both calls agree.
+5. **Aggregate in code**: average both passes, then average available unit scores per criterion
+   with equal criterion weights. Missing scores remain explicit; insufficient coverage prevents
+   an overall score.
+6. Select existing observations by identifier for the summary and suggestions. The synthesis
+   cannot add evidence. Rewrites preserve source facts and numbers.
 
 **Separation from the interviewer**
 
 - The evaluator has its own templates, its own rubric and its own inputs: the corrected
   transcript, the confirmed snapshot and the configuration.
 - It receives neither the custom instructions nor raw web content.
-- It is told the transcript comes from speech recognition, so plausible lexical recognition
-  errors are not penalised as content errors.
+- Voice answers use their latest transcript revision. Users can inspect low-confidence words,
+  listen and correct them before assessment. Recognition errors can still affect model feedback;
+  the voice acceptance notes record this remaining evaluation limitation.
 
 Every report carries a fixed disclaimer: scores are formative measures, not predictions of
 hiring outcomes.
