@@ -72,6 +72,13 @@ class CriterionOut(Strict):
     score: int | None = Field(ge=1, le=5)
 
 
+class SupportedCriterionOut(Strict):
+    # Active criteria require a quotation even when it explains insufficient evidence.
+    evidence: list[EvidenceData] = Field(min_length=1, max_length=2)
+    reason: str = Field(min_length=1, max_length=300)
+    score: int | None = Field(ge=1, le=5)
+
+
 class UnitObservationOut(Strict):
     kind: Literal["strength", "improvement", "technical_error", "question"]
     evidence: list[EvidenceData] = Field(min_length=1, max_length=2)
@@ -109,8 +116,9 @@ class SelectionOut(Strict):
     strengths: list[str] = Field(max_length=2)
 
 
-def _criteria_output(criteria: tuple[str, ...]) -> type[Strict]:
-    scores: dict[str, Any] = {c: (CriterionOut, ...) for c in criteria}
+def _criteria_output(criteria: tuple[str, ...], *, supported: bool = False) -> type[Strict]:
+    output = SupportedCriterionOut if supported else CriterionOut
+    scores: dict[str, Any] = {c: (output, ...) for c in criteria}
     return create_model("CriteriaOut", __base__=Strict, **scores)
 
 
@@ -136,7 +144,7 @@ def unit_output(
     The pass that lists the anchors in descending order exists to average out position bias in
     the scores, so it returns scores only; observations and coverage come from the other pass.
     """
-    fields: dict[str, Any] = {"scores": (_criteria_output(criteria), ...)}
+    fields: dict[str, Any] = {"scores": (_criteria_output(criteria, supported=elicitation), ...)}
     if observations:
         fields["observations"] = (
             list[ElicitedObservationOut] if elicitation else list[UnitObservationOut],

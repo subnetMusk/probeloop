@@ -79,7 +79,7 @@ async def test_recorded_elicitation_routes_rubrics_and_counts_autonomy_once() ->
     assert next(s for s in result.scores if s.criterion_id == "technical.depth").value is None
     assert any(c.status == "diagnostic_disagreement" for c in result.coverage)
     assert "technical.v3" in reviewer.rubric_ref_for(session())
-    assert "judge_unit@v5" in reviewer.prompt_ref_for(session())
+    assert "judge_unit@v6" in reviewer.prompt_ref_for(session())
     judged = [
         json.loads(r.messages[0].content)
         for r in model.requests

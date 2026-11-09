@@ -200,7 +200,7 @@ class InterviewReviewer:
             return self.prompt_ref
         judging = "think" if self.judge_reasoning == "default" else "off"
         return (
-            f"classify_units@v6:diagnostic:off+judge_unit@v5:asc,desc-scores:{judging}"
+            f"classify_units@v6:diagnostic:off+judge_unit@v6:asc,desc-scores:{judging}"
             "+check_claim@v2:off+synthesise@v4:off+elicitation@v1"
         )
 
@@ -483,7 +483,7 @@ class InterviewReviewer:
         active: tuple[str, ...] | None = None,
     ) -> ChatRequest:
         prompt = self._prompts.render(
-            "judge_unit", 5 if adaptive else 3, language_name=_language_name(language)
+            "judge_unit", 6 if adaptive else 3, language_name=_language_name(language)
         )
         payload = {
             # The approved context comes first and is identical in every judging request.
