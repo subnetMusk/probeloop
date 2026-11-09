@@ -68,6 +68,48 @@ class InterviewConfig:
 class Topic:
     id: str
     title: str
+    objective: str = ""
+    rubric_kind: str | None = None
+    priority: int = 1
+    fact_ids: tuple[str, ...] = ()
+    criteria: tuple[str, ...] = ()
+    past_example: bool = False
+    solvable: bool = False
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.priority <= 3:
+            raise InvalidConfigError("objective priority must be between 1 and 3")
+        if self.rubric_kind is not None and self.rubric_kind not in ASSESSMENT_CRITERIA:
+            raise InvalidConfigError("unknown objective rubric family")
+        if self.rubric_kind and not set(self.criteria) <= set(
+            ASSESSMENT_CRITERIA[self.rubric_kind]
+        ):
+            raise InvalidConfigError("objective criteria do not belong to its rubric family")
+
+
+ASSESSMENT_CRITERIA: dict[str, tuple[str, ...]] = {
+    "technical": (
+        "accuracy",
+        "depth",
+        "problem_solving",
+        "tradeoffs",
+        "experience",
+        "reasoning",
+        "ownership",
+        "autonomy",
+    ),
+    "hr": ("motivation", "relevance", "narrative", "communication", "autonomy"),
+    "behavioral": (
+        "ownership",
+        "specificity",
+        "results",
+        "reflection",
+        "followup_depth",
+        "autonomy",
+    ),
+    "hypothetical": ("clarification", "plan", "reasoning", "risks", "validation", "autonomy"),
+    "logistics": (),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +122,7 @@ class InterviewContext:
     vocabulary: tuple[str, ...] = ()  # technical terms from the documents, for recognition
     role_profile: RoleProfile | None = None
     facts: tuple[Fact, ...] = ()
+    policy_version: str | None = None
 
     def __post_init__(self) -> None:
         if not self.topics:
@@ -87,6 +130,9 @@ class InterviewContext:
         ids = [t.id for t in self.topics]
         if len(set(ids)) != len(ids):
             raise InvalidConfigError("topic ids must be unique")
+        fact_ids = {f.id for f in self.facts}
+        if any(not set(t.fact_ids) <= fact_ids for t in self.topics):
+            raise InvalidConfigError("an objective references an unavailable fact")
 
     def has_topic(self, topic_id: str) -> bool:
         return any(t.id == topic_id for t in self.topics)

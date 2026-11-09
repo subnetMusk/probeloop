@@ -214,6 +214,22 @@ def selected_fact_brief(
     The full fact collection stays in the session for later turns. Selection does not change
     a fact's provenance or turn a model interpretation into a documented candidate claim.
     """
+    selected = select_facts(facts, query=query, preferred_ids=preferred_ids, max_chars=max_chars)
+    return "\n".join(_fact_line(f) for f in selected) or "No relevant facts available."
+
+
+def _fact_line(fact: Fact) -> str:
+    return f"[{fact.id}; {fact.origin.value}; document={fact.document_id or 'user'}] {fact.text}"
+
+
+def select_facts(
+    facts: tuple[Fact, ...],
+    *,
+    query: str = "",
+    preferred_ids: tuple[str, ...] = (),
+    max_chars: int = MAX_BRIEF_CHARS,
+) -> tuple[Fact, ...]:
+    """Whole facts within a context budget; the source collection is never truncated."""
     words = set(re.findall(r"\w{4,}", query.casefold()))
     preferred = set(preferred_ids)
     ranked = sorted(
@@ -224,11 +240,11 @@ def selected_fact_brief(
             pair[0],
         ),
     )
-    lines: list[str] = []
+    selected: list[Fact] = []
+    size = 0
     for _, fact in ranked:
-        line = (
-            f"[{fact.id}; {fact.origin.value}; document={fact.document_id or 'user'}] {fact.text}"
-        )
-        if sum(len(s) + 1 for s in lines) + len(line) <= max_chars:
-            lines.append(line)
-    return "\n".join(lines) or "No relevant facts available."
+        length = len(_fact_line(fact)) + 1
+        if size + length <= max_chars:
+            selected.append(fact)
+            size += length
+    return tuple(selected)

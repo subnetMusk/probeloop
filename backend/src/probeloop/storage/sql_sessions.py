@@ -203,10 +203,11 @@ def _fill_session(row: SessionRow, s: InterviewSession) -> None:
     row.context = {
         "candidate_brief": s.context.candidate_brief,
         "job_brief": s.context.job_brief,
-        "topics": [{"id": t.id, "title": t.title} for t in s.context.topics],
+        "topics": [asdict(t) for t in s.context.topics],
         "vocabulary": list(s.context.vocabulary),
         "role_profile": asdict(s.context.role_profile) if s.context.role_profile else None,
         "facts": [fact_to_json(f) for f in s.context.facts],
+        "policy_version": s.context.policy_version,
     }
     row.coverage = {k: v.value for k, v in s.coverage.items()}
     row.started_at = s.started_at
@@ -276,10 +277,20 @@ def _session(row: SessionRow) -> InterviewSession:
         context=InterviewContext(
             candidate_brief=ctx["candidate_brief"],
             job_brief=ctx["job_brief"],
-            topics=tuple(Topic(id=t["id"], title=t["title"]) for t in ctx["topics"]),
+            topics=tuple(
+                Topic(
+                    **{
+                        **t,
+                        "fact_ids": tuple(t.get("fact_ids", ())),
+                        "criteria": tuple(t.get("criteria", ())),
+                    }
+                )
+                for t in ctx["topics"]
+            ),
             vocabulary=tuple(ctx.get("vocabulary", ())),
             role_profile=role_from_json(ctx.get("role_profile")),
             facts=tuple(fact_from_json(f) for f in ctx.get("facts", ())),
+            policy_version=ctx.get("policy_version"),
         ),
         status=SessionStatus(row.status),
         phase=Phase(row.phase) if row.phase else None,

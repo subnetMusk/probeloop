@@ -2408,6 +2408,17 @@
             ],
             "title": "Phase"
           },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Version"
+          },
           "profile_id": {
             "anyOf": [
               {
@@ -2450,10 +2461,7 @@
           },
           "topics": {
             "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+              "$ref": "#/components/schemas/TopicView"
             },
             "title": "Topics",
             "type": "array"
@@ -2632,6 +2640,71 @@
         ],
         "title": "Subject",
         "type": "string"
+      },
+      "TopicView": {
+        "properties": {
+          "criteria": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "fact_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Fact Ids",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "objective": {
+            "default": "",
+            "title": "Objective",
+            "type": "string"
+          },
+          "past_example": {
+            "default": false,
+            "title": "Past Example",
+            "type": "boolean"
+          },
+          "priority": {
+            "default": 1,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "rubric_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rubric Kind"
+          },
+          "solvable": {
+            "default": false,
+            "title": "Solvable",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "TopicView",
+        "type": "object"
       },
       "TurnView": {
         "properties": {

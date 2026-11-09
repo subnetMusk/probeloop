@@ -109,6 +109,35 @@ def scripted_analysis(
     def answer(request: ChatRequest) -> str:
         text = request.instructions
         content = request.messages[0].content
+        if "objectives" in (request.response_schema or {}).get("properties", {}):
+            facts = json.loads(content)["facts"]
+            ids = [f["id"] for f in facts if f["subject"] == "candidate"][:1]
+            return json.dumps(
+                {
+                    "objectives": [
+                        {
+                            "title": "Il servizio di ottimizzazione dei percorsi",
+                            "objective": "Explore own contribution.",
+                            "rubric_kind": "technical",
+                            "priority": 3,
+                            "fact_ids": ids,
+                            "criteria": ["experience", "ownership"],
+                            "past_example": True,
+                            "solvable": False,
+                        },
+                        {
+                            "title": "Esperienza con Kafka, non mostrata",
+                            "objective": "Explore reasoning without assuming experience.",
+                            "rubric_kind": "technical",
+                            "priority": 2,
+                            "fact_ids": [],
+                            "criteria": ["reasoning", "problem_solving"],
+                            "past_example": False,
+                            "solvable": True,
+                        },
+                    ]
+                }
+            )
         if "Propose the target professional profile" in text:
             return json.dumps(
                 {

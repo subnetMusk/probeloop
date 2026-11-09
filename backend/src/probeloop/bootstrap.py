@@ -148,6 +148,35 @@ def scripted_moves(questions: int = 3) -> Callable[[ChatRequest], str]:
     """
 
     def move(request: ChatRequest) -> str:
+        if "objectives" in (request.response_schema or {}).get("properties", {}):
+            payload = json.loads(request.messages[0].content)
+            fact_ids = [f["id"] for f in payload["facts"] if f["subject"] == "candidate"][:1]
+            return json.dumps(
+                {
+                    "objectives": [
+                        {
+                            "title": "Relevant documented experience",
+                            "objective": "Explore own decisions and learning.",
+                            "rubric_kind": "technical",
+                            "priority": 3,
+                            "fact_ids": fact_ids,
+                            "criteria": ["experience", "ownership", "reasoning"],
+                            "past_example": True,
+                            "solvable": False,
+                        },
+                        {
+                            "title": "Professional reasoning",
+                            "objective": "Explore a role-relevant problem and constraints.",
+                            "rubric_kind": "technical",
+                            "priority": 2,
+                            "fact_ids": [],
+                            "criteria": ["problem_solving", "reasoning", "autonomy"],
+                            "past_example": False,
+                            "solvable": True,
+                        },
+                    ]
+                }
+            )
         if "topics" in (request.response_schema or {}).get("properties", {}):
             return json.dumps(
                 {

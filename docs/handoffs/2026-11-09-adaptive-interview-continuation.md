@@ -25,6 +25,8 @@ validation. The previous full persona runs remain interrupted and preserved.
 
 ## Role profile implementation
 
+Saved as `4c07e6e Require a confirmed target role and level before interviews`.
+
 The current change introduces `RoleProfile` in the plain context domain: profession, target
 role, free-text seniority, expected responsibilities, competencies, basis fact ids, rationale
 and confirmation. A new analysis prompt proposes it from verified facts; confirmation is
@@ -62,7 +64,18 @@ confirmation failures (subsequently fixed) and one unrelated inbox file race in
 
 ## Remaining implementation
 
-1. Save the verified role-profile change in a focused local commit.
+1. Source-linked objectives are implemented and verified. The rebuilt real API created session
+   `01a1c1a3a3267758bb29d47b2f3d9db5` with three model-generated objectives, supported criterion
+   ids, available fact links and a closing objective. The first runtime check exercised the
+   role-grounded fallback. A mixed past-example/scenario objective is valid; the later actual
+   question intent must govern whether a hint is allowed. Unsupported family criteria are
+   discarded without inventing a replacement. Six focused planner/policy tests and 18
+   objective/API/storage checks passed (four PostgreSQL cases skipped); types were regenerated
+   and typecheck passed. Role form column heights were aligned and its real page rechecked.
+   After clarifying priority semantics, real local session `01a1c1a57e9b7d1fb3fd80746b0f8210`
+   generated junior-economist objectives without a CV: real/nominal measures, uncertainty and
+   constrained economic reasoning. All documentary reference lists were empty, as required.
+   This is a development smoke check, not independent transfer validation.
 2. Plan source-linked assessment objectives and govern turn intent, transcript-grounded emerging
    topics, role-appropriate depth, at most two hints, and adaptive topic budgets. Validate all
    essential metadata before audio. Keep the normal path to one model generation per turn.

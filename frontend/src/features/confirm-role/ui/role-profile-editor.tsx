@@ -98,6 +98,7 @@ export function RoleProfileEditor({
                 </label>
                 <Textarea
                   id={`role-${key}`}
+                  className="flex-1"
                   rows={4}
                   maxLength={4812}
                   value={role[key].join('\n')}

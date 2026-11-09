@@ -205,7 +205,14 @@ def create_app(container: Container | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="context not found") from exc
         candidate, job = candidate_brief(snapshot), job_brief(snapshot)
         questions = await container.assessment.practice_questions(snapshot_id)
-        topics = await container.planner.plan(config, candidate, job, questions)
+        topics = await container.planner.plan(
+            config,
+            candidate,
+            job,
+            questions,
+            role_profile=snapshot.role_profile,
+            facts=(*snapshot.candidate_facts, *snapshot.job_facts),
+        )
         return InterviewContext(
             candidate_brief=candidate,
             job_brief=job,
@@ -213,6 +220,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             vocabulary=snapshot.vocabulary,
             role_profile=snapshot.role_profile,
             facts=(*snapshot.candidate_facts, *snapshot.job_facts),
+            policy_version="adaptive.v1" if snapshot.role_profile else None,
         )
 
     @app.get("/api/sessions")

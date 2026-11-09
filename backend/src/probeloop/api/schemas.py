@@ -159,6 +159,18 @@ class JobView(BaseModel):
         )
 
 
+class TopicView(BaseModel):
+    id: str
+    title: str
+    objective: str = ""
+    rubric_kind: str | None = None
+    priority: int = 1
+    fact_ids: list[str] = []
+    criteria: list[str] = []
+    past_example: bool = False
+    solvable: bool = False
+
+
 class SessionView(BaseModel):
     id: str
     status: str
@@ -171,13 +183,14 @@ class SessionView(BaseModel):
     created_at: float
     end_reason: str | None
     failure: str | None
-    topics: list[dict[str, str]]
+    topics: list[TopicView]
     coverage: dict[str, str]
     turns: list[TurnView]
     snapshot_id: str | None
     execution_profile: str | None
     profile_id: str | None
     role_profile: RoleProfileData | None = None
+    policy_version: str | None = None
 
     @classmethod
     def of(
@@ -245,7 +258,8 @@ class SessionView(BaseModel):
             created_at=s.created_at,
             end_reason=s.end_reason.value if s.end_reason else None,
             failure=s.failure,
-            topics=[{"id": t.id, "title": t.title} for t in s.context.topics],
+            topics=[TopicView.model_validate(asdict(t)) for t in s.context.topics],
+            policy_version=s.context.policy_version,
             coverage={k: v.value for k, v in s.coverage.items()},
             turns=turns,
             snapshot_id=s.snapshot_id,

@@ -1567,6 +1567,8 @@ export interface components {
             modality: string;
             /** Phase */
             phase: string | null;
+            /** Policy Version */
+            policy_version?: string | null;
             /** Profile Id */
             profile_id: string | null;
             role_profile?: components["schemas"]["RoleProfileData"] | null;
@@ -1577,9 +1579,7 @@ export interface components {
             /** Target Duration S */
             target_duration_s: number;
             /** Topics */
-            topics: {
-                [key: string]: string;
-            }[];
+            topics: components["schemas"]["TopicView"][];
             /** Turns */
             turns: components["schemas"]["TurnView"][];
         };
@@ -1629,6 +1629,45 @@ export interface components {
          * @enum {string}
          */
         Subject: "candidate" | "job";
+        /** TopicView */
+        TopicView: {
+            /**
+             * Criteria
+             * @default []
+             */
+            criteria?: string[];
+            /**
+             * Fact Ids
+             * @default []
+             */
+            fact_ids?: string[];
+            /** Id */
+            id: string;
+            /**
+             * Objective
+             * @default
+             */
+            objective?: string;
+            /**
+             * Past Example
+             * @default false
+             */
+            past_example?: boolean;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority?: number;
+            /** Rubric Kind */
+            rubric_kind?: string | null;
+            /**
+             * Solvable
+             * @default false
+             */
+            solvable?: boolean;
+            /** Title */
+            title: string;
+        };
         /** TurnView */
         TurnView: {
             /** Action */
