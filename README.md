@@ -266,13 +266,21 @@ thinking on for the judging passes and `--debug-log` keeps the raw synthetic pro
 docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/var/test-run:/out" backend python -m evals.interview_review --output /out/interview-review.json --repetitions 3
 ```
 
-The evaluator calibration with LLM personas (proposal section 6): a persona model answers each
-topic card as a weak and a strong candidate, the evaluator reviews every answer five times, and
-the run fails when a threshold is missed. It takes long; `--cards` and `--regenerations` reduce it:
+The evaluator calibration with LLM personas (proposal section 6) uses generated weak/strong
+answers to five topic cards. Generate and source-check the answers first: a model's requested
+persona is not proof that it followed the label. The full run requires an audit matching their
+hash, then reviews each answer five times. Use fresh output filenames; retain earlier measurements.
 
 ```bash
-docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/var/test-run:/out" backend python -m evals.persona_calibration --output /out/calibration.json
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/backend:/app" -v "$PWD/var/test-run:/out" backend python -m evals.persona_calibration --answers-only --persona-profile cloud --output /out/calibration-answers.json
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/backend:/app" -v "$PWD/var/test-run:/out" backend python -m evals.persona_calibration --answers-from /out/calibration-answers.json --audit /out/calibration-audit.json --profile local --output /out/calibration-local.json
+docker compose -f compose.yaml -f compose.dev.yaml run --rm -v "$PWD/backend:/app" -v "$PWD/var/test-run:/out" backend python -m evals.persona_calibration --answers-from /out/calibration-answers.json --audit /out/calibration-audit.json --profile cloud --output /out/calibration-cloud.json
 ```
+
+Both scorers receive identical answers and keep the application/account defaults unchanged.
+The cloud commands require an existing sign-in and enabled plan usage. `--cards indexes
+--regenerations 1` makes a short probe; its result is not a complete calibration. See the
+[audit format, thresholds and limitations](docs/research/persona-calibration-method.md).
 
 A synthetic voice candidate takes a real voice interview against the running stack. Every question
 is written to `var/voice-candidate/run-*/turn-NNNN-question.json`; whoever plays the candidate (a
