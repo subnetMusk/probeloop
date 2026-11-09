@@ -29,13 +29,14 @@ def scripted_assessment(request: ChatRequest) -> str:
         return json.dumps({"analysis": "Synthetic check.", "verdict": "incorrect"})
     if "observations" in content:
         ids = [o["id"] for o in content["observations"]]
-        return json.dumps(
-            {
-                "priorities": ids[:1],
-                "strengths": [],
-                "summary": "Synthetic evidence-based practice summary.",
-            }
-        )
+        result = {
+            "priorities": ids[:1],
+            "strengths": [],
+            "summary": "Synthetic evidence-based practice summary.",
+        }
+        if "summary" not in (request.response_schema or {}).get("properties", {}):
+            result.pop("summary")
+        return json.dumps(result)
     source_id = content["source_id"]
     text = content["text"]
     quote = next(line for line in text.splitlines() if len(line) >= 8)[:180]
@@ -102,5 +103,9 @@ def _judgement(request: ChatRequest, content: dict[str, Any]) -> dict[str, Any]:
             if evidence
             else []
         )
-        result["coverage"] = []
+        if "coverage" in schema.get("properties", {}):
+            result["coverage"] = []
+        if "question_intents" in content["unit"]:
+            for observation in result["observations"]:
+                observation["criterion_id"] = "reasoning"
     return result

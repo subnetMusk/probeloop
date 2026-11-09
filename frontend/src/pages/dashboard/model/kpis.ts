@@ -27,7 +27,16 @@ export function kpisOf(
     .sort((a, b) => b.created_at - a.created_at)
     .filter((e) => e.latest_report?.overall != null)
   const [last] = scored
-  const previous = last && scored.slice(1).find((e) => e.interview_type === last.interview_type)
+  const previous =
+    last &&
+    scored
+      .slice(1)
+      .find(
+        (e) =>
+          e.interview_type === last.interview_type &&
+          Boolean(last.latest_report?.scorer_key) &&
+          e.latest_report?.scorer_key === last.latest_report?.scorer_key,
+      )
   const overall = (e: InterviewHistoryEntry | undefined) => e?.latest_report?.overall ?? null
   const lastOverall = overall(last)
   const previousOverall = overall(previous)

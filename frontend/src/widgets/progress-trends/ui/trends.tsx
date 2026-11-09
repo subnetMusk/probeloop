@@ -22,7 +22,7 @@ const messages = defineMessages({
   en: {
     interviews: {
       title: 'Interview scores',
-      description: 'The overall score of each interview’s latest report, from 1 to 5.',
+      description: 'The overall score of each interview’s latest report, from 0 to 100.',
       empty: 'The trend starts with the report of your first interview.',
       filter: 'Interview type',
       count: (count: number) => (count === 1 ? '1 report' : `${String(count)} reports`),
@@ -31,7 +31,7 @@ const messages = defineMessages({
     },
     cv: {
       title: 'CV check scores',
-      description: 'The overall score of each CV check, from 1 to 5.',
+      description: 'The overall score of each CV check, from 0 to 100.',
       empty: 'The trend starts with your first CV check.',
       count: (count: number) => (count === 1 ? '1 check' : `${String(count)} checks`),
       chart: (count: number) => `Overall CV check scores over time, ${String(count)} checks.`,
@@ -52,7 +52,7 @@ const messages = defineMessages({
   it: {
     interviews: {
       title: 'Punteggi dei colloqui',
-      description: 'Il punteggio complessivo dell’ultimo report di ogni colloquio, da 1 a 5.',
+      description: 'Il punteggio complessivo dell’ultimo report di ogni colloquio, da 0 a 100.',
       empty: 'L’andamento parte dal report del tuo primo colloquio.',
       filter: 'Tipo di colloquio',
       count: (count: number) => (count === 1 ? '1 report' : `${String(count)} report`),
@@ -62,7 +62,7 @@ const messages = defineMessages({
     },
     cv: {
       title: 'Punteggi dei CV check',
-      description: 'Il punteggio complessivo di ogni controllo del CV, da 1 a 5.',
+      description: 'Il punteggio complessivo di ogni controllo del CV, da 0 a 100.',
       empty: 'L’andamento parte dal tuo primo CV check.',
       count: (count: number) => (count === 1 ? '1 controllo' : `${String(count)} controlli`),
       chart: (count: number) => `Punteggi complessivi dei CV check nel tempo, ${String(count)}.`,

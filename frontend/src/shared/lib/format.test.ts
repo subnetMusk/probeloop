@@ -29,7 +29,7 @@ describe('compact formats', () => {
   })
 
   it('writes scores with one decimal in the interface language', () => {
-    expect(score(4.11, 'en')).toBe('4.1')
-    expect(score(4.6, 'it')).toBe('4,6')
+    expect(score(78.11, 'en')).toBe('78')
+    expect(score(84.6, 'it')).toBe('85')
   })
 })

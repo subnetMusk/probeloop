@@ -18,18 +18,24 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
+from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, LlmError
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import complete_structured
+from probeloop.assessment.application.elicitation import (
+    elicited_criteria,
+    elicited_scores,
+    recorded_units,
+)
 from probeloop.assessment.application.evidence import Source, checked_evidence, checked_judgements
 from probeloop.assessment.application.rubrics import Rubric, load_rubric
 from probeloop.assessment.application.schemas import (
     ClaimCheckOut,
+    SelectionOut,
     SynthesisOut,
     criterion_judgements,
     unit_coverage,
@@ -76,9 +82,23 @@ def evaluation_context(
     Documents are sent once, as approved. Facts are reduced to their reviewed statements: their
     quotations repeat the documents. Without a snapshot the interviewer briefs are the context.
     """
-    topics = [{"id": t.id, "title": t.title} for t in session.context.topics]
+    adaptive = session.context.policy_version is not None
+    topics = [
+        asdict(t) if adaptive else {"id": t.id, "title": t.title} for t in session.context.topics
+    ]
+    target = (
+        {
+            "policy_version": session.context.policy_version,
+            "confirmed_role": asdict(session.context.role_profile)
+            if session.context.role_profile
+            else None,
+        }
+        if adaptive
+        else {}
+    )
     if snapshot is None:
         return {
+            **target,
             "topics": topics,
             "candidate_brief": session.context.candidate_brief,
             "job_brief": session.context.job_brief,
@@ -87,6 +107,7 @@ def evaluation_context(
         }
     status = {m.requirement_id: m.status.value for m in snapshot.matches}
     return {
+        **target,
         "topics": topics,
         "job_mode": snapshot.job_mode.value,
         "target_area": (
@@ -149,9 +170,17 @@ class InterviewReviewer:
             name: load_rubric(name, version=2 if name == "technical" else 1)
             for name in ("hr", "behavioral", "technical", "hypothetical")
         }
+        self.adaptive_rubrics = {
+            name: load_rubric(name, version=3 if name == "technical" else 2)
+            for name in self.rubrics
+        }
         self._outputs = {
-            (name, full): unit_output(tuple(c.id for c in rubric.criteria), observations=full)
-            for name, rubric in self.rubrics.items()
+            (rubric.ref, full): unit_output(
+                tuple(c.id for c in rubric.criteria),
+                observations=full,
+                elicitation=rubric in self.adaptive_rubrics.values(),
+            )
+            for rubric in (*self.rubrics.values(), *self.adaptive_rubrics.values())
             for full in (True, False)
         }
         self._prompts = PromptRenderer("probeloop.assessment")
@@ -159,6 +188,21 @@ class InterviewReviewer:
     @property
     def rubric_ref(self) -> str:
         return "+".join(r.ref for _, r in sorted(self.rubrics.items()))
+
+    def rubrics_for(self, session: InterviewSession) -> dict[str, Rubric]:
+        return self.adaptive_rubrics if session.context.policy_version else self.rubrics
+
+    def rubric_ref_for(self, session: InterviewSession) -> str:
+        return "+".join(r.ref for _, r in sorted(self.rubrics_for(session).items()))
+
+    def prompt_ref_for(self, session: InterviewSession) -> str:
+        if not session.context.policy_version:
+            return self.prompt_ref
+        judging = "think" if self.judge_reasoning == "default" else "off"
+        return (
+            f"classify_units@v6:diagnostic:off+judge_unit@v5:asc,desc-scores:{judging}"
+            "+check_claim@v2:off+synthesise@v4:off+elicitation@v1"
+        )
 
     @property
     def prompt_ref(self) -> str:
@@ -176,7 +220,25 @@ class InterviewReviewer:
         progress: Progress,
     ) -> InterviewJudgement:
         calls: list[CallTrace] = []
-        units, past = await self._classify(session, calls)
+        diagnostics: tuple[Check, ...] = ()
+        adaptive = session.context.policy_version is not None
+        try:
+            units, past = await self._classify(session, calls)
+        except LlmError:
+            if not adaptive:
+                raise
+            units, past = answer_units(session), {}
+            diagnostics = (
+                Check(
+                    "classification",
+                    "unavailable",
+                    "Diagnostic classification unavailable; recorded elicitation was retained.",
+                ),
+            )
+        if adaptive:
+            units, past, agreements = recorded_units(session, units)
+            diagnostics = (*diagnostics, *agreements)
+        rubrics = self.rubrics_for(session)
         context = evaluation_context(session, snapshot)
         references = [
             {"title": d.title, "text": d.text}
@@ -201,9 +263,9 @@ class InterviewReviewer:
         disputed = 0
         for index, unit in enumerate(units):
             await progress(index / (max(1, len(units)) + 1), f"{index + 1}/{len(units)}")
-            if unit.kind not in self.rubrics:
+            if unit.kind not in rubrics:
                 continue
-            rubric = self.rubrics[unit.kind]
+            rubric = rubrics[unit.kind]
             answers = [t for t in session.candidate_turns() if t.seq in unit.answer_seqs]
             sources = {f"turn-{t.seq}": Source(t.text, t.seq) for t in answers}
             selected = {*unit.question_seqs, *unit.answer_seqs}
@@ -217,6 +279,33 @@ class InterviewReviewer:
                 "difficulty": session.config.difficulty.value,
                 "turns": [turn_data(t) for t in session.turns if t.seq in selected],
             }
+            if adaptive:
+                unit_data["question_intents"] = [
+                    {"question_seq": t.seq, **asdict(t.move.intent)}
+                    for t in session.interviewer_turns()
+                    if t.seq in unit.question_seqs and t.move.intent
+                ]
+            active = (
+                tuple(c.id for c in rubric.criteria if c.id in elicited_criteria(session, unit))
+                if adaptive
+                else None
+            )
+            if adaptive and not past[unit.id]:
+                active = tuple(
+                    c
+                    for c in active or ()
+                    if c
+                    not in {
+                        "experience",
+                        "ownership",
+                        "specificity",
+                        "results",
+                        "reflection",
+                        "followup_depth",
+                    }
+                )
+            if adaptive:
+                unit_data["assessable_criteria"] = active
             passes: list[tuple[Score, ...]] = []
             notes: tuple[Observation, ...] = ()
             for descending in (False, True):
@@ -225,9 +314,40 @@ class InterviewReviewer:
                     calls,
                     "judge_descending" if descending else "judge_ascending",
                     unit.id,
-                    self._judge_request(context, rubric, unit_data, descending, language),
-                    self._outputs[(unit.kind, full)],
+                    self._judge_request(
+                        context,
+                        rubric,
+                        unit_data,
+                        descending,
+                        language,
+                        adaptive=adaptive,
+                        active=active,
+                    ),
+                    unit_output(
+                        active or (),
+                        observations=full,
+                        elicitation=True,
+                        coverage=bool(requirements),
+                    )
+                    if adaptive
+                    else self._outputs[(rubric.ref, full)],
                 )
+                if adaptive and full:
+                    data = output.model_dump()
+                    allowed = elicited_criteria(session, unit)
+                    if not past[unit.id]:
+                        allowed -= {
+                            "experience",
+                            "ownership",
+                            "specificity",
+                            "results",
+                            "reflection",
+                            "followup_depth",
+                        }
+                    kept_notes = [o for o in data["observations"] if o["criterion_id"] in allowed]
+                    dropped += len(data["observations"]) - len(kept_notes)
+                    data["observations"] = kept_notes
+                    output = type(output).model_validate(data)
                 scores, pass_notes, rejected = checked_judgements(
                     criterion_judgements(output),
                     rubric,
@@ -236,7 +356,10 @@ class InterviewReviewer:
                     unit_id=unit.id,
                 )
                 dropped += rejected
-                passes.append(_without_unelicited(scores, unit, past[unit.id], language))
+                scores = _without_unelicited(scores, unit, past[unit.id], language)
+                if adaptive:
+                    scores = elicited_scores(scores, session, unit, language)
+                passes.append(scores)
                 if full:
                     notes = pass_notes
                     for claim in unit_coverage(output):
@@ -248,6 +371,9 @@ class InterviewReviewer:
             kept: list[Observation] = []
             unit_disputed = False
             for note in _distinct(notes):
+                if adaptive and note.kind == "question" and not note.text.rstrip().endswith("?"):
+                    dropped += 1
+                    continue
                 if note.kind == "technical_error" and unit.kind != "technical":
                     # Corrections concern technical statements; on other units the label was
                     # observed to carry judgements about the candidate instead.
@@ -277,12 +403,22 @@ class InterviewReviewer:
                     for s in paired
                 )
             unit_scores.extend(
-                replace(s, criterion_id=f"{unit.kind}.{s.criterion_id}") for s in paired
+                replace(
+                    s,
+                    criterion_id=(
+                        "common.autonomy"
+                        if adaptive and s.criterion_id == "autonomy"
+                        else f"{unit.kind}.{s.criterion_id}"
+                    ),
+                )
+                for s in paired
             )
         scores = aggregate_scores(tuple(unit_scores))
         await progress(len(units) / (len(units) + 1), None)
         unique = _distinct(observations)
-        summary, ordered, rejected = await self._synthesise(calls, scores, unique, language)
+        summary, ordered, rejected = await self._synthesise(
+            calls, scores, unique, language, adaptive=adaptive
+        )
         dropped += rejected
         return InterviewJudgement(
             units,
@@ -290,14 +426,17 @@ class InterviewReviewer:
             scores,
             (*summary, *ordered),
             dropped,
-            tuple(
-                Check(
-                    f"requirement:{key}",
-                    "discussed_model" if key in coverage else "not_shown",
-                    fact.text,
-                    tuple(dict.fromkeys(coverage.get(key, []))),
-                )
-                for key, fact in requirements.items()
+            (
+                *diagnostics,
+                *tuple(
+                    Check(
+                        f"requirement:{key}",
+                        "discussed_model" if key in coverage else "not_shown",
+                        fact.text,
+                        tuple(dict.fromkeys(coverage.get(key, []))),
+                    )
+                    for key, fact in requirements.items()
+                ),
             ),
             tuple(calls),
             disputed,
@@ -316,7 +455,9 @@ class InterviewReviewer:
                 {"unit_id": u.id, "questions": [turn_data(turns[n]) for n in u.question_seqs]}
                 for u in batch
             ]
-            prompt = self._prompts.render("classify_units", 5)
+            prompt = self._prompts.render(
+                "classify_units", 6 if session.context.policy_version else 5
+            )
             request = ChatRequest(
                 instructions=prompt.text,
                 messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),
@@ -337,15 +478,24 @@ class InterviewReviewer:
         unit: dict[str, object],
         descending: bool,
         language: str,
+        *,
+        adaptive: bool = False,
+        active: tuple[str, ...] | None = None,
     ) -> ChatRequest:
-        prompt = self._prompts.render("judge_unit", 3, language_name=_language_name(language))
+        prompt = self._prompts.render(
+            "judge_unit", 5 if adaptive else 3, language_name=_language_name(language)
+        )
         payload = {
             # The approved context comes first and is identical in every judging request.
             "approved_context": context,
             "rubric": {
                 "id": rubric.ref,
                 "anchor_order": "descending" if descending else "ascending",
-                "criteria": rubric.data(descending=descending),
+                "criteria": [
+                    c
+                    for c in rubric.data(descending=descending)
+                    if active is None or c["id"] in active
+                ],
             },
             "unit": unit,
             "task": (
@@ -360,7 +510,11 @@ class InterviewReviewer:
             messages=(ChatMessage("user", json.dumps(payload, ensure_ascii=False)),),
             temperature=0.1,
             presence_penalty=self.presence_penalty,
-            max_output_tokens=_JUDGE_TOKENS[not descending] + (_THINKING_TOKENS if thinking else 0),
+            max_output_tokens=(
+                _JUDGE_TOKENS[not descending]
+                + (800 if adaptive else 0)
+                + (_THINKING_TOKENS if thinking else 0)
+            ),
             reasoning=self.judge_reasoning,
         )
 
@@ -375,13 +529,21 @@ class InterviewReviewer:
     ) -> str:
         """Ask for an independent verdict, without showing the judge's correction."""
         turns = {t.seq: t for t in session.turns}
-        payload = {
+        payload: dict[str, object] = {
             "references": references,
             "question": " / ".join(str(turn_data(turns[n])["text"]) for n in unit.question_seqs),
             "answer": " / ".join(str(turn_data(turns[n])["text"]) for n in unit.answer_seqs),
             "statement": statement,
         }
-        prompt = self._prompts.render("check_claim", 1, language_name=_language_name(language))
+        if session.context.policy_version:
+            payload["confirmed_role"] = (
+                asdict(session.context.role_profile) if session.context.role_profile else None
+            )
+        prompt = self._prompts.render(
+            "check_claim",
+            2 if session.context.policy_version else 1,
+            language_name=_language_name(language),
+        )
         request = ChatRequest(
             instructions=prompt.text,
             messages=(ChatMessage("user", json.dumps(payload, ensure_ascii=False)),),
@@ -398,6 +560,8 @@ class InterviewReviewer:
         scores: tuple[Score, ...],
         observations: Sequence[Observation],
         language: str,
+        *,
+        adaptive: bool = False,
     ) -> tuple[tuple[Observation, ...], tuple[Observation, ...], int]:
         """A summary over existing observations, which are referenced and never copied."""
         if not observations:
@@ -426,7 +590,9 @@ class InterviewReviewer:
                 for key, note in ids.items()
             ],
         }
-        prompt = self._prompts.render("synthesise", 3, language_name=_language_name(language))
+        prompt = self._prompts.render(
+            "synthesise", 4 if adaptive else 3, language_name=_language_name(language)
+        )
         request = ChatRequest(
             instructions=prompt.text,
             messages=(ChatMessage("user", json.dumps(payload, ensure_ascii=False)),),
@@ -435,7 +601,10 @@ class InterviewReviewer:
             max_output_tokens=_SYNTHESIS_TOKENS,
             reasoning="off",
         )
-        output = await self._call(calls, "synthesise", None, request, SynthesisOut)
+        output = await self._call(
+            calls, "synthesise", None, request, SelectionOut if adaptive else SynthesisOut
+        )
+        assert isinstance(output, (SelectionOut, SynthesisOut))
         chosen = list(dict.fromkeys((*output.priorities, *output.strengths)))
         selected = [ids[key] for key in chosen if key in ids]
         rejected = len(chosen) - len(selected)
@@ -444,7 +613,28 @@ class InterviewReviewer:
             # A summary that rests on no verified observation is not shown.
             return (), tuple(observations), rejected + 1
         evidence = tuple(dict.fromkeys(e for note in selected for e in note.evidence))[:3]
-        summary = Observation("summary", output.summary, evidence)
+        if isinstance(output, SelectionOut):
+            labels = ", ".join(score.label for score in scores if score.value is not None)
+            text = (
+                (
+                    f"Le evidenze raccolte consentono un feedback su: {labels}. "
+                    "I criteri non esplorati restano non valutabili."
+                    if language == "it"
+                    else f"The collected evidence supports feedback on: {labels}. "
+                    "Unexplored criteria remain unavailable."
+                )
+                if labels
+                else (
+                    "Il feedback citato è disponibile qui sotto; "
+                    "i giudizi numerici non sono sufficientemente supportati."
+                    if language == "it"
+                    else "Quoted feedback is available below; "
+                    "numeric judgements are not sufficiently supported."
+                )
+            )
+        else:
+            text = output.summary
+        summary = Observation("summary", text, evidence)
         return (summary,), (*selected, *rest), rejected
 
     async def _call[T: BaseModel](

@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from probeloop.api.context_routes import DocumentView
 from probeloop.assessment.application.history import CvCheckEntry, InterviewEntry, LatestReport
+from probeloop.assessment.application.score_scale import score_100
 from probeloop.assessment.application.service import AssessmentService
 from probeloop.context.application.service import ContextService
 from probeloop.context.domain.model import DocumentKind
 
 
 class LatestReportView(BaseModel):
+    scale: Literal["0_100"] = "0_100"
     id: str
     version: int
     versions: int  # how many versions exist
@@ -22,6 +26,7 @@ class LatestReportView(BaseModel):
     criteria: int
     language: str
     model_ref: str
+    scorer_key: str = ""
 
     @classmethod
     def of(cls, r: LatestReport) -> LatestReportView:
@@ -30,11 +35,12 @@ class LatestReportView(BaseModel):
             version=r.version,
             versions=r.versions,
             created_at=r.created_at,
-            overall=r.overall,
+            overall=score_100(r.overall),
             assessed=r.assessed,
             criteria=r.criteria,
             language=r.language,
             model_ref=r.model_ref,
+            scorer_key=r.scorer_key,
         )
 
 

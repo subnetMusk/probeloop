@@ -2,6 +2,10 @@ import { defineMessages } from '@/shared/i18n'
 
 export const reportMessages = defineMessages({
   en: {
+    target: 'Confirmed target',
+    references: 'Provided references',
+    assistance: 'Assistance during this exchange',
+    help: { hint: 'Hint', clarification: 'Clarification' },
     interview: 'Interview report',
     cv: 'CV report',
     loading: 'Loading…',
@@ -27,7 +31,7 @@ export const reportMessages = defineMessages({
     typed: 'Typed text: there is no original file.',
     noNotes: 'No evidence-backed observations.',
     modelNote:
-      'Model feedback based on verified quotations. Check technical interpretations before using them.',
+      'Formative model feedback based on verified quotations. Specialist judgements may be wrong; provided references do not constitute external verification.',
     question: (n: number) => `Question ${String(n)}`,
     answer: (n: number) => `Answer ${String(n)}`,
     correction: 'Suggested correction',
@@ -77,6 +81,10 @@ export const reportMessages = defineMessages({
     backCv: 'Back to the CV check',
   },
   it: {
+    target: 'Profilo confermato',
+    references: 'Riferimenti forniti',
+    assistance: 'Supporto durante questo scambio',
+    help: { hint: 'Indizio', clarification: 'Chiarimento' },
     interview: 'Report del colloquio',
     cv: 'Report del CV',
     loading: 'Caricamento…',
@@ -102,7 +110,7 @@ export const reportMessages = defineMessages({
     typed: 'Testo digitato: non c’è un file originale.',
     noNotes: 'Nessuna osservazione supportata da evidenze.',
     modelNote:
-      'Feedback del modello basato su citazioni verificate. Controlla le interpretazioni tecniche prima di usarle.',
+      'Feedback formativo del modello basato su citazioni verificate. I giudizi specialistici possono essere errati; i riferimenti forniti non costituiscono una verifica esterna.',
     question: (n: number) => `Domanda ${String(n)}`,
     answer: (n: number) => `Risposta ${String(n)}`,
     correction: 'Correzione proposta',

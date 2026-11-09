@@ -14,6 +14,7 @@ from probeloop.interview.domain.model import (
     InterviewerTurn,
     InterviewSession,
     MoveAction,
+    MovePurpose,
 )
 
 _KINDS = {
@@ -48,6 +49,7 @@ class KindsOut(Strict):
 
 def answer_units(session: InterviewSession) -> tuple[AnswerUnit, ...]:
     units: list[AnswerUnit] = []
+    questions = {t.seq: t for t in session.interviewer_turns()}
     for turn in session.turns:
         if isinstance(turn, InterviewerTurn):
             if turn.move.action in (MoveAction.WRAP_UP, MoveAction.END):
@@ -55,7 +57,21 @@ def answer_units(session: InterviewSession) -> tuple[AnswerUnit, ...]:
                 units.append(
                     AnswerUnit(f"u{turn.seq}", turn.move.topic_id, "logistics", (turn.seq,), ())
                 )
-            elif units and turn.move.action in (MoveAction.FOLLOW_UP, MoveAction.CLARIFY):
+            elif (
+                units
+                and turn.move.action in (MoveAction.FOLLOW_UP, MoveAction.CLARIFY)
+                and not (
+                    session.context.policy_version
+                    and turn.move.intent
+                    and turn.move.intent.purpose is not MovePurpose.CLARIFICATION
+                    and any(
+                        (previous := questions[n].move.intent) is not None
+                        and previous.purpose is not MovePurpose.CLARIFICATION
+                        and previous.rubric_kind != turn.move.intent.rubric_kind
+                        for n in units[-1].question_seqs
+                    )
+                )
+            ):
                 units[-1] = replace(units[-1], question_seqs=(*units[-1].question_seqs, turn.seq))
             else:
                 units.append(

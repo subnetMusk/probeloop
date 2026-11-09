@@ -55,16 +55,13 @@ it('requires role and level and keeps unfinished edits when remounted', async ()
   const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm role and level' })
   expect(confirm.disabled).toBe(true)
   await userEvent.type(screen.getByRole('textbox', { name: 'Profession or field' }), 'Economics')
-  await userEvent.type(
-    screen.getByRole('textbox', { name: /^Target role$/ }),
-    'Research economist',
-  )
+  await userEvent.type(screen.getByRole('textbox', { name: /^Target role$/ }), 'Research economist')
   expect(confirm.disabled).toBe(true)
   view.unmount()
   show()
-  expect(
-    screen.getByRole<HTMLInputElement>('textbox', { name: /^Target role$/ }).value,
-  ).toBe('Research economist')
+  expect(screen.getByRole<HTMLInputElement>('textbox', { name: /^Target role$/ }).value).toBe(
+    'Research economist',
+  )
   await userEvent.type(
     screen.getByRole('textbox', { name: 'Target level or training grade' }),
     'Junior under supervision',

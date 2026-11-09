@@ -1086,6 +1086,17 @@
             ],
             "title": "Overall"
           },
+          "scale": {
+            "const": "0_100",
+            "default": "0_100",
+            "title": "Scale",
+            "type": "string"
+          },
+          "scorer_key": {
+            "default": "",
+            "title": "Scorer Key",
+            "type": "string"
+          },
           "version": {
             "title": "Version",
             "type": "integer"
@@ -1163,6 +1174,17 @@
       "ObservationData": {
         "additionalProperties": false,
         "properties": {
+          "criterion_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criterion Id"
+          },
           "evidence": {
             "items": {
               "$ref": "#/components/schemas/EvidenceData"
@@ -1695,6 +1717,12 @@
             "title": "Report Id",
             "type": "string"
           },
+          "scale": {
+            "const": "0_100",
+            "default": "0_100",
+            "title": "Scale",
+            "type": "string"
+          },
           "session_id": {
             "anyOf": [
               {
@@ -1743,12 +1771,75 @@
         "title": "ProgressPointView",
         "type": "object"
       },
+      "QuestionTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "intent": {
+            "$ref": "#/components/schemas/TurnIntent"
+          },
+          "question_seq": {
+            "title": "Question Seq",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "topic_id": {
+            "title": "Topic Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_seq",
+          "topic_id",
+          "text",
+          "intent"
+        ],
+        "title": "QuestionTrace",
+        "type": "object"
+      },
+      "ReferenceDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind"
+        ],
+        "title": "ReferenceDocument",
+        "type": "object"
+      },
       "ReportData": {
         "additionalProperties": false,
         "properties": {
           "assessed": {
             "title": "Assessed",
             "type": "integer"
+          },
+          "assessment_profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Profile Id"
           },
           "checks": {
             "items": {
@@ -1803,6 +1894,13 @@
             "title": "Model Ref",
             "type": "string"
           },
+          "objectives": {
+            "items": {
+              "$ref": "#/components/schemas/Topic"
+            },
+            "title": "Objectives",
+            "type": "array"
+          },
           "observations": {
             "items": {
               "$ref": "#/components/schemas/ObservationData"
@@ -1821,9 +1919,34 @@
             ],
             "title": "Overall"
           },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Version"
+          },
           "prompt_ref": {
             "title": "Prompt Ref",
             "type": "string"
+          },
+          "question_trace": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionTrace"
+            },
+            "title": "Question Trace",
+            "type": "array"
+          },
+          "reference_documents": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceDocument"
+            },
+            "title": "Reference Documents",
+            "type": "array"
           },
           "revisions": {
             "items": {
@@ -1832,12 +1955,31 @@
             "title": "Revisions",
             "type": "array"
           },
+          "role_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rubric_hash": {
             "title": "Rubric Hash",
             "type": "string"
           },
           "rubric_id": {
             "title": "Rubric Id",
+            "type": "string"
+          },
+          "scale": {
+            "default": "1_5",
+            "enum": [
+              "1_5",
+              "0_100"
+            ],
+            "title": "Scale",
             "type": "string"
           },
           "scores": {
@@ -2107,6 +2249,63 @@
           "engine_ref"
         ],
         "title": "RevisionView",
+        "type": "object"
+      },
+      "RoleProfile": {
+        "additionalProperties": false,
+        "description": "Target expectations, proposed from documents and explicitly confirmed by the user.\n\nThese describe the position being practised, not verified abilities of the candidate.\nSeniority is free text because professional training grades differ between professions.",
+        "properties": {
+          "basis_fact_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Basis Fact Ids",
+            "type": "array"
+          },
+          "competencies": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Competencies",
+            "type": "array"
+          },
+          "confirmed": {
+            "default": false,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "profession": {
+            "default": "",
+            "title": "Profession",
+            "type": "string"
+          },
+          "rationale": {
+            "default": "",
+            "title": "Rationale",
+            "type": "string"
+          },
+          "responsibilities": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Responsibilities",
+            "type": "array"
+          },
+          "seniority": {
+            "default": "",
+            "title": "Seniority",
+            "type": "string"
+          },
+          "target_role": {
+            "default": "",
+            "title": "Target Role",
+            "type": "string"
+          }
+        },
+        "title": "RoleProfile",
         "type": "object"
       },
       "RoleProfileData": {
@@ -2652,6 +2851,72 @@
         ],
         "title": "Subject",
         "type": "string"
+      },
+      "Topic": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "fact_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Fact Ids",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "objective": {
+            "default": "",
+            "title": "Objective",
+            "type": "string"
+          },
+          "past_example": {
+            "default": false,
+            "title": "Past Example",
+            "type": "boolean"
+          },
+          "priority": {
+            "default": 1,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "rubric_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rubric Kind"
+          },
+          "solvable": {
+            "default": false,
+            "title": "Solvable",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Topic",
+        "type": "object"
       },
       "TopicView": {
         "properties": {

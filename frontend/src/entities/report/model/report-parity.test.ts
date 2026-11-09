@@ -46,6 +46,8 @@ for (const kind of ['interview', 'cv'] as const) {
     const about = view.about
     expect({
       sections: view.sections,
+      target: interview?.target ?? null,
+      references: interview?.references ?? [],
       overall: view.overall,
       band: view.band,
       assessed: view.assessed,
@@ -64,6 +66,7 @@ for (const kind of ['interview', 'cv'] as const) {
           questions: unit.questions.map((q) => q.text),
           answers: unit.answers.map((a) => ({ number: a.number, text: a.text })),
           scores: unit.scores.map(criterion),
+          assistance: unit.assistance.map((help) => ({ ...help, answer: null })),
         })) ?? [],
       requirements:
         interview?.requirements.map((row) => ({ ...row, quotes: row.quotes.map(quote) })) ?? [],

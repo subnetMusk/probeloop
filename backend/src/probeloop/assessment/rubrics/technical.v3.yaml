@@ -1,0 +1,55 @@
+id: technical
+version: 3
+minimum_assessed_share: 0.6
+criteria:
+- id: accuracy
+  label: Accuracy
+  anchors:
+    1: Core claims are incorrect.
+    3: Mostly correct with imprecisions.
+    5: Correct, precise and appropriately qualified; corrects errors.
+- id: depth
+  label: Professional depth
+  anchors:
+    1: Repeats labels without explaining relevant professional principles.
+    3: Explains core professional methods at the target role level.
+    5: Explains mechanisms, assumptions, limits and failure modes appropriate to the role responsibilities.
+- id: problem_solving
+  label: Problem solving
+  anchors:
+    1: Jumps to a solution without understanding the problem.
+    3: Clarifies some points and proposes a workable approach.
+    5: Clarifies constraints, decomposes the problem and compares approaches.
+- id: tradeoffs
+  label: Trade-offs
+  anchors:
+    1: Presents one option as universally right.
+    3: Mentions alternatives.
+    5: Weighs costs, benefits and conditions for choosing differently.
+- id: experience
+  label: Practical experience
+  anchors:
+    1: No first-hand example when requested.
+    3: First-hand examples with limited detail about actions or decisions.
+    5: Concrete first-hand decisions and outcomes.
+- id: reasoning
+  label: Communication of reasoning
+  anchors:
+    1: Reasoning is hard to follow.
+    3: Understandable with gaps.
+    5: Structured, precise reasoning adapted to the question.
+- id: ownership
+  label: Individual contribution
+  anchors:
+    1: The example leaves the candidate's own actions and contribution unclear.
+    3: Some own actions are identifiable, but responsibility for decisions or outcomes remains
+      partly unclear.
+    5: Specific own actions, decisions and their relation to the observed outcome are clear, including
+      the limits of the candidate's responsibility.
+- id: autonomy
+  label: Autonomy
+  anchors:
+    1: Needs substantial guidance to make progress on an elicited task at the target level.
+    3: Completes the reasoning with targeted support and explains how the cue changes the approach.
+    5: Makes and justifies appropriately independent decisions for the role, including relevant
+      clarification or acknowledging limits.

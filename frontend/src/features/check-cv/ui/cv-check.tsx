@@ -25,7 +25,7 @@ const messages = defineMessages({
     run: 'Check the CV',
     again: 'Check again',
     running: 'Checking the CV',
-    score: (overall: string) => `Overall ${overall} / 5`,
+    score: (overall: string) => `Overall ${overall} / 100`,
     unavailable: 'Not enough evidence for an overall score',
     criteria: (assessed: number, total: number) =>
       `${String(assessed)} of ${String(total)} criteria assessable`,
@@ -43,7 +43,7 @@ const messages = defineMessages({
     run: 'Controlla il CV',
     again: 'Controlla di nuovo',
     running: 'Controllo del CV in corso',
-    score: (overall: string) => `Complessivo ${overall} / 5`,
+    score: (overall: string) => `Complessivo ${overall} / 100`,
     unavailable: 'Evidenze insufficienti per un voto complessivo',
     criteria: (assessed: number, total: number) =>
       `${String(assessed)} criteri valutabili su ${String(total)}`,

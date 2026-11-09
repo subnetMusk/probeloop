@@ -1173,6 +1173,17 @@ export interface components {
             model_ref: string;
             /** Overall */
             overall: number | null;
+            /**
+             * Scale
+             * @default 0_100
+             * @constant
+             */
+            scale?: "0_100";
+            /**
+             * Scorer Key
+             * @default
+             */
+            scorer_key?: string;
             /** Version */
             version: number;
             /** Versions */
@@ -1201,6 +1212,8 @@ export interface components {
         MovePurpose: "clarification" | "evidence_probe" | "reasoning_probe" | "hint" | "new_topic" | "closing";
         /** ObservationData */
         ObservationData: {
+            /** Criterion Id */
+            criterion_id?: string | null;
             /** Evidence */
             evidence: components["schemas"]["EvidenceData"][];
             /** Kind */
@@ -1345,6 +1358,12 @@ export interface components {
             overall: number | null;
             /** Report Id */
             report_id: string;
+            /**
+             * Scale
+             * @default 0_100
+             * @constant
+             */
+            scale?: "0_100";
             /** Session Id */
             session_id: string | null;
             /** Subject Id */
@@ -1356,10 +1375,31 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** QuestionTrace */
+        QuestionTrace: {
+            intent: components["schemas"]["TurnIntent"];
+            /** Question Seq */
+            question_seq: number;
+            /** Text */
+            text: string;
+            /** Topic Id */
+            topic_id: string;
+        };
+        /** ReferenceDocument */
+        ReferenceDocument: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+        };
         /** ReportData */
         ReportData: {
             /** Assessed */
             assessed: number;
+            /** Assessment Profile Id */
+            assessment_profile_id?: string | null;
             /** Checks */
             checks: components["schemas"]["CheckData"][];
             /** Created At */
@@ -1383,18 +1423,33 @@ export interface components {
             language: string;
             /** Model Ref */
             model_ref: string;
+            /** Objectives */
+            objectives?: components["schemas"]["Topic"][];
             /** Observations */
             observations: components["schemas"]["ObservationData"][];
             /** Overall */
             overall: number | null;
+            /** Policy Version */
+            policy_version?: string | null;
             /** Prompt Ref */
             prompt_ref: string;
+            /** Question Trace */
+            question_trace?: components["schemas"]["QuestionTrace"][];
+            /** Reference Documents */
+            reference_documents?: components["schemas"]["ReferenceDocument"][];
             /** Revisions */
             revisions: components["schemas"]["VersionData"][];
+            role_profile?: components["schemas"]["RoleProfile"] | null;
             /** Rubric Hash */
             rubric_hash: string;
             /** Rubric Id */
             rubric_id: string;
+            /**
+             * Scale
+             * @default 1_5
+             * @enum {string}
+             */
+            scale?: "1_5" | "0_100";
             /** Scores */
             scores: components["schemas"]["ScoreData"][];
             /** Session Id */
@@ -1480,6 +1535,55 @@ export interface components {
             source: string;
             /** Text */
             text: string;
+        };
+        /**
+         * RoleProfile
+         * @description Target expectations, proposed from documents and explicitly confirmed by the user.
+         *
+         *     These describe the position being practised, not verified abilities of the candidate.
+         *     Seniority is free text because professional training grades differ between professions.
+         */
+        RoleProfile: {
+            /**
+             * Basis Fact Ids
+             * @default []
+             */
+            basis_fact_ids?: string[];
+            /**
+             * Competencies
+             * @default []
+             */
+            competencies?: string[];
+            /**
+             * Confirmed
+             * @default false
+             */
+            confirmed?: boolean;
+            /**
+             * Profession
+             * @default
+             */
+            profession?: string;
+            /**
+             * Rationale
+             * @default
+             */
+            rationale?: string;
+            /**
+             * Responsibilities
+             * @default []
+             */
+            responsibilities?: string[];
+            /**
+             * Seniority
+             * @default
+             */
+            seniority?: string;
+            /**
+             * Target Role
+             * @default
+             */
+            target_role?: string;
         };
         /** RoleProfileData */
         RoleProfileData: {
@@ -1634,6 +1738,45 @@ export interface components {
          * @enum {string}
          */
         Subject: "candidate" | "job";
+        /** Topic */
+        Topic: {
+            /**
+             * Criteria
+             * @default []
+             */
+            criteria?: string[];
+            /**
+             * Fact Ids
+             * @default []
+             */
+            fact_ids?: string[];
+            /** Id */
+            id: string;
+            /**
+             * Objective
+             * @default
+             */
+            objective?: string;
+            /**
+             * Past Example
+             * @default false
+             */
+            past_example?: boolean;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority?: number;
+            /** Rubric Kind */
+            rubric_kind?: string | null;
+            /**
+             * Solvable
+             * @default false
+             */
+            solvable?: boolean;
+            /** Title */
+            title: string;
+        };
         /** TopicView */
         TopicView: {
             /**

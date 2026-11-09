@@ -1,0 +1,35 @@
+id: hr
+version: 2
+minimum_assessed_share: 0.6
+criteria:
+- id: motivation
+  label: Motivation for the role
+  anchors:
+    1: Generic reasons or only title and pay.
+    3: Some role-specific reasons, partly vague.
+    5: Specific reasons connected to the role and the candidate's path.
+- id: relevance
+  label: Relevant experience
+  anchors:
+    1: Cannot connect experience to the role.
+    3: Connects experience in general terms.
+    5: Connects specific examples to the main requirements.
+- id: narrative
+  label: Career narrative
+  anchors:
+    1: Contradictory or unexplained choices when explicitly asked.
+    3: Plausible account with thin explanations.
+    5: Coherent explanation of choices, changes and any gaps discussed.
+- id: communication
+  label: Communication
+  anchors:
+    1: Off the question and disorganised.
+    3: Answers with some digressions.
+    5: Direct, organised and proportionate to the question.
+- id: autonomy
+  label: Autonomy
+  anchors:
+    1: Needs substantial guidance to make progress on an elicited task at the target level.
+    3: Completes the reasoning with targeted support and explains how the cue changes the approach.
+    5: Makes and justifies appropriately independent decisions for the role, including relevant
+      clarification or acknowledging limits.

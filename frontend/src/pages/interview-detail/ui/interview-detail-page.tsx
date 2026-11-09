@@ -265,7 +265,7 @@ export function InterviewDetailPage() {
                         params={{ sessionId, reportId: report.id }}
                       >
                         {t.open(report.version)} · {report.language.toUpperCase()} ·{' '}
-                        {report.overall ?? '—'} / 5
+                        {report.overall ?? '—'} / 100
                       </Link>
                     </li>
                   ))}

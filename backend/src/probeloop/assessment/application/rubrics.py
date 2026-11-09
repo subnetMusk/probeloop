@@ -28,7 +28,7 @@ class Rubric(BaseModel):
 
     id: str
     version: int = Field(ge=1)
-    criteria: tuple[Criterion, ...] = Field(min_length=4, max_length=7)
+    criteria: tuple[Criterion, ...] = Field(min_length=4, max_length=8)
     minimum_assessed_share: float = Field(gt=0, le=1)
 
     @model_validator(mode="after")

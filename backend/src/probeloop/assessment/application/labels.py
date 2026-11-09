@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 ITALIAN = {
+    "Confirmed target": "Profilo confermato",
+    "Provided references": "Riferimenti forniti",
+    "Assistance during this exchange": "Supporto durante questo scambio",
+    "hint": "Indizio",
+    "clarification": "Chiarimento",
     "CV report": "Report del CV",
     "Interview report": "Report del colloquio",
     "Overview": "Riepilogo",
@@ -75,6 +80,8 @@ ITALIAN = {
     "Depth under follow-up": "Profondità negli approfondimenti",
     "Accuracy": "Correttezza",
     "Technical depth": "Profondità tecnica",
+    "Professional depth": "Profondità professionale",
+    "Autonomy": "Autonomia",
     "Problem solving": "Soluzione dei problemi",
     "Trade-offs": "Compromessi",
     "Practical experience": "Esperienza pratica",

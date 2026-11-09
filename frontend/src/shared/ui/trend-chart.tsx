@@ -60,7 +60,7 @@ export function ChartLegend({ series }: { series: readonly ChartSeries[] }) {
 }
 
 /**
- * Scores over time on a fixed 1 to 5 scale. Lines are 2 px, points have a ring in the surface
+ * Scores over time on a fixed 0 to 100 scale. Lines are 2 px, points have a ring in the surface
  * colour, and a crosshair with a tooltip follows the pointer to the nearest point. Every value
  * is also in the table view, so the tooltip never gates information.
  */
@@ -110,7 +110,7 @@ export function TrendChart({
   const plotW = width - MARGIN.left - MARGIN.right
   const plotH = height - MARGIN.top - MARGIN.bottom
   const sx = (x: number) => MARGIN.left + ((x - x0) / (x1 - x0)) * plotW
-  const sy = (y: number) => MARGIN.top + ((5 - y) / 4) * plotH
+  const sy = (y: number) => MARGIN.top + ((100 - y) / 100) * plotH
   const xTicks = ticksBetween(minX, maxX, formatX)
 
   const nearest = (clientX: number, clientY: number, rect: DOMRect) => {
@@ -151,7 +151,7 @@ export function TrendChart({
             active?.point.onSelect?.()
           }}
         >
-          {[1, 2, 3, 4, 5].map((tick) => (
+          {[0, 25, 50, 75, 100].map((tick) => (
             <g key={tick}>
               <line
                 x1={MARGIN.left}

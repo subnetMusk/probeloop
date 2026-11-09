@@ -158,7 +158,7 @@ describe('interview report view', () => {
   const view = toInterviewReportView(report(), session)
 
   it('leads with the score, its band and the summary', () => {
-    expect([view.overall, view.band]).toEqual([3.9, 'developing'])
+    expect([view.overall, view.band]).toEqual([72.5, 'developing'])
     expect(view.summary?.text).toBe('Buona base tecnica.')
   })
 
@@ -267,7 +267,7 @@ describe('CV report view', () => {
 
 describe('helpers', () => {
   it('bands, reasons and medians', () => {
-    expect([bandOf(4), bandOf(2.5), bandOf(2.4), bandOf(null)]).toEqual([
+    expect([bandOf(75), bandOf(37.5), bandOf(35), bandOf(null)]).toEqual([
       'solid',
       'developing',
       'needs_work',

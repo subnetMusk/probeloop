@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from probeloop.assessment.domain.model import Report, ReportKind
-from probeloop.assessment.domain.progress import latest_reports
+from probeloop.assessment.domain.progress import latest_reports, scorer_key
 from probeloop.context.domain.model import ContextSnapshot
 from probeloop.interview.application.ports import SessionSummary
 
@@ -26,6 +26,7 @@ class LatestReport:
     criteria: int
     language: str
     model_ref: str
+    scorer_key: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,7 @@ def latest_by_subject(reports: Iterable[Report], kind: ReportKind) -> dict[str, 
             criteria=r.criteria,
             language=r.language,
             model_ref=r.model_ref,
+            scorer_key=scorer_key(r),
         )
         for r in latest_reports(of_kind)
     }

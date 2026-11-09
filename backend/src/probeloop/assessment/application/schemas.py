@@ -7,17 +7,22 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
+from probeloop.assessment.application.score_scale import anchored_score, score_100
 from probeloop.assessment.domain.model import (
     AnswerUnit,
     Check,
     DeliveryMetric,
     Evidence,
     Observation,
+    QuestionTrace,
+    ReferenceDocument,
     Report,
     ReportKind,
     Score,
     TranscriptVersion,
 )
+from probeloop.context.domain.model import RoleProfile
+from probeloop.interview.domain.model import Topic
 
 
 class Strict(BaseModel):
@@ -41,6 +46,7 @@ class JudgementOut(Strict):
 
 
 class ObservationOut(Strict):
+    criterion_id: str | None = None
     kind: Literal["strength", "improvement", "technical_error", "rewrite", "question", "summary"]
     text: str = Field(min_length=1, max_length=600)
     evidence: list[EvidenceData] = Field(min_length=1, max_length=3)
@@ -48,7 +54,7 @@ class ObservationOut(Strict):
 
 
 class JudgementsOut(Strict):
-    scores: list[JudgementOut] = Field(max_length=7)
+    scores: list[JudgementOut] = Field(max_length=8)
     observations: list[ObservationOut] = Field(max_length=12)
 
 
@@ -70,6 +76,10 @@ class UnitObservationOut(Strict):
     kind: Literal["strength", "improvement", "technical_error", "question"]
     evidence: list[EvidenceData] = Field(min_length=1, max_length=2)
     text: str = Field(min_length=1, max_length=400)
+
+
+class ElicitedObservationOut(UnitObservationOut):
+    criterion_id: str = Field(min_length=1, max_length=60)
 
 
 class CvObservationOut(Strict):
@@ -94,6 +104,11 @@ class SynthesisOut(Strict):
     summary: str = Field(min_length=1, max_length=800)
 
 
+class SelectionOut(Strict):
+    priorities: list[str] = Field(max_length=3)
+    strengths: list[str] = Field(max_length=2)
+
+
 def _criteria_output(criteria: tuple[str, ...]) -> type[Strict]:
     scores: dict[str, Any] = {c: (CriterionOut, ...) for c in criteria}
     return create_model("CriteriaOut", __base__=Strict, **scores)
@@ -109,7 +124,13 @@ def cv_output(criteria: tuple[str, ...]) -> type[Strict]:
     )
 
 
-def unit_output(criteria: tuple[str, ...], *, observations: bool) -> type[Strict]:
+def unit_output(
+    criteria: tuple[str, ...],
+    *,
+    observations: bool,
+    elicitation: bool = False,
+    coverage: bool = True,
+) -> type[Strict]:
     """The schema of one judging pass: every rubric criterion exactly once, in rubric order.
 
     The pass that lists the anchors in descending order exists to average out position bias in
@@ -117,8 +138,12 @@ def unit_output(criteria: tuple[str, ...], *, observations: bool) -> type[Strict
     """
     fields: dict[str, Any] = {"scores": (_criteria_output(criteria), ...)}
     if observations:
-        fields["observations"] = (list[UnitObservationOut], Field(max_length=3))
-        fields["coverage"] = (list[RequirementOut], Field(max_length=10))
+        fields["observations"] = (
+            list[ElicitedObservationOut] if elicitation else list[UnitObservationOut],
+            Field(max_length=3),
+        )
+        if coverage:
+            fields["coverage"] = (list[RequirementOut], Field(max_length=10))
     return create_model("UnitJudgementOut", __base__=Strict, **fields)
 
 
@@ -141,6 +166,7 @@ def criterion_judgements(output: Strict) -> JudgementsOut:
                 text=item["text"],
                 evidence=[EvidenceData(**e) for e in item["evidence"]],
                 replacement=item.get("replacement"),
+                criterion_id=item.get("criterion_id"),
             )
             for item in data.get("observations", [])
         ],
@@ -160,11 +186,11 @@ class ScoreData(Strict):
     unstable: bool
     unit_id: str | None
 
-    def domain(self) -> Score:
+    def domain(self, *, scale: str = "1_5") -> Score:
         return Score(
             self.criterion_id,
             self.label,
-            self.value,
+            anchored_score(self.value) if scale == "0_100" else self.value,
             self.reason,
             tuple(e.domain() for e in self.evidence),
             self.unstable,
@@ -173,6 +199,7 @@ class ScoreData(Strict):
 
 
 class ObservationData(Strict):
+    criterion_id: str | None = None
     kind: str
     text: str
     evidence: list[EvidenceData]
@@ -186,6 +213,7 @@ class ObservationData(Strict):
             tuple(e.domain() for e in self.evidence),
             self.replacement,
             self.unit_id,
+            self.criterion_id,
         )
 
 
@@ -229,6 +257,8 @@ class VersionData(Strict):
 
 
 class ReportData(Strict):
+    # Missing in legacy JSON, which is still read using its original 1-5 meaning.
+    scale: Literal["1_5", "0_100"] = "1_5"
     id: str
     kind: ReportKind
     subject_id: str
@@ -255,10 +285,22 @@ class ReportData(Strict):
     unit_scores: list[ScoreData]
     delivery: list[DeliveryData]
     revisions: list[VersionData]
+    policy_version: str | None = None
+    assessment_profile_id: str | None = None
+    role_profile: RoleProfile | None = None
+    objectives: list[Topic] = Field(default_factory=list)
+    question_trace: list[QuestionTrace] = Field(default_factory=list)
+    reference_documents: list[ReferenceDocument] = Field(default_factory=list)
 
     @classmethod
     def of(cls, report: Report) -> ReportData:
-        return cls.model_validate(asdict(report))
+        data = asdict(report)
+        data["scale"] = "0_100"
+        data["overall"] = score_100(report.overall)
+        for key in ("scores", "unit_scores"):
+            for item in data[key]:
+                item["value"] = score_100(item["value"])
+        return cls.model_validate(data)
 
     def domain(self) -> Report:
         return Report(
@@ -275,17 +317,23 @@ class ReportData(Strict):
             input_fingerprint=self.input_fingerprint,
             snapshot_id=self.snapshot_id,
             session_id=self.session_id,
-            scores=tuple(s.domain() for s in self.scores),
+            scores=tuple(s.domain(scale=self.scale) for s in self.scores),
             observations=tuple(o.domain() for o in self.observations),
             checks=tuple(c.domain() for c in self.checks),
-            overall=self.overall,
+            overall=anchored_score(self.overall) if self.scale == "0_100" else self.overall,
             assessed=self.assessed,
             criteria=self.criteria,
             dropped=self.dropped,
             duration_s=self.duration_s,
             disclaimer=self.disclaimer,
             units=tuple(u.domain() for u in self.units),
-            unit_scores=tuple(s.domain() for s in self.unit_scores),
+            unit_scores=tuple(s.domain(scale=self.scale) for s in self.unit_scores),
             delivery=tuple(d.domain() for d in self.delivery),
             revisions=tuple(TranscriptVersion(r.seq, r.revision) for r in self.revisions),
+            policy_version=self.policy_version,
+            assessment_profile_id=self.assessment_profile_id,
+            role_profile=self.role_profile,
+            objectives=tuple(self.objectives),
+            question_trace=tuple(self.question_trace),
+            reference_documents=tuple(self.reference_documents),
         )

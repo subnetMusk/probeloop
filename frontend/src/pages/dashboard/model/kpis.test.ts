@@ -39,11 +39,18 @@ function interview(
             criteria: 5,
             language: 'it',
             model_ref: 'm',
+            scorer_key: 'same-target-and-policy',
           },
   }
 }
 
 describe('dashboard figures', () => {
+  it('does not compare different target levels or assessment policies', () => {
+    const a = interview('a', now, 'technical', 80)
+    const b = interview('b', now - day, 'technical', 40)
+    if (b.latest_report) b.latest_report.scorer_key = 'different-level'
+    expect(kpisOf([a, b], [], now).latest?.delta).toBeNull()
+  })
   it('compares the latest score with the previous interview of the same type', () => {
     const interviews = [
       interview('a', now - day, 'technical', 4.1),

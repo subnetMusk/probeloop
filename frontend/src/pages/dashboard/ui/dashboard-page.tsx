@@ -41,7 +41,7 @@ const messages = defineMessages({
     practice: 'Practice time',
     practiceNote: 'Interview time without pauses',
     cvChecks: 'CV checks',
-    latestCv: (value: string) => `Latest: ${value} / 5`,
+    latestCv: (value: string) => `Latest: ${value} / 100`,
     welcome: {
       title: 'Practise your first interview',
       text: 'Choose the interview, add your CV and the job offer, check what the analysis understood, then answer out loud. Reports and trends appear here.',
@@ -61,7 +61,7 @@ const messages = defineMessages({
     practice: 'Tempo di allenamento',
     practiceNote: 'Durata dei colloqui senza pause',
     cvChecks: 'CV check',
-    latestCv: (value: string) => `Ultimo: ${value} / 5`,
+    latestCv: (value: string) => `Ultimo: ${value} / 100`,
     welcome: {
       title: 'Fai il tuo primo colloquio',
       text: 'Scegli il colloquio, aggiungi CV e offerta, controlla ciò che l’analisi ha capito, poi rispondi a voce. Qui compariranno report e andamenti.',
@@ -125,7 +125,7 @@ export function DashboardPage() {
             <StatTile
               label={t.latest}
               value={kpis.latest ? score(kpis.latest.overall, language) : t.none}
-              unit={kpis.latest ? '/ 5' : undefined}
+              unit={kpis.latest ? '/ 100' : undefined}
               delta={
                 delta === null || delta === undefined
                   ? undefined

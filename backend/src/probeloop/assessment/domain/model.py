@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from probeloop.context.domain.model import RoleProfile
+from probeloop.interview.domain.model import Topic, TurnIntent
+
 
 class ReportKind(StrEnum):
     CV = "cv"
@@ -42,6 +45,7 @@ class Observation:
     evidence: tuple[Evidence, ...]
     replacement: str | None = None
     unit_id: str | None = None
+    criterion_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +81,21 @@ class TranscriptVersion:
 
 
 @dataclass(frozen=True, slots=True)
+class QuestionTrace:
+    question_seq: int
+    topic_id: str
+    text: str
+    intent: TurnIntent
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceDocument:
+    id: str
+    title: str
+    kind: str
+
+
+@dataclass(frozen=True, slots=True)
 class Report:
     id: str
     kind: ReportKind
@@ -104,6 +123,12 @@ class Report:
     unit_scores: tuple[Score, ...] = ()
     delivery: tuple[DeliveryMetric, ...] = ()
     revisions: tuple[TranscriptVersion, ...] = ()
+    policy_version: str | None = None
+    assessment_profile_id: str | None = None
+    role_profile: RoleProfile | None = None
+    objectives: tuple[Topic, ...] = ()
+    question_trace: tuple[QuestionTrace, ...] = ()
+    reference_documents: tuple[ReferenceDocument, ...] = ()
 
 
 def overall_score(scores: tuple[Score, ...], *, minimum_share: float = 0.6) -> float | None:

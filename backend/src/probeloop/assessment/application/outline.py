@@ -8,6 +8,7 @@ from math import floor
 from statistics import median
 
 from probeloop.assessment.application.labels import label
+from probeloop.assessment.application.score_scale import score_100
 from probeloop.assessment.domain.model import (
     Check,
     Evidence,
@@ -74,6 +75,14 @@ class Answer:
 
 
 @dataclass(frozen=True)
+class Assistance:
+    purpose: str
+    text: str
+    answer: int | None
+    level: int
+
+
+@dataclass(frozen=True)
 class Unit:
     number: int
     kind: str
@@ -81,6 +90,7 @@ class Unit:
     questions: tuple[str, ...]
     answers: tuple[Answer, ...]
     scores: tuple[Criterion, ...]
+    assistance: tuple[Assistance, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,6 +165,8 @@ class ReportOutline:
     technical: Technical
     unstable: bool
     original: str | None
+    target: str | None = None
+    references: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -261,7 +273,12 @@ def report_outline(
     def criterion(item: Score) -> Criterion:
         reason = next((line.strip() for line in item.reason.splitlines() if line.strip()), "")
         return Criterion(
-            item.criterion_id, item.label, item.value, reason, item.unstable, quotes(item.evidence)
+            item.criterion_id,
+            item.label,
+            score_100(item.value),
+            reason,
+            item.unstable,
+            quotes(item.evidence),
         )
 
     notes = tuple(note(item) for item in report.observations)
@@ -286,7 +303,7 @@ def report_outline(
     return ReportOutline(
         label("CV report" if cv else "Interview report", report.language),
         CV_SECTIONS if cv else INTERVIEW_SECTIONS,
-        report.overall,
+        score_100(report.overall),
         _band(report.overall),
         report.assessed,
         report.criteria,
@@ -313,6 +330,19 @@ def report_outline(
                 tuple(questions.get(seq, "") for seq in unit.question_seqs),
                 tuple(Answer(answers[seq], questions.get(seq, "")) for seq in unit.answer_seqs),
                 tuple(criterion(item) for item in report.unit_scores if item.unit_id == unit.id),
+                tuple(
+                    Assistance(
+                        trace.intent.purpose.value,
+                        trace.text,
+                        answers.get(trace.intent.answer_seq)
+                        if trace.intent.answer_seq is not None
+                        else None,
+                        trace.intent.hint_level,
+                    )
+                    for trace in report.question_trace
+                    if trace.question_seq in unit.question_seqs
+                    and trace.intent.purpose.value in {"clarification", "hint"}
+                ),
             )
             for n, unit in enumerate(report.units, 1)
         ),
@@ -351,4 +381,14 @@ def report_outline(
         ),
         any(item.unstable for item in (*report.scores, *report.unit_scores)),
         original,
+        " · ".join(
+            (
+                report.role_profile.profession,
+                report.role_profile.target_role,
+                report.role_profile.seniority,
+            )
+        )
+        if report.role_profile
+        else None,
+        tuple(document.title for document in report.reference_documents),
     )

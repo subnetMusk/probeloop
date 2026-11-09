@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from math import floor
 from typing import NoReturn
 
 from jinja2 import Environment, PackageLoader
@@ -39,6 +40,7 @@ def report_html(report: Report, sources: ExportSources | None = None) -> str:
         outline=outline,
         label=lambda value: label(value, report.language),
         heading=lambda value: section_label(value, report.language),
+        rating=lambda value: floor(value + 0.5),
     )
 
 
@@ -59,6 +61,9 @@ def markdown(report: Report, sources: ExportSources | None = None) -> str:
 
     def value(number: float | None) -> str:
         return str(number) if number is not None else loc("Not assessable")
+
+    def rating(number: float | None) -> str:
+        return str(floor(number + 0.5)) if number is not None else loc("Not assessable")
 
     lines = [f"# {outline.title}", "", f"ProbeLoop · v{report.version}", ""]
 
@@ -82,7 +87,7 @@ def markdown(report: Report, sources: ExportSources | None = None) -> str:
         for item in items:
             lines.extend(
                 [
-                    f"### {text(item.label)}: {value(item.value)} / 5"
+                    f"### {text(item.label)}: {rating(item.value)} / 100"
                     + (" *" if item.unstable else ""),
                     "",
                     text(item.reason),
@@ -96,13 +101,22 @@ def markdown(report: Report, sources: ExportSources | None = None) -> str:
         if section == "overview":
             lines.extend(
                 [
-                    f"{value(outline.overall)} / 5 · {loc(outline.band) if outline.band else ''}",
+                    f"{rating(outline.overall)} / 100 · "
+                    f"{loc(outline.band) if outline.band else ''}",
                     f"{outline.assessed}/{outline.criteria_count}",
                     "",
                 ]
             )
             if outline.summary:
                 notes((outline.summary,))
+            if outline.target:
+                lines.extend([f"**{loc('Confirmed target')}**: {text(outline.target)}", ""])
+            if outline.references:
+                lines.extend([f"**{loc('Provided references')}**", ""])
+                lines.extend(f"- {text(title)}" for title in outline.references)
+                lines.append("")
+            if report.policy_version:
+                lines.extend([text(report.disclaimer), ""])
         elif section in {"improvements", "strengths", "rewrites", "practice"}:
             notes(getattr(outline, section))
         elif section == "criteria":
@@ -119,6 +133,12 @@ def markdown(report: Report, sources: ExportSources | None = None) -> str:
                     criteria(unit.scores)
                 else:
                     lines.extend([f"{loc(unit.kind)} · {loc('Not scored')}", ""])
+                if unit.assistance:
+                    lines.extend([f"**{loc('Assistance during this exchange')}**", ""])
+                    for help in unit.assistance:
+                        lines.extend(
+                            [f"- {loc(help.purpose)} {help.level or ''}: {text(help.text)}", ""]
+                        )
             lines.extend([f"### {loc('Assessment criteria')}", ""])
             criteria(outline.criteria)
         elif section == "requirements":

@@ -31,11 +31,11 @@ export const CV_SECTIONS = [
   'technical',
 ] as const
 
-/** The same thresholds as the exports: 4 and above is solid, below 2.5 needs work. */
+/** The same thresholds as the exports: 75 and above is solid, below 37.5 needs work. */
 export function bandOf(value: number | null): Band | null {
   if (value === null) return null
-  if (value >= 4) return 'solid'
-  if (value >= 2.5) return 'developing'
+  if (value >= 75) return 'solid'
+  if (value >= 37.5) return 'developing'
   return 'needs_work'
 }
 
@@ -83,6 +83,7 @@ export interface UnitView {
   questions: { seq: number; text: string }[]
   answers: AnswerView[]
   scores: CriterionView[]
+  assistance: { purpose: 'hint' | 'clarification'; level: number; text: string }[]
 }
 
 export interface RequirementCoverage {
@@ -130,6 +131,8 @@ export interface AboutView {
 }
 
 export interface InterviewReportView {
+  target: string | null
+  references: string[]
   sections: readonly string[]
   overall: number | null
   band: Band | null
@@ -176,6 +179,12 @@ export interface CvReportView {
 }
 
 const IMPROVEMENT_KINDS = new Set(['improvement', 'technical_error', 'rewrite'])
+
+/** Legacy fixtures and imported JSON retain their declared scale. API responses declare 0_100. */
+export function reportScore(value: number | null | undefined, report: ReportData): number | null {
+  if (value == null) return null
+  return report.scale === '0_100' ? value : (value - 1) * 25
+}
 
 /** The first judge's reason: paired judgements join two reasons with a line break. */
 export function firstReason(reason: string): string {
@@ -234,12 +243,13 @@ function quotesOf(evidence: Evidence, answers: Map<number, number>): QuoteView[]
 function criterion(
   score: ReportData['scores'][number],
   answers: Map<number, number>,
+  report: ReportData,
 ): CriterionView {
   return {
     id: score.criterion_id,
     label: score.label,
-    value: score.value ?? null,
-    band: bandOf(score.value ?? null),
+    value: reportScore(score.value, report),
+    band: bandOf(reportScore(score.value, report)),
     reason: firstReason(score.reason),
     unstable: score.unstable,
     quotes: quotesOf(score.evidence, answers),
@@ -336,7 +346,7 @@ export function toInterviewReportView(
   const answers = answerNumbers(report, session)
   const turns = new Map(session?.turns.map((t) => [t.seq, t]))
   const assessedRevision = new Map(report.revisions.map((r) => [r.seq, r.revision]))
-  const topics = new Map(session?.topics.map((t) => [t.id ?? '', t.title ?? '']))
+  const topics = new Map(session?.topics.map((t) => [t.id, t.title]))
   const unitNumbers = new Map(report.units.map((u, i) => [u.id, i + 1]))
   const notes = notesOf(report, answers, unitNumbers)
   const units: UnitView[] = report.units.map((unit, index) => ({
@@ -359,20 +369,41 @@ export function toInterviewReportView(
     }),
     scores: report.unit_scores
       .filter((s) => s.unit_id === unit.id)
-      .map((s) => criterion(s, answers)),
+      .map((s) => criterion(s, answers, report)),
+    assistance: (report.question_trace ?? [])
+      .filter((trace) => unit.question_seqs.includes(trace.question_seq))
+      .flatMap((trace) =>
+        trace.intent.purpose === 'hint' || trace.intent.purpose === 'clarification'
+          ? [
+              {
+                purpose: trace.intent.purpose,
+                level: trace.intent.hint_level ?? 0,
+                text: trace.text,
+              },
+            ]
+          : [],
+      ),
   }))
   const topicChecks = report.checks.filter((c) => c.id.startsWith('topic:'))
   return {
     sections: INTERVIEW_SECTIONS,
-    overall: report.overall ?? null,
-    band: bandOf(report.overall ?? null),
+    target: report.role_profile
+      ? [
+          report.role_profile.profession,
+          report.role_profile.target_role,
+          report.role_profile.seniority,
+        ].join(' · ')
+      : null,
+    references: (report.reference_documents ?? []).map((document) => document.title),
+    overall: reportScore(report.overall, report),
+    band: bandOf(reportScore(report.overall, report)),
     assessed: report.assessed,
     criteriaCount: report.criteria,
     summary: notes.find((n) => n.kind === 'summary') ?? null,
     improvements: notes.filter((n) => IMPROVEMENT_KINDS.has(n.kind)),
     strengths: notes.filter((n) => n.kind === 'strength'),
     practice: notes.filter((n) => n.kind === 'question'),
-    criteria: report.scores.map((s) => criterion(s, answers)),
+    criteria: report.scores.map((s) => criterion(s, answers, report)),
     units,
     requirements: requirementsOf(report, answers),
     topics: topicChecks.map((c) => ({ title: c.detail, coverage: c.status })),
@@ -400,12 +431,12 @@ export function toCvReportView(report: ReportData): CvReportView {
     .sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status])
   return {
     sections: CV_SECTIONS,
-    overall: report.overall ?? null,
-    band: bandOf(report.overall ?? null),
+    overall: reportScore(report.overall, report),
+    band: bandOf(reportScore(report.overall, report)),
     assessed: report.assessed,
     criteriaCount: report.criteria,
     summary: notes.find((n) => n.kind === 'summary') ?? null,
-    criteria: report.scores.map((s) => criterion(s, none)),
+    criteria: report.scores.map((s) => criterion(s, none, report)),
     improvements: notes.filter((n) => n.kind === 'improvement' || n.kind === 'technical_error'),
     strengths: notes.filter((n) => n.kind === 'strength'),
     rewrites: notes.filter((n) => n.kind === 'rewrite'),

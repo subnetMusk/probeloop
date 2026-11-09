@@ -21,8 +21,11 @@ from probeloop.assessment.application.history import (
 from probeloop.assessment.application.interview_review import CallTrace, InterviewReviewer
 from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.ports import ReportStore
+from probeloop.assessment.domain.comparability import assessment_profile_id
 from probeloop.assessment.domain.model import (
     Check,
+    QuestionTrace,
+    ReferenceDocument,
     Report,
     ReportKind,
     TranscriptVersion,
@@ -250,7 +253,9 @@ class AssessmentService:
         logger.info("interview review completed", extra=_cost(result.calls))
         previous = await self.store.reports(ReportKind.INTERVIEW, session.id)
         rubric_hash = hashlib.sha256(
-            "".join(r.digest for _, r in sorted(self.interviewer.rubrics.items())).encode()
+            "".join(
+                r.digest for _, r in sorted(self.interviewer.rubrics_for(session).items())
+            ).encode()
         ).hexdigest()
         fingerprint = hashlib.sha256(
             json.dumps(
@@ -288,10 +293,10 @@ class AssessmentService:
             version=len(previous) + 1,
             created_at=self._now(),
             language=language,
-            rubric_id=self.interviewer.rubric_ref,
+            rubric_id=self.interviewer.rubric_ref_for(session),
             rubric_hash=rubric_hash,
             model_ref=self.interviewer.model.model_ref,
-            prompt_ref=self.interviewer.prompt_ref,
+            prompt_ref=self.interviewer.prompt_ref_for(session),
             input_fingerprint=fingerprint,
             snapshot_id=session.snapshot_id,
             session_id=session.id,
@@ -305,18 +310,35 @@ class AssessmentService:
             duration_s=round(self._now() - started, 2),
             disclaimer=(
                 "Valutazione formativa delle risposte, non una previsione di assunzione. "
-                "Le citazioni sono verificate nel trascritto; giudizi e correzioni tecniche "
-                "sono generati dal modello e possono essere errati."
+                "Le citazioni sono verificate nel trascritto; giudizi specialistici e correzioni "
+                "sono generati dal modello, possono essere errati e non costituiscono "
+                "una verifica esterna."
                 if language == "it"
                 else "A formative assessment of answers, not a hiring prediction. "
-                "Quotes are checked against the transcript; judgements and technical corrections "
-                "are model-generated and may be wrong."
+                "Quotes are checked against the transcript; specialist judgements and corrections "
+                "are model-generated, may be wrong and are not external verification."
             ),
             units=result.units,
             unit_scores=result.unit_scores,
             delivery=delivery,
             revisions=tuple(
                 TranscriptVersion(t.seq, t.current.number) for t in session.candidate_turns()
+            ),
+            policy_version=session.context.policy_version,
+            assessment_profile_id=assessment_profile_id(
+                session.context.role_profile, session.context.policy_version
+            ),
+            role_profile=session.context.role_profile,
+            objectives=session.context.topics if session.context.policy_version else (),
+            question_trace=tuple(
+                QuestionTrace(t.seq, t.move.topic_id, t.move.utterance, t.move.intent)
+                for t in session.interviewer_turns()
+                if t.move.intent
+            ),
+            reference_documents=tuple(
+                ReferenceDocument(d.id, d.title, d.kind.value)
+                for d in (snapshot.documents if snapshot else ())
+                if d.kind is DocumentKind.RESOURCE
             ),
         )
         await self.store.save(report)

@@ -209,7 +209,7 @@ export function CvCheckDetailPage() {
                     <span className="text-muted-foreground tabular-nums">
                       {report.overall === null
                         ? t.unscored
-                        : `${score(report.overall, language)} / 5`}
+                        : `${score(report.overall, language)} / 100`}
                     </span>
                   </li>
                 ))}

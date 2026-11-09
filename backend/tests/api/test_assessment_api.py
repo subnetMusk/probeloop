@@ -56,7 +56,8 @@ def test_cv_review_is_a_job_and_regeneration_preserves_versions(tmp_path: Path) 
             report = client.get(f"/api/reports/{job['result']['report_id']}").json()
             assert report["version"] == version
             assert report["language"] == "en"
-            assert report["overall"] == 3
+            assert report["scale"] == "0_100"
+            assert report["overall"] == 50
             assert report["assessed"] == 7
             assert report["checks"]
         assert len(client.get(f"/api/snapshots/{snapshot['id']}/cv-reviews").json()) == 2

@@ -4,7 +4,7 @@ import { score } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
 
 /**
- * An overall score out of 5. The number carries the meaning; the ring only groups the value
+ * An overall score out of 100. The number carries the meaning; the ring only groups the value
  * visually. Scores describe practice evidence, never a hiring prediction.
  */
 export function ScoreBadge({
@@ -31,7 +31,7 @@ export function ScoreBadge({
       )}
     >
       {score(value, language)}
-      <span className="text-xs font-normal text-muted-foreground">/5</span>
+      <span className="text-xs font-normal text-muted-foreground">/100</span>
     </span>
   )
 }

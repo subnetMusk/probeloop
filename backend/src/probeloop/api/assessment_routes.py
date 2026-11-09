@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from probeloop.api.schemas import JobView
 from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.schemas import ReportData
+from probeloop.assessment.application.score_scale import score_100
 from probeloop.assessment.application.service import AssessmentService, ReportNotFoundError
 from probeloop.assessment.domain.model import Report, ReportKind
 from probeloop.context.application.service import ContextNotFoundError
@@ -27,6 +28,7 @@ class ReviewRequest(BaseModel):
 
 
 class ProgressPointView(BaseModel):
+    scale: Literal["0_100"] = "0_100"
     report_id: str
     subject_id: str
     session_id: str | None
@@ -64,9 +66,14 @@ def assessment_router(
 
     @router.get("/progress")
     async def progress() -> list[ProgressGroupView]:
-        return [
-            ProgressGroupView.model_validate(asdict(group)) for group in await assessment.progress()
-        ]
+        result = []
+        for group in await assessment.progress():
+            data = asdict(group)
+            for point in data["points"]:
+                point["overall"] = score_100(point["overall"])
+                point["values"] = {k: score_100(v) for k, v in point["values"].items()}
+            result.append(ProgressGroupView.model_validate(data))
+        return result
 
     @router.post("/snapshots/{snapshot_id}/cv-reviews", status_code=202)
     async def review_cv(snapshot_id: str, body: ReviewRequest) -> JobView:

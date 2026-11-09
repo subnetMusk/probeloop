@@ -62,6 +62,26 @@ it('shows an unavailable overall score without inventing a midpoint', () => {
   expect(screen.queryByText('Developing')).toBeNull()
 })
 
+it('shows the lowest observed score as zero and exposes recorded assistance', async () => {
+  const view = toInterviewReportView(
+    { ...fixture.interview.report, scale: '0_100', overall: 0 },
+    fixture.interview.session,
+  )
+  view.target = 'Economics · Analyst · Junior'
+  const unit = view.units[0]
+  if (!unit) throw new Error('fixture needs a unit')
+  unit.assistance = [
+    { purpose: 'clarification', level: 0, text: 'Use the GDP deflator.' },
+    { purpose: 'hint', level: 1, text: 'Compare the two factors.' },
+  ]
+  render(<InterviewReport view={view} />)
+  expect(screen.getByRole('region', { name: 'Overall score' }).textContent).toContain('0/ 100')
+  expect(screen.getByText(view.target)).toBeTruthy()
+  await userEvent.click(screen.getByText('Assistance during this exchange'))
+  expect(screen.getByText('Hint 1')).toBeTruthy()
+  expect(screen.getByText('Use the GDP deflator.')).toBeTruthy()
+})
+
 it('does not call feedback absent when only the generated summary is missing', () => {
   const view = toCvReportView({
     ...fixture.cv.report,

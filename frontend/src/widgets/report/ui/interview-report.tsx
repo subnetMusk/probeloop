@@ -1,7 +1,7 @@
 import type { InterviewReportView } from '@/entities/report'
 import { useMessages } from '@/shared/i18n'
 import { useLanguage } from '@/shared/lib/preferences'
-import { score } from '@/shared/lib/format'
+import { measurement } from '@/shared/lib/format'
 import { StatTile } from '@/shared/ui/stat-tile'
 import { reportMessages } from './messages'
 import { Criteria, Hero, Notes, Quotes, ReportSection, TechnicalDetails } from './report-parts'
@@ -11,11 +11,27 @@ export function InterviewReport({ view }: { view: InterviewReportView }) {
   const language = useLanguage()
   const delivery = view.delivery
   const number = (value: number | null | undefined, suffix = '') =>
-    value == null ? '—' : `${score(value, language)}${suffix}`
+    value == null ? '—' : `${measurement(value, language)}${suffix}`
   const percent = (value: number | null) => (value === null ? '—' : `${String(Math.round(value))}%`)
   return (
     <>
       <Hero view={view} />
+      {view.target && (
+        <aside className="rounded-2xl border bg-card p-5" aria-label={t.target}>
+          <p className="text-xs font-semibold text-muted-foreground">{t.target}</p>
+          <p className="mt-2 font-medium">{view.target}</p>
+          {view.references.length > 0 && (
+            <details className="mt-3 text-sm">
+              <summary className="cursor-pointer">{t.references}</summary>
+              <ul className="mt-2 list-inside list-disc">
+                {view.references.map((title, i) => (
+                  <li key={i}>{title}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </aside>
+      )}
       <p className="text-sm text-muted-foreground">{t.modelNote}</p>
       <ReportSection id="improvements" title={t.improvements}>
         <Notes notes={view.improvements} />
@@ -75,6 +91,22 @@ export function InterviewReport({ view }: { view: InterviewReportView }) {
               </div>
             ))}
             {unit.scored && <Criteria criteria={unit.scores} />}
+            {unit.assistance.length > 0 && (
+              <details className="mt-4 rounded-lg bg-muted p-4 text-sm">
+                <summary className="cursor-pointer font-medium">{t.assistance}</summary>
+                <ol className="mt-3 flex flex-col gap-3">
+                  {unit.assistance.map((help, i) => (
+                    <li key={i}>
+                      <span className="font-semibold">
+                        {t.help[help.purpose]}
+                        {help.level > 0 ? ` ${String(help.level)}` : ''}
+                      </span>
+                      <p className="mt-1">{help.text}</p>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
           </article>
         ))}
         {view.criteria.length > 0 && (

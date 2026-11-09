@@ -92,21 +92,21 @@ export function Criteria({ criteria }: { criteria: CriterionView[] }) {
             <span className="shrink-0 tabular-nums">
               {item.value === null
                 ? t.statuses.not_assessable
-                : `${score(item.value, language)} / 5`}
+                : `${score(item.value, language)} / 100`}
             </span>
           </h3>
           {item.value !== null && (
             <div
               role="meter"
-              aria-valuemin={1}
-              aria-valuemax={5}
+              aria-valuemin={0}
+              aria-valuemax={100}
               aria-valuenow={item.value}
               aria-label={item.label}
               className="h-1.5 overflow-hidden rounded-full bg-muted"
             >
               <div
                 className="h-full rounded-full bg-brand"
-                style={{ width: `${String((item.value / 5) * 100)}%` }}
+                style={{ width: `${String((item.value / 100) * 100)}%` }}
               />
             </div>
           )}
@@ -152,7 +152,7 @@ export function Hero({
           <p className="text-sm text-muted-foreground">{t.overall}</p>
           <p className="my-2 font-heading text-5xl font-bold tabular-nums">
             {view.overall === null ? '—' : score(view.overall, language)}
-            <span className="ml-2 text-lg font-normal text-muted-foreground">/ 5</span>
+            <span className="ml-2 text-lg font-normal text-muted-foreground">/ 100</span>
           </p>
           {view.band && <Badge variant="secondary">{t.bands[view.band]}</Badge>}
         </div>

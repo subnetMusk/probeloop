@@ -380,7 +380,7 @@
         "practice",
         "technical"
       ],
-      "overall": 3.9,
+      "overall": 72.5,
       "band": "developing",
       "assessed": 4,
       "criteria_count": 5,
@@ -428,7 +428,7 @@
         {
           "id": "technical.accuracy",
           "label": "Correttezza",
-          "value": 4.0,
+          "value": 75.0,
           "reason": "1/1",
           "unstable": false,
           "quotes": [
@@ -462,7 +462,7 @@
             {
               "id": "technical.accuracy",
               "label": "Correttezza",
-              "value": 4.0,
+              "value": 75.0,
               "reason": "Spiega bene il partizionamento.",
               "unstable": false,
               "quotes": [
@@ -472,7 +472,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "assistance": []
         },
         {
           "number": 2,
@@ -487,7 +488,8 @@
               "text": "Nessuna."
             }
           ],
-          "scores": []
+          "scores": [],
+          "assistance": []
         }
       ],
       "requirements": [
@@ -549,7 +551,9 @@
         "duration_s": 120.0,
         "disclaimer": "Valutazione formativa."
       },
-      "unstable": false
+      "unstable": false,
+      "target": null,
+      "references": []
     }
   },
   "cv": {
@@ -671,7 +675,7 @@
         "original",
         "technical"
       ],
-      "overall": 3.9,
+      "overall": 72.5,
       "band": "developing",
       "assessed": 4,
       "criteria_count": 5,
@@ -722,7 +726,7 @@
         {
           "id": "technical.accuracy",
           "label": "Correttezza",
-          "value": 4.0,
+          "value": 75.0,
           "reason": "1/1",
           "unstable": false,
           "quotes": [
@@ -773,7 +777,9 @@
         "duration_s": 120.0,
         "disclaimer": "Valutazione formativa."
       },
-      "unstable": false
+      "unstable": false,
+      "target": null,
+      "references": []
     }
   }
 }

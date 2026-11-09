@@ -61,10 +61,15 @@ export function minutes(seconds: number): string {
   return rest ? `${String(hours)} h ${String(rest)} min` : `${String(hours)} h`
 }
 
-/** A score from 1 to 5 with one decimal, in the language's notation. */
+/** A 0–100 score rounded to an integer, in the language's notation. */
 export function score(value: number, language: Lang): string {
   return value.toLocaleString(LOCALES[language], {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   })
+}
+
+/** Delivery measurements retain a decimal, independently of score presentation. */
+export function measurement(value: number, language: Lang): string {
+  return value.toLocaleString(LOCALES[language], { maximumFractionDigits: 1 })
 }

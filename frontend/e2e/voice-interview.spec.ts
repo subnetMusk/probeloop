@@ -111,7 +111,9 @@ test('a voice interview from the preparation to the end of the call', async ({ p
   await expect(first).toBeVisible({ timeout: 60_000 })
   await first.click()
   const content = page.getByTestId('report-content')
-  await expect(content).toContainText('Synthetic evidence-based practice summary.')
+  await expect(content).toContainText('The collected evidence supports feedback on:')
+  await expect(content).toContainText('/ 100')
+  await expect(content.getByLabel('Confirmed target')).toContainText('Backend engineer')
   // Quotations show the transcript's own words, between the first and last matched word.
   await expect(content).toContainText('“Ho lavorato con FastAPI”')
   const types = { md: 'text/markdown', json: 'application/json', pdf: 'application/pdf' }

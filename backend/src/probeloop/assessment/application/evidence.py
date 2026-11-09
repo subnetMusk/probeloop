@@ -129,5 +129,9 @@ def checked_judgements(
             if not numbers.issubset(set(re.findall(r"\d+(?:[.,]\d+)?", originals))):
                 dropped += 1
                 continue
-        observations.append(Observation(note.kind, note.text, evidence, note.replacement, unit_id))
+        observations.append(
+            Observation(
+                note.kind, note.text, evidence, note.replacement, unit_id, note.criterion_id
+            )
+        )
     return tuple(scores), tuple(observations), dropped

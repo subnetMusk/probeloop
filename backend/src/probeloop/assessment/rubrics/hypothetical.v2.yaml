@@ -1,0 +1,41 @@
+id: hypothetical
+version: 2
+minimum_assessed_share: 0.6
+criteria:
+- id: clarification
+  label: Clarifying the situation
+  anchors:
+    1: Assumes critical constraints without asking.
+    3: Identifies some constraints.
+    5: Identifies goals, uncertainties and constraints explicitly.
+- id: plan
+  label: Action plan
+  anchors:
+    1: No workable plan.
+    3: Workable steps with missing priorities.
+    5: Sequenced feasible actions with responsibilities and priorities.
+- id: reasoning
+  label: Reasoning
+  anchors:
+    1: Unsupported choices.
+    3: Some rationale.
+    5: Clear rationale comparing credible alternatives.
+- id: risks
+  label: Risks and trade-offs
+  anchors:
+    1: Ignores material risks.
+    3: Mentions risks.
+    5: Explains trade-offs, mitigations and escalation conditions.
+- id: validation
+  label: Validation plan
+  anchors:
+    1: Claims success without a way to check.
+    3: Suggests a general check.
+    5: Defines concrete success signals, feedback and adaptation; no invented past results.
+- id: autonomy
+  label: Autonomy
+  anchors:
+    1: Needs substantial guidance to make progress on an elicited task at the target level.
+    3: Completes the reasoning with targeted support and explains how the cue changes the approach.
+    5: Makes and justifies appropriately independent decisions for the role, including relevant
+      clarification or acknowledging limits.

@@ -53,7 +53,7 @@ def scorer_key(report: Report) -> str:
 
 
 def _scorer(report: Report) -> list[str]:
-    return [
+    identity = [
         report.kind.value,
         report.rubric_id,
         report.rubric_hash,
@@ -61,6 +61,9 @@ def _scorer(report: Report) -> list[str]:
         report.prompt_ref,
         report.language,
     ]
+    if report.assessment_profile_id:
+        identity.append(report.assessment_profile_id)
+    return identity
 
 
 def latest_reports(reports: list[Report]) -> list[Report]:
