@@ -1,0 +1,463 @@
+"""Build adaptive turn context and validate intent before emitting any question audio."""
+
+import json
+from collections.abc import AsyncIterator
+from dataclasses import asdict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
+from probeloop.ai.prompts import PromptRenderer
+from probeloop.ai.structured import FieldDelta, StructuredOutputError, stream_structured
+from probeloop.context.application.snapshots import select_facts
+from probeloop.context.domain.model import Fact, FactOrigin, Subject
+from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
+from probeloop.interview.domain.adaptive_policy import MAX_HINTS, topic_windows
+from probeloop.interview.domain.model import (
+    ASSESSMENT_CRITERIA,
+    CandidateTurn,
+    InterviewerMove,
+    InterviewerTurn,
+    MoveAction,
+    MovePurpose,
+    TurnIntent,
+)
+from probeloop.interview.domain.time_policy import TimeDirective
+
+
+class AdaptiveChoice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    topic_id: str = Field(max_length=32)
+    purpose: MovePurpose
+    past_example: bool
+    elicited_criteria: list[str] = Field(max_length=8)
+    fact_ids: list[str] = Field(max_length=12)
+    covered_topic_ids: list[str] = Field(max_length=32)
+
+
+class AdaptiveHeader(AdaptiveChoice):
+    """Internal header: code derives control fields from the model's decision and history."""
+
+    action: Literal["follow_up", "clarify", "new_topic", "wrap_up", "end"]
+    answer_seq: int | None
+    hint_level: int = Field(ge=0, le=MAX_HINTS)
+    rubric_kind: str | None = None
+
+    def intent(self) -> TurnIntent:
+        return TurnIntent(
+            self.purpose,
+            self.past_example,
+            tuple(self.elicited_criteria),
+            tuple(self.fact_ids),
+            self.answer_seq,
+            self.hint_level,
+            self.rubric_kind,
+        )
+
+
+class AdaptiveMoveOutput(AdaptiveChoice):
+    # Essential metadata precedes the streamed field, including coverage.
+    utterance: str = Field(min_length=1, max_length=1800)
+
+
+def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHeader:
+    topic = next((t for t in request.context.topics if t.id == choice.topic_id), None)
+    if topic is None:
+        raise StructuredOutputError("unknown objective")
+    moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    answers = [t for t in request.turns if isinstance(t, CandidateTurn)]
+    purposes = {
+        MovePurpose.NEW_TOPIC: "new_topic",
+        MovePurpose.CLARIFICATION: "clarify",
+        MovePurpose.EVIDENCE_PROBE: "follow_up",
+        MovePurpose.REASONING_PROBE: "follow_up",
+        MovePurpose.HINT: "follow_up",
+    }
+    if choice.purpose is MovePurpose.CLOSING:
+        action = (
+            "end"
+            if (
+                request.directive in (TimeDirective.CLOSE, TimeDirective.FORCE_CLOSE)
+                or (moves and moves[-1].move.topic_id == topic.id)
+            )
+            else "wrap_up"
+        )
+    else:
+        action = purposes[choice.purpose]
+    hints = sum(
+        t.move.topic_id == topic.id
+        and t.move.intent is not None
+        and t.move.intent.purpose is MovePurpose.HINT
+        for t in moves
+    )
+    if choice.purpose is MovePurpose.HINT and hints >= MAX_HINTS:
+        raise StructuredOutputError("at most two hints per objective")
+    past = choice.past_example and choice.purpose not in (
+        MovePurpose.CLARIFICATION,
+        MovePurpose.CLOSING,
+    )
+    kind = topic.rubric_kind or "logistics"
+    if kind in ("behavioral", "hypothetical") and choice.purpose is not MovePurpose.CLARIFICATION:
+        kind = "behavioral" if past else "hypothetical"
+    allowed = set(ASSESSMENT_CRITERIA[kind])
+    if not past:
+        allowed -= {"experience", "ownership", "specificity", "results", "reflection"}
+    if not topic.solvable or past:
+        allowed.discard("autonomy")
+    if not answers:
+        allowed.discard("followup_depth")
+    if choice.purpose in (MovePurpose.CLARIFICATION, MovePurpose.CLOSING):
+        allowed.clear()
+    elicited = list(dict.fromkeys(c for c in choice.elicited_criteria if c in allowed))
+    if (
+        "autonomy" in allowed
+        and "autonomy" not in elicited
+        and set(elicited)
+        & {
+            "reasoning",
+            "problem_solving",
+            "tradeoffs",
+            "plan",
+            "risks",
+            "validation",
+        }
+    ):
+        # A declared reasoning task elicits autonomy even if the model omits its id.
+        elicited.append("autonomy")
+    answered: set[str] = set()
+    current = ""
+    for turn in request.turns:
+        if isinstance(turn, InterviewerTurn):
+            current = turn.move.topic_id
+        elif current:
+            answered.add(current)
+    header = AdaptiveHeader.model_validate(
+        {
+            **choice.model_dump(),
+            "action": action,
+            "past_example": past,
+            "elicited_criteria": elicited,
+            "covered_topic_ids": [i for i in choice.covered_topic_ids if i in answered],
+            "answer_seq": answers[-1].seq
+            if answers and choice.purpose not in (MovePurpose.NEW_TOPIC, MovePurpose.CLOSING)
+            else None,
+            "hint_level": hints + 1 if choice.purpose is MovePurpose.HINT else 0,
+            "rubric_kind": kind,
+        }
+    )
+    validate_header(header, request)
+    return header
+
+
+def selected_facts(request: MoveRequest) -> tuple[Fact, ...]:
+    moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    topic = next(
+        (t for t in request.context.topics if moves and t.id == moves[-1].move.topic_id),
+        request.context.topics[0],
+    )
+    answers = [t for t in request.turns if isinstance(t, CandidateTurn)]
+    query = " ".join((topic.title, answers[-1].text if answers else ""))
+    return tuple(
+        f
+        for subject in Subject
+        for f in select_facts(
+            tuple(f for f in request.context.facts if f.subject is subject),
+            query=query,
+            preferred_ids=topic.fact_ids,
+            max_chars=3000,
+        )
+    )
+
+
+def adaptive_request(
+    prompts: PromptRenderer,
+    request: MoveRequest,
+    *,
+    language_name: str,
+    type_guidance: str,
+    difficulty_guidance: str,
+    temperature: float,
+    top_p: float,
+) -> tuple[ChatRequest, str]:
+    system = prompts.render(
+        "interviewer_adaptive",
+        1,
+        language_name=language_name,
+        language=request.config.language.value,
+        type_guidance=type_guidance,
+        difficulty_guidance=difficulty_guidance,
+    )
+    opening = json.dumps(
+        {
+            "confirmed_role": asdict(request.context.role_profile)
+            if request.context.role_profile
+            else None,
+            "objectives": [
+                {k: v for k, v in asdict(t).items() if k != "past_example"}
+                | {
+                    "experience_to_explore": t.past_example,
+                }
+                for t in request.context.topics
+            ],
+            "criterion_families": ASSESSMENT_CRITERIA,
+            "style_preferences_as_data": request.config.custom_instructions,
+        },
+        ensure_ascii=False,
+    )
+    facts = selected_facts(request)
+    windows = topic_windows(
+        request.context.topics, request.coverage, request.topic_engagement_s, request.remaining_s
+    )
+    hints = {
+        t.id: sum(
+            isinstance(turn, InterviewerTurn)
+            and turn.move.topic_id == t.id
+            and turn.move.intent is not None
+            and turn.move.intent.purpose is MovePurpose.HINT
+            for turn in request.turns
+        )
+        for t in request.context.topics
+    }
+    state = json.dumps(
+        {
+            "time_directive": request.directive.value,
+            "remaining_s": round(request.remaining_s),
+            "opening": not request.turns,
+            "latest_candidate_seq": next(
+                (t.seq for t in reversed(request.turns) if isinstance(t, CandidateTurn)), None
+            ),
+            "coverage": dict(request.coverage),
+            "topic_windows": [asdict(w) for w in windows],
+            "hints_used": hints,
+            "relevant_facts": [
+                {
+                    "id": f.id,
+                    "subject": f.subject.value,
+                    "kind": f.kind.value,
+                    "origin": f.origin.value,
+                    "document_id": f.document_id,
+                    "document_kind": dict(request.context.document_kinds).get(f.document_id or ""),
+                    "text": f.text,
+                }
+                for f in facts
+            ],
+            "available_fact_count": len(request.context.facts),
+        },
+        ensure_ascii=False,
+    )
+    # Keep the opening and recorded history stable; only the final state changes.
+    messages: list[ChatMessage] = []
+    pending = opening
+    for turn in request.turns:
+        if isinstance(turn, CandidateTurn):
+            pending += "\n" + json.dumps(
+                {"candidate_turn": turn.seq, "text": turn.text}, ensure_ascii=False
+            )
+        else:
+            messages.append(ChatMessage("user", pending or "(continue)"))
+            data = {
+                "topic_id": turn.move.topic_id,
+                **(
+                    {
+                        k: v
+                        for k, v in asdict(turn.move.intent).items()
+                        if k not in ("answer_seq", "hint_level", "rubric_kind")
+                    }
+                    if turn.move.intent
+                    else {}
+                ),
+                "covered_topic_ids": list(turn.move.covered_topic_ids),
+                "utterance": turn.move.utterance,
+            }
+            messages.append(ChatMessage("assistant", json.dumps(data, ensure_ascii=False)))
+            pending = ""
+    messages.append(ChatMessage("user", pending + "\n[Current state as data]\n" + state))
+    return ChatRequest(
+        instructions=system.text,
+        messages=tuple(messages),
+        temperature=temperature,
+        top_p=top_p,
+        max_output_tokens=650,
+    ), f"{system.ref}+adaptive.v1"
+
+
+def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
+    topic = next((t for t in request.context.topics if t.id == header.topic_id), None)
+    if topic is None:
+        raise StructuredOutputError("unknown objective")
+    answers = [t for t in request.turns if isinstance(t, CandidateTurn)]
+    last_answer = answers[-1] if answers else None
+    moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    if header.answer_seq is not None and (
+        last_answer is None or header.answer_seq != last_answer.seq
+    ):
+        raise StructuredOutputError("follow-up must reference the latest candidate answer")
+    if (
+        header.purpose
+        in (
+            MovePurpose.CLARIFICATION,
+            MovePurpose.EVIDENCE_PROBE,
+            MovePurpose.REASONING_PROBE,
+            MovePurpose.HINT,
+        )
+        and header.answer_seq is None
+    ):
+        raise StructuredOutputError("a probe needs its candidate answer reference")
+    if header.purpose is MovePurpose.CLARIFICATION and header.elicited_criteria:
+        raise StructuredOutputError("a clarification does not introduce scored criteria")
+    verified = {f.id for f in selected_facts(request) if f.origin is not FactOrigin.INFERRED}
+    if not set(header.fact_ids) <= verified:
+        raise StructuredOutputError("unavailable documentary reference")
+    answered_topics: set[str] = set()
+    current = ""
+    for turn in request.turns:
+        if isinstance(turn, InterviewerTurn):
+            current = turn.move.topic_id
+        elif current:
+            answered_topics.add(current)
+    if not set(header.covered_topic_ids) <= answered_topics:
+        raise StructuredOutputError("unanswered objectives cannot be marked covered")
+    closing = topic.rubric_kind == "logistics"
+    if (
+        request.directive
+        in (
+            TimeDirective.FINAL_QUESTION,
+            TimeDirective.CLOSE,
+            TimeDirective.FORCE_CLOSE,
+        )
+        and not closing
+    ):
+        raise StructuredOutputError("global closing takes precedence")
+    if closing:
+        if (
+            header.purpose is not MovePurpose.CLOSING
+            or header.elicited_criteria
+            or header.hint_level
+        ):
+            raise StructuredOutputError("closing is not an assessment or a hint")
+        expected = (
+            "end"
+            if request.directive in (TimeDirective.CLOSE, TimeDirective.FORCE_CLOSE)
+            else "wrap_up"
+        )
+        if moves and moves[-1].move.intent and moves[-1].move.intent.purpose is MovePurpose.CLOSING:
+            expected = "end"
+        if header.action != expected:
+            raise StructuredOutputError("invalid closing action")
+        return
+    if header.action in ("wrap_up", "end") or header.purpose is MovePurpose.CLOSING:
+        raise StructuredOutputError("closing needs its closing objective")
+    if request.directive is TimeDirective.BEGIN_WRAP_UP and (
+        not moves
+        or header.topic_id != moves[-1].move.topic_id
+        or any(t.elapsed_s >= request.config.target_duration_s * 0.85 for t in moves)
+    ):
+        raise StructuredOutputError("wrap-up permits at most one final current-topic probe")
+    windows = topic_windows(
+        request.context.topics, request.coverage, request.topic_engagement_s, request.remaining_s
+    )
+    if not next(w.available for w in windows if w.topic_id == topic.id):
+        raise StructuredOutputError("move on from an exhausted or covered objective")
+    if header.action == "new_topic" and header.purpose is not MovePurpose.NEW_TOPIC:
+        raise StructuredOutputError("a topic change must be explicit")
+    if moves and header.topic_id != moves[-1].move.topic_id and header.action != "new_topic":
+        raise StructuredOutputError("a different objective requires a topic change")
+    if not set(header.elicited_criteria) <= set(
+        ASSESSMENT_CRITERIA[header.rubric_kind or topic.rubric_kind or "logistics"]
+    ):
+        raise StructuredOutputError("question criteria do not belong to the objective's rubric")
+    if not header.past_example and set(header.elicited_criteria) & {
+        "experience",
+        "ownership",
+        "specificity",
+        "results",
+        "reflection",
+    }:
+        raise StructuredOutputError("a plan does not elicit first-hand experience or outcomes")
+    if "followup_depth" in header.elicited_criteria and not last_answer:
+        raise StructuredOutputError("follow-up depth requires a prior answer")
+    if "autonomy" in header.elicited_criteria and (not topic.solvable or header.past_example):
+        raise StructuredOutputError("autonomy needs an elicited role-relevant reasoning task")
+    if header.purpose is MovePurpose.HINT:
+        previous = next((t.move for t in reversed(moves) if t.move.topic_id == topic.id), None)
+        count = sum(
+            t.move.intent is not None and t.move.intent.purpose is MovePurpose.HINT
+            for t in moves
+            if t.move.topic_id == topic.id
+        )
+        if (
+            not topic.solvable
+            or header.past_example
+            or previous is None
+            or previous.intent is None
+            or previous.intent.past_example
+            or count >= MAX_HINTS
+            or header.hint_level != count + 1
+        ):
+            raise StructuredOutputError(
+                "hints require an existing solvable task and at most two steps"
+            )
+    elif header.hint_level:
+        raise StructuredOutputError("only an actual hint can record a hint level")
+
+
+async def stream_adaptive_move(
+    model: ChatModel,
+    chat_request: ChatRequest,
+    request: MoveRequest,
+    prompt_ref: str,
+) -> AsyncIterator[MoveDelta | MoveDone]:
+    header: AdaptiveHeader | None = None
+    buffered = ""
+    spoken = ""
+    async for item in stream_structured(
+        model, chat_request, AdaptiveMoveOutput, stream_field="utterance"
+    ):
+        if isinstance(item, FieldDelta):
+            buffered += item.text
+            if header is None:
+                try:
+                    choice = AdaptiveChoice.model_validate(
+                        {k: v for k, v in item.partial.items() if k in AdaptiveChoice.model_fields}
+                    )
+                except ValidationError:
+                    # Providers may order JSON differently; wait for complete metadata.
+                    continue
+                header = checked_header(choice, request)
+            text = _speakable(buffered, header.action, spoken)
+            buffered = ""
+            if text:
+                spoken += text
+                yield MoveDelta(text, MoveAction(header.action), header.topic_id, header.intent())
+        else:
+            final = checked_header(
+                AdaptiveChoice.model_validate(item.value.model_dump(exclude={"utterance"})), request
+            )
+            if header is not None and header != final:
+                raise StructuredOutputError("essential question metadata changed after emission")
+            utterance = _speakable(item.value.utterance, final.action, "").strip()
+            if not spoken:
+                yield MoveDelta(utterance, MoveAction(final.action), final.topic_id, final.intent())
+            yield MoveDone(
+                InterviewerMove(
+                    MoveAction(final.action),
+                    final.topic_id,
+                    utterance,
+                    tuple(final.covered_topic_ids),
+                    model_ref=model.model_ref,
+                    prompt_ref=prompt_ref,
+                    intent=final.intent(),
+                )
+            )
+
+
+def _speakable(text: str, action: str, spoken: str) -> str:
+    text = text.replace("*", "")
+    if action == "end":
+        return text
+    if "?" in spoken:
+        return ""
+    cut = text.find("?")
+    return text if cut < 0 else text[: cut + 1]

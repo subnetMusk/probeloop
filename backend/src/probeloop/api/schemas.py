@@ -36,6 +36,7 @@ from probeloop.interview.domain.model import (
     MoveAction,
     Phase,
     SessionStatus,
+    TurnIntent,
 )
 from probeloop.platform.jobs import Job
 
@@ -118,6 +119,7 @@ class TurnView(BaseModel):
     action: str | None = None
     topic_id: str | None = None
     status: str | None = None
+    intent: TurnIntent | None = None
     # Answers only: every transcript revision, and the words of the current one when the
     # recogniser reported them (with their probability, to highlight doubtful words).
     revisions: list[RevisionView]
@@ -238,6 +240,7 @@ class SessionView(BaseModel):
                         action=t.move.action.value,
                         topic_id=t.move.topic_id,
                         status=t.move.status.value,
+                        intent=t.move.intent,
                         revisions=[],
                         words=[],
                         audio=audio(t.seq, "interviewer"),

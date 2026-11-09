@@ -1194,6 +1194,11 @@ export interface components {
          * @enum {string}
          */
         Modality: "text" | "voice";
+        /**
+         * MovePurpose
+         * @enum {string}
+         */
+        MovePurpose: "clarification" | "evidence_probe" | "reasoning_probe" | "hint" | "new_topic" | "closing";
         /** ObservationData */
         ObservationData: {
             /** Evidence */
@@ -1668,6 +1673,37 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * TurnIntent
+         * @description Validated elicitation and assistance metadata recorded before the question is spoken.
+         */
+        TurnIntent: {
+            /** Answer Seq */
+            answer_seq?: number | null;
+            /**
+             * Elicited Criteria
+             * @default []
+             */
+            elicited_criteria?: string[];
+            /**
+             * Fact Ids
+             * @default []
+             */
+            fact_ids?: string[];
+            /**
+             * Hint Level
+             * @default 0
+             */
+            hint_level?: number;
+            /**
+             * Past Example
+             * @default false
+             */
+            past_example?: boolean;
+            purpose: components["schemas"]["MovePurpose"];
+            /** Rubric Kind */
+            rubric_kind?: string | null;
+        };
         /** TurnView */
         TurnView: {
             /** Action */
@@ -1676,6 +1712,7 @@ export interface components {
             audio: string | null;
             /** Elapsed S */
             elapsed_s: number;
+            intent?: components["schemas"]["TurnIntent"] | null;
             /** Revisions */
             revisions: components["schemas"]["RevisionView"][];
             /** Seq */

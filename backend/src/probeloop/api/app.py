@@ -221,6 +221,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             role_profile=snapshot.role_profile,
             facts=(*snapshot.candidate_facts, *snapshot.job_facts),
             policy_version="adaptive.v1" if snapshot.role_profile else None,
+            document_kinds=tuple((d.id, d.kind.value) for d in snapshot.documents),
         )
 
     @app.get("/api/sessions")

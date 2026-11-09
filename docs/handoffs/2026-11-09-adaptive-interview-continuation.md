@@ -64,6 +64,27 @@ confirmation failures (subsequently fixed) and one unrelated inbox file race in
 
 ## Remaining implementation
 
+The objective change is saved as `01d7128`. The adaptive runtime is implemented with a small
+model decision schema; code derives actions, latest-answer references, hint levels and safe
+criterion subsets. Unknown documentary references prevent emission. Topic engagement time
+excludes pauses and model/STT/TTS delays, is persisted, and never enters scoring. The ordinary
+windows are 45–240 seconds, priority weighted and subordinate to global closing; exhausted
+topics also move on when generation fails. Clarification does not count as a hint or add a
+scored requirement. Recorded intent includes its rubric family and preserves interrupted turns.
+
+Verification: 117 application/domain/API/storage tests passed, 17 storage variants skipped;
+all 17 PostgreSQL session contracts passed; strict mypy, nine import contracts and frontend
+types passed. All 15 fake browser E2E checks passed after rebuilding. Real local economics
+session `01a1c1bad8c57724b7dccaf81f4e53ec` completed four dynamically written synthetic answers,
+including pause/resume, a legitimate clarification and two progressive hints (levels 1, 2).
+It spoke English and recorded correct non-past intent and latest-answer ids. The first trial
+exposed redundant-field and language problems; it remains in `adaptive-econ-local-v1`, while
+the corrected trial is in `adaptive-econ-local-v2`. These are development cases only.
+
+The real stack has been rebuilt/restored on `probeloop_data`. Assessment changes are now being
+implemented separately; they must be rebuilt before report verification. Do not treat unused
+new rubric files or partial assessment DTO changes as release acceptance.
+
 1. Source-linked objectives are implemented and verified. The rebuilt real API created session
    `01a1c1a3a3267758bb29d47b2f3d9db5` with three model-generated objectives, supported criterion
    ids, available fact links and a closing objective. The first runtime check exercised the

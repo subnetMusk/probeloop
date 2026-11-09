@@ -1148,6 +1148,18 @@
         "title": "Modality",
         "type": "string"
       },
+      "MovePurpose": {
+        "enum": [
+          "clarification",
+          "evidence_probe",
+          "reasoning_probe",
+          "hint",
+          "new_topic",
+          "closing"
+        ],
+        "title": "MovePurpose",
+        "type": "string"
+      },
       "ObservationData": {
         "additionalProperties": false,
         "properties": {
@@ -2706,6 +2718,67 @@
         "title": "TopicView",
         "type": "object"
       },
+      "TurnIntent": {
+        "description": "Validated elicitation and assistance metadata recorded before the question is spoken.",
+        "properties": {
+          "answer_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Seq"
+          },
+          "elicited_criteria": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Elicited Criteria",
+            "type": "array"
+          },
+          "fact_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Fact Ids",
+            "type": "array"
+          },
+          "hint_level": {
+            "default": 0,
+            "title": "Hint Level",
+            "type": "integer"
+          },
+          "past_example": {
+            "default": false,
+            "title": "Past Example",
+            "type": "boolean"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/MovePurpose"
+          },
+          "rubric_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rubric Kind"
+          }
+        },
+        "required": [
+          "purpose"
+        ],
+        "title": "TurnIntent",
+        "type": "object"
+      },
       "TurnView": {
         "properties": {
           "action": {
@@ -2733,6 +2806,16 @@
           "elapsed_s": {
             "title": "Elapsed S",
             "type": "number"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnIntent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "revisions": {
             "items": {

@@ -190,6 +190,40 @@ def scripted_moves(questions: int = 3) -> Callable[[ChatRequest], str]:
                 }
             )
         asked = sum(1 for message in request.messages if message.role == "assistant")
+        if "purpose" in (request.response_schema or {}).get("properties", {}):
+            initial, _ = json.JSONDecoder().raw_decode(request.messages[0].content)
+            ordinary = [t for t in initial["objectives"] if t["rubric_kind"] != "logistics"]
+            closing = next(t for t in initial["objectives"] if t["rubric_kind"] == "logistics")
+            if asked >= questions:
+                topic = closing
+                action = "end" if asked > questions else "wrap_up"
+                purpose, criteria, past = "closing", [], False
+                utterance = (
+                    "Grazie, il colloquio di prova è terminato."
+                    if action == "end"
+                    else "Ha domande per noi?"
+                )
+            else:
+                topic = ordinary[min(asked // 2, len(ordinary) - 1)]
+                changed = asked == 0 or asked % 2 == 0
+                action = "new_topic" if changed else "follow_up"
+                past = topic["experience_to_explore"]
+                purpose = (
+                    "new_topic" if changed else "evidence_probe" if past else "reasoning_probe"
+                )
+                criteria = [c for c in topic["criteria"] if c != "autonomy" or not past]
+                utterance = f"Questa è la domanda di prova numero {asked + 1}?"
+            return json.dumps(
+                {
+                    "topic_id": topic["id"],
+                    "purpose": purpose,
+                    "past_example": past,
+                    "elicited_criteria": criteria,
+                    "fact_ids": [],
+                    "covered_topic_ids": [],
+                    "utterance": utterance,
+                }
+            )
         if asked >= questions:
             action, utterance = "end", "Grazie, il colloquio di prova è terminato."
         else:

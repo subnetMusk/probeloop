@@ -123,6 +123,7 @@ class InterviewContext:
     role_profile: RoleProfile | None = None
     facts: tuple[Fact, ...] = ()
     policy_version: str | None = None
+    document_kinds: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if not self.topics:
@@ -152,6 +153,28 @@ class MoveStatus(StrEnum):
     INTERRUPTED = "interrupted"
 
 
+class MovePurpose(StrEnum):
+    CLARIFICATION = "clarification"
+    EVIDENCE_PROBE = "evidence_probe"
+    REASONING_PROBE = "reasoning_probe"
+    HINT = "hint"
+    NEW_TOPIC = "new_topic"
+    CLOSING = "closing"
+
+
+@dataclass(frozen=True, slots=True)
+class TurnIntent:
+    """Validated elicitation and assistance metadata recorded before the question is spoken."""
+
+    purpose: MovePurpose
+    past_example: bool = False
+    elicited_criteria: tuple[str, ...] = ()
+    fact_ids: tuple[str, ...] = ()
+    answer_seq: int | None = None
+    hint_level: int = 0
+    rubric_kind: str | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class InterviewerMove:
     action: MoveAction
@@ -162,6 +185,7 @@ class InterviewerMove:
     fallback: bool = False
     model_ref: str | None = None
     prompt_ref: str | None = None
+    intent: TurnIntent | None = None  # None on legacy turns and unassessed technical fallbacks
 
 
 class Speaker(StrEnum):
@@ -311,6 +335,8 @@ class InterviewSession:
     # before the choice was stored, which use the default.
     execution_profile: str | None = None
     profile_id: str | None = None  # the resource profile it was prepared with
+    engagement_since: float | None = None
+    topic_engagement_s: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for topic in self.context.topics:
@@ -367,6 +393,7 @@ class InterviewSession:
             self._close(EndReason.COMPLETED, now)
         else:
             self.phase = Phase.AWAITING_CANDIDATE
+            self.engagement_since = now
 
     def start_answer(self, now: float) -> None:
         self._require_phase(Phase.AWAITING_CANDIDATE)
@@ -374,6 +401,7 @@ class InterviewSession:
 
     def finish_answer(self, now: float) -> None:
         self._require_phase(Phase.CANDIDATE_SPEAKING)
+        self._stop_engagement(now)
         self.phase = Phase.FINALIZING_TRANSCRIPT
 
     def record_answer(
@@ -430,6 +458,7 @@ class InterviewSession:
         """Pause the interview. A move cut short while it was being generated may be kept."""
         self._require_status(SessionStatus.IN_PROGRESS)
         assert self.phase is not None
+        self._stop_engagement(now)
         paused_phase = self.phase
         if self.phase is Phase.INTERVIEWER_THINKING and _has_utterance(partial_move):
             assert partial_move is not None
@@ -451,6 +480,8 @@ class InterviewSession:
         else:
             self.phase = _RESUME_PHASE[self.paused_phase]
         self.paused_phase = None
+        if self.phase in (Phase.AWAITING_CANDIDATE, Phase.CANDIDATE_SPEAKING):
+            self.engagement_since = now
 
     def end(
         self, reason: EndReason, now: float, *, partial_move: InterviewerMove | None = None
@@ -465,6 +496,7 @@ class InterviewSession:
     def fail(self, message: str, now: float) -> None:
         if self.is_terminal:
             raise InvalidTransitionError(f"cannot fail a session in status {self.status}")
+        self._stop_engagement(now)
         if self.status is SessionStatus.PAUSED and self.paused_at is not None:
             self.paused_total_s += now - self.paused_at
             self.paused_at = None
@@ -487,6 +519,7 @@ class InterviewSession:
             self.coverage[topic_id] = TopicCoverage.COVERED
 
     def _close(self, reason: EndReason, now: float) -> None:
+        self._stop_engagement(now)
         if self.status is SessionStatus.PAUSED and self.paused_at is not None:
             self.paused_total_s += now - self.paused_at
             self.paused_at = None
@@ -495,6 +528,18 @@ class InterviewSession:
         self.paused_phase = None
         self.end_reason = reason
         self.ended_at = now
+
+    def _stop_engagement(self, now: float) -> None:
+        """Candidate thinking/speaking time; excludes model/STT/TTS delays and pauses.
+
+        This governs topic flow only. It is never an input to an assessment score.
+        """
+        if self.engagement_since is not None:
+            topic = self.current_topic_id()
+            self.topic_engagement_s[topic] = self.topic_engagement_s.get(topic, 0.0) + max(
+                0.0, now - self.engagement_since
+            )
+            self.engagement_since = None
 
     def _require_status(self, expected: SessionStatus) -> None:
         if self.status is not expected:

@@ -1,21 +1,47 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from probeloop.context.domain.model import RoleProfile
 from probeloop.interview.domain.model import (
     EndReason,
+    InterviewerTurn,
+    MovePurpose,
     RevisionSource,
     SessionStatus,
     Speaker,
     TranscriptWord,
+    TurnIntent,
 )
 from probeloop.speech.audio import PcmAudio, from_wav
 from probeloop.storage.sql_sessions import SqlSessionStore
 from tests.speech_audio import tone
 from tests.storage.conftest import SESSION_ID, played_session
+
+
+async def test_adaptive_intent_and_topic_clock_survive_reloading(store: SqlSessionStore) -> None:
+    session = played_session()
+    session.context = replace(
+        session.context,
+        policy_version="adaptive.v1",
+        role_profile=RoleProfile("Economics", "Economist", "junior", confirmed=True),
+        document_kinds=(("synthetic-cv", "cv"),),
+    )
+    turn = session.turns[0]
+    assert isinstance(turn, InterviewerTurn)
+    session.turns[0] = replace(
+        turn,
+        move=replace(
+            turn.move, intent=TurnIntent(MovePurpose.NEW_TOPIC, elicited_criteria=("reasoning",))
+        ),
+    )
+    session.topic_engagement_s = {"t2": 51.25}
+    await store.save(session)
+    assert await store.load(session.id) == session
 
 
 async def test_save_load_list_delete(store: SqlSessionStore) -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -17,6 +17,7 @@ from probeloop.interview.domain.model import (
     Speaker,
     TopicCoverage,
     Turn,
+    TurnIntent,
 )
 from probeloop.interview.domain.time_policy import TimeDirective
 from probeloop.speech.audio import PcmAudio
@@ -30,6 +31,7 @@ class MoveRequest:
     coverage: Mapping[str, TopicCoverage]
     directive: TimeDirective
     remaining_s: float
+    topic_engagement_s: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +41,7 @@ class MoveDelta:
     text: str
     action: MoveAction | None = None
     topic_id: str | None = None
+    intent: TurnIntent | None = None
 
 
 @dataclass(frozen=True, slots=True)

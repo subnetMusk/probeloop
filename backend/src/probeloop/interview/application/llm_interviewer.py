@@ -12,6 +12,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import FieldDelta, stream_structured
+from probeloop.interview.application.adaptive_interviewer import (
+    AdaptiveMoveOutput,
+    adaptive_request,
+    stream_adaptive_move,
+)
 from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
 from probeloop.interview.domain.model import (
     CandidateTurn,
@@ -99,7 +104,9 @@ class LlmInterviewer:
             replace(
                 chat_request,
                 max_output_tokens=1,
-                response_schema=MoveOutput.model_json_schema(),
+                response_schema=(
+                    AdaptiveMoveOutput if request.context.policy_version else MoveOutput
+                ).model_json_schema(),
             )
         )
 
@@ -111,6 +118,10 @@ class LlmInterviewer:
         text from ever reaching the client or the speech synthesiser.
         """
         chat_request, prompt_ref = self.build_request(request)
+        if request.context.policy_version:
+            async for event in stream_adaptive_move(self._model, chat_request, request, prompt_ref):
+                yield event
+            return
         spoken = ""
         async for item in stream_structured(
             self._model, chat_request, MoveOutput, stream_field="utterance"
@@ -146,6 +157,16 @@ class LlmInterviewer:
     def build_request(self, request: MoveRequest) -> tuple[ChatRequest, str]:
         """Build an append-only prompt: everything except the last message is stable."""
         config, context = request.config, request.context
+        if context.policy_version:
+            return adaptive_request(
+                self._prompts,
+                request,
+                language_name=LANGUAGE_NAMES[config.language],
+                type_guidance=TYPE_GUIDANCE[config.interview_type],
+                difficulty_guidance=DIFFICULTY_GUIDANCE[config.difficulty],
+                temperature=self._temperature,
+                top_p=self._top_p,
+            )
         system = self._prompts.render(
             "interviewer_system",
             SYSTEM_PROMPT_VERSION,

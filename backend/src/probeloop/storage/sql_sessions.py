@@ -27,6 +27,7 @@ from probeloop.interview.domain.model import (
     Language,
     Modality,
     MoveAction,
+    MovePurpose,
     MoveStatus,
     Phase,
     RevisionSource,
@@ -37,6 +38,7 @@ from probeloop.interview.domain.model import (
     TranscriptRevision,
     TranscriptWord,
     Turn,
+    TurnIntent,
 )
 from probeloop.speech.audio import PcmAudio
 from probeloop.storage.database import (
@@ -208,6 +210,9 @@ def _fill_session(row: SessionRow, s: InterviewSession) -> None:
         "role_profile": asdict(s.context.role_profile) if s.context.role_profile else None,
         "facts": [fact_to_json(f) for f in s.context.facts],
         "policy_version": s.context.policy_version,
+        "document_kinds": list(s.context.document_kinds),
+        "engagement_since": s.engagement_since,
+        "topic_engagement_s": dict(s.topic_engagement_s),
     }
     row.coverage = {k: v.value for k, v in s.coverage.items()}
     row.started_at = s.started_at
@@ -236,6 +241,7 @@ def _turn_row(session_id: str, turn: Turn) -> TurnRow:
             "fallback": m.fallback,
             "model_ref": m.model_ref,
             "prompt_ref": m.prompt_ref,
+            "intent": asdict(m.intent) if m.intent else None,
         }
     return TurnRow(
         session_id=session_id,
@@ -291,6 +297,7 @@ def _session(row: SessionRow) -> InterviewSession:
             role_profile=role_from_json(ctx.get("role_profile")),
             facts=tuple(fact_from_json(f) for f in ctx.get("facts", ())),
             policy_version=ctx.get("policy_version"),
+            document_kinds=tuple(tuple(pair) for pair in ctx.get("document_kinds", ())),
         ),
         status=SessionStatus(row.status),
         phase=Phase(row.phase) if row.phase else None,
@@ -307,6 +314,8 @@ def _session(row: SessionRow) -> InterviewSession:
         snapshot_id=row.snapshot_id,
         execution_profile=row.execution_profile,
         profile_id=row.profile_id,
+        engagement_since=ctx.get("engagement_since"),
+        topic_engagement_s=dict(ctx.get("topic_engagement_s", {})),
     )
 
 
@@ -333,6 +342,7 @@ def _turn(row: TurnRow) -> Turn:
             fallback=m["fallback"],
             model_ref=m["model_ref"],
             prompt_ref=m["prompt_ref"],
+            intent=intent_from_json(m.get("intent")),
         ),
     )
 
@@ -347,6 +357,20 @@ def _revision(row: RevisionRow) -> TranscriptRevision:
         words=tuple(
             TranscriptWord(text=w[0], start_s=w[1], end_s=w[2], probability=w[3]) for w in row.words
         ),
+    )
+
+
+def intent_from_json(data: dict[str, Any] | None) -> TurnIntent | None:
+    if data is None:
+        return None
+    return TurnIntent(
+        MovePurpose(data["purpose"]),
+        data.get("past_example", False),
+        tuple(data.get("elicited_criteria", ())),
+        tuple(data.get("fact_ids", ())),
+        data.get("answer_seq"),
+        data.get("hint_level", 0),
+        data.get("rubric_kind"),
     )
 
 

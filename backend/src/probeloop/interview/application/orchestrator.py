@@ -48,6 +48,7 @@ from probeloop.interview.application.ports import (
     SessionStore,
 )
 from probeloop.interview.application.voice import VoiceServices
+from probeloop.interview.domain.adaptive_policy import topic_windows
 from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
@@ -439,6 +440,7 @@ class SessionOrchestrator:
             coverage=dict(self.session.coverage),
             directive=directive,
             remaining_s=remaining_s(elapsed, self.session.config.target_duration_s),
+            topic_engagement_s=dict(self.session.topic_engagement_s),
         )
 
     def _schedule_move(self, timing: _ReplyTiming | None = None) -> None:
@@ -552,6 +554,10 @@ class SessionOrchestrator:
         await self._emit(
             ErrorRaised(code="llm_unavailable", message="LLM call failed", recoverable=True)
         )
+        if request.context.policy_version and not self._partial_text:
+            move = self._adaptive_fallback(request)
+            await self._say(turn_seq, move.utterance, speaker, timing)
+            return move
         fallback = FALLBACK[self.session.config.language]
         if self._partial_text.strip():
             await self._say(turn_seq, f" … {fallback}", speaker, timing)
@@ -563,6 +569,50 @@ class SessionOrchestrator:
             utterance=_join_partial(self._partial_text, fallback),
             fallback=True,
         )
+
+    def _adaptive_fallback(self, request: MoveRequest) -> InterviewerMove:
+        """Respect topic/global limits even when generated metadata cannot be trusted."""
+        windows = topic_windows(
+            request.context.topics,
+            request.coverage,
+            request.topic_engagement_s,
+            request.remaining_s,
+        )
+        available = {w.topic_id for w in windows if w.available}
+        closing = next(t for t in request.context.topics if t.rubric_kind == "logistics")
+        language = request.config.language.value
+        if request.directive in (TimeDirective.CLOSE, TimeDirective.FORCE_CLOSE):
+            return InterviewerMove(
+                MoveAction.END, closing.id, FAREWELL[request.config.language], fallback=True
+            )
+        if not available or request.directive in (
+            TimeDirective.FINAL_QUESTION,
+            TimeDirective.BEGIN_WRAP_UP,
+        ):
+            question = (
+                "Ha domande per noi?" if language == "it" else "Do you have any questions for us?"
+            )
+            last = self.session.last_move()
+            if last and last.topic_id == closing.id:
+                return InterviewerMove(
+                    MoveAction.END, closing.id, FAREWELL[request.config.language], fallback=True
+                )
+            return InterviewerMove(MoveAction.WRAP_UP, closing.id, question, fallback=True)
+        current = self.session.current_topic_id()
+        if current in available:
+            return InterviewerMove(
+                MoveAction.CLARIFY, current, FALLBACK[request.config.language], fallback=True
+            )
+        topic = max(
+            (t for t in request.context.topics if t.id in available), key=lambda t: t.priority
+        )
+        question = (
+            f"Passiamo a un altro argomento: {topic.title}. Come lo affronterebbe in questo ruolo?"
+            if language == "it"
+            else f"Let's move to another topic: {topic.title}. "
+            "How would you approach it in this role?"
+        )
+        return InterviewerMove(MoveAction.NEW_TOPIC, topic.id, question, fallback=True)
 
     async def _say(
         self,
@@ -672,6 +722,7 @@ class SessionOrchestrator:
             topic_id=topic_id,
             utterance=self._partial_text.strip(),
             status=MoveStatus.INTERRUPTED,
+            intent=partial.intent if partial else None,
         )
         self._partial = None
         self._partial_text = ""
