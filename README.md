@@ -71,33 +71,59 @@ app:
 docker compose up -d --build
 ```
 
-Then open <http://127.0.0.1:8000>, check the microphone, and join. Joining loads the language
+Then open <http://127.0.0.1:8000>. The dashboard shows your recent practice, short paginated
+lists, and score trends. Select **New interview** to prepare a call. Joining loads the language
 model and the speech engines first, which can take a minute the first time. Use headphones if you
 can: the microphone only records between "Answer" and "End of answer" (or the space bar), but
 headphones keep the interviewer's voice out of the room.
 
-**Prepare the context first.** Upload or paste your CV and, optionally, a job offer. You can also
-describe a role, edit the generated offer, or choose a getting-to-know interview without an offer.
-Add titled resources (text, Markdown, JSON, XML, HTML, DOCX or PDF), choosing an existing profile
-or saving a new one. Changed profiles can be overwritten, copied or used for this interview only.
-Documents are analysed asynchronously with `qwen3.5:9b` (download it with `ollama pull qwen3.5:9b`).
-Review, correct or exclude the extracted facts and confirm the inferred area without an offer.
-Approval freezes the context used by the interviewer and the refinement vocabulary. No document
-link is followed. A quick start without documents remains available.
+**Prepare an interview in five steps.** Each step has its own URL. Back and Forward preserve
+the draft in the current tab, including across a reload. Required fields carry `*`, and a disabled
+Continue button explains what is missing.
+
+1. **Interview settings:** language, type, difficulty, duration and processing profile. Choose
+   local Ollama models or the ChatGPT plan signed in through Settings. Speech always stays local.
+2. **Resource profile:** reuse a saved CV, job offer and resources, or prepare this interview only.
+3. **Documents:** upload or paste a CV and an optional offer, or describe a role and edit its
+   drafted offer. Add titled resources (text, Markdown, JSON, XML, HTML, DOCX or PDF). Changed
+   profiles can be overwritten, copied or used once. Editing an upload keeps the original file.
+4. **Fact review:** confirm, correct or exclude doubtful interpretations; the full list is
+   collapsed. Without an offer, confirm the professional area. Approval freezes the context.
+5. **Final check:** optionally check the CV against the offer, test the microphone and start.
+   The CV check uses the interview language and processing profile.
+
+By default, local document analysis and assessment use `qwen3.5:9b` (download it with
+`ollama pull qwen3.5:9b`). No document link is followed. A quick start without documents remains
+available. The chosen processing profile stays with the preparation and interview, including
+reports generated later; changing the default in Settings does not change existing interviews.
 
 **After the call** your answers are transcribed again from their recordings with Whisper, a
 slower but more accurate recogniser (a few minutes for a 10-minute interview; the first run also
-loads the model). "Your interviews" lists past sessions: each has the recording, the transcript
+loads the model). **Interviews** lists past sessions: each has the recording, the transcript
 with the doubtful words highlighted, and the downloads. Correcting an answer keeps the earlier
-versions.
+versions. The transcript groups questions and answers, with audio and revision history beside
+each answer. **CV checks** and **Profiles** have their own detail pages and original-file links.
 
 **Reports.** After reviewing the transcript, "Generate report" assesses the answers in the
-background with `qwen3.5:9b`; you can leave the page and a notice appears when it is done. Each
+background using the interview's processing profile; you can leave the page and a notice
+appears when it is done. Each
 answer is judged twice against an anchored rubric, every score needs a quotation that code finds
 in the transcript, and technical corrections are model judgements, labelled as such. Regenerating
 after a correction keeps the earlier versions. Reports export to Markdown, JSON and PDF, and the
-CV can be reviewed the same way before the interview. How the evaluation works, and what it costs,
+CV can be reviewed the same way before the interview. Interview reports lead with the overall
+score and summary, improvements and strengths, then each question and its assessed answers,
+job requirements and delivery medians. Technical provenance is collapsed at the end. CV reports
+show criterion reasons, the requirement matrix, checks in priority order, rewrites and practice
+questions. Markdown and PDF use the same reading order, pinned by a shared synthetic fixture;
+JSON preserves the raw report. How the evaluation works, and what it costs,
 is in [docs/research/evaluation-latency.md](docs/research/evaluation-latency.md).
+
+Screenshots below use synthetic data only.
+
+![Dashboard with score trends](docs/fixtures/synthetic/ui/dashboard.png)
+![Interview report with verified quotations](docs/fixtures/synthetic/ui/interview-report.png)
+![Transcript with recording and revision history](docs/fixtures/synthetic/ui/transcript.png)
+![Original synthetic CV in the inline PDF viewer](docs/fixtures/synthetic/ui/cv-preview.png)
 
 **Your data.** Settings → Your data exports the structured data as JSON, or downloads a portable ZIP
 backup with the documents, recordings, transcripts and reports (models and server configuration
@@ -171,7 +197,7 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm backend pytest
 **Frontend checks** (ESLint, Prettier, TypeScript, Vitest, build) run in a Node container:
 
 ```bash
-docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim sh -c "npm ci && npm run lint && npm run typecheck && npm test && npm run build"
+docker run --rm -v "$PWD:/repo" -w /repo/frontend node:24.22.0-trixie-slim sh -c "npm ci && npm run lint && npm run lint:fsd && npm run format:check && npm run typecheck && npm test && npm run build"
 ```
 
 **API types.** The frontend's TypeScript types are generated from the backend's contract (OpenAPI
@@ -189,14 +215,35 @@ docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim npm r
 a scripted interviewer and fake speech engines (no GPU or models needed):
 
 ```bash
-docker compose -f compose.yaml -f compose.test.yaml up -d --no-deps backend
+docker compose -f compose.yaml -f compose.test.yaml up -d --build --no-deps backend
 ```
 
 ```bash
 docker run --rm --network container:probeloop-backend-1 -v "$PWD:/repo" -w /repo/frontend mcr.microsoft.com/playwright:v1.65.0-noble sh -c "npm ci && npx playwright test"
 ```
 
-Run `docker compose up -d --no-deps backend` afterwards to go back to the real engines.
+Run `docker compose up -d --build backend` afterwards to restore the real engines. Verify that
+`/data` mounts `probeloop_data`, not `probeloop_e2e_data`:
+
+```bash
+docker inspect probeloop-backend-1 --format '{{range .Mounts}}{{.Name}} {{.Destination}}{{end}}'
+```
+
+Frontend checks mount the repository root because Vitest also reads the backend's synthetic
+report-outline fixture. Component tests use Testing Library and jsdom. Browser tests scan the
+dashboard and preparation with axe, and check report and transcript pages in both themes. They
+also check desktop alignment and mobile overflow. This is a WCAG 2.2 AA self-assessment,
+not external certification;
+the footer links to the current limitations.
+
+For an explicit acceptance run with real models, start the real stack, ensure Ollama and speech
+models are ready, and sign in with ChatGPT with plan usage enabled. The following opt-in browser
+checks add a short synthetic interview and a CV check for each profile, uploading a PDF and DOCX.
+They never delete data or change account settings:
+
+```bash
+docker run --rm --network container:probeloop-backend-1 -e PROBELOOP_LIVE_ACCEPTANCE=1 -v "$PWD:/repo" -w /repo/frontend mcr.microsoft.com/playwright:v1.65.0-noble npx playwright test e2e/live-acceptance.spec.ts
+```
 
 **Tests against real models** (`live` marker): the interviewer with Ollama, and the speech engines
 in-process and through the running services:

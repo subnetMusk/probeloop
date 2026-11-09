@@ -668,6 +668,33 @@ not done by the same mechanism that is supposed to prevent it.
 
 ## 12. Frontend–backend communication
 
+**Frontend structure (M6, ADR 0014).** The React SPA follows Feature-Sliced Design:
+`app → pages → widgets → features → entities → shared`. Imports point downwards, same-layer
+slices do not import each other, and every slice has a public entry point. Steiger checks these
+boundaries. The transitional legacy screens and translation map have been removed.
+
+Pure view models prepare report sections, numbered answers, requirement coverage, delivery
+medians and conversation blocks. Components render those views; typed English and Italian
+dictionaries live with their consumers. Fonts are served locally. The shell keeps navigation
+fixed, scrolls the content below it, and uses the same page width, headings and breadcrumbs.
+Short lists show newest records first with pagination. Trend lines join scores only within the
+same evaluator key and interview type, with a table alternative.
+
+The five preparation steps are routes under `/new-interview`. A versioned Zustand draft persists
+in `sessionStorage` until the interview starts. Back always remains available; forward navigation
+requires the preceding steps. TanStack Query owns server data. Each preparation and interview
+stores its execution profile (ADR 0015); later analysis and report jobs use that profile rather
+than the default currently selected in Settings. Speech recognition and synthesis remain local.
+
+**Report presentation contract.** The pure Python `assessment/application/outline.py` prepares
+the localized Markdown and PDF outline. The API obtains question text and frozen answer
+revisions through the assessment service, plus CV requirements from the immutable snapshot.
+Raw JSON exports remain `ReportData`. The shared fixture
+`backend/tests/fixtures/synthetic/assessment/report-outline.json` is checked against the outline
+by pytest and against the frontend view models by Vitest. Component tests also pin the rendered
+section order. Technical hashes are shortened and kept at the end; per-answer delivery rows
+form an appendix. PDF templates escape data and refuse all external resource fetching.
+
 **REST + JSON** handles all CRUD and jobs. Job status is polled with TanStack Query. Server-sent
 events are a later improvement, added only if polling proves insufficient.
 

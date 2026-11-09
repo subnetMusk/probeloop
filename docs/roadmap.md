@@ -362,21 +362,30 @@ recording persistence), strict typing, linting, nine dependency contracts and re
 
 ## M6 — Final UI · 6–10 days
 
-**Checkpoint (2026-11-08), not complete:** language, volume, theme, report notifications and
-IT/EN scaffolding are implemented. Remaining translation, final rebuilt-app/E2E checks and
-accessibility acceptance are recorded in the [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
-The implemented settings currently cover proposal section 7, not every older configuration and
-diagnostics deliverable below. The provider choice is the execution profile (local, or the
-ChatGPT plan through Sign in with ChatGPT, [ADR 0013](adr/0013-cloud-execution-profile.md));
-models are chosen in the environment, not in the UI.
+**Approved UI redesign complete (2026-11-09).** The five-step preparation, dashboard, profiles,
+history, reports and transcript are implemented in Feature-Sliced Design with typed IT/EN
+dictionaries and the new identity ([ADR 0014](adr/0014-frontend-architecture-and-identity.md)).
+Execution is chosen per interview ([ADR 0015](adr/0015-execution-profile-per-interview.md));
+speech stays local. Report pages, Markdown and PDF share a tested reading order. Verification:
+510 backend tests, 36 PostgreSQL contracts, 74 frontend tests, 15 fake-engine E2E flows and both
+real-profile acceptance flows. Axe scans and desktop/mobile visual checks passed; accessibility
+remains a WCAG 2.2 AA self-assessment. A schema-0003 backup was restored through the runtime CLI
+into a separate empty instance. Details, commands and observed model-quality limitations are in
+the [verification handoff](handoffs/2026-11-09-ui-redesign-completion.md).
+
+The approved redesign replaces the older M6 configuration/diagnostics proposal. Model and voice
+selection in Settings, retention controls, ModelCatalog and a diagnostics panel have not been
+implemented or approved as part of this work. Models remain configured in the environment.
 
 - **Deliverables**
-  - The Phase A wizard, polished review screens and the Phase D summary.
-  - The final meeting room: the requested layout, a collapsible transcript, volume, states.
-  - Settings: provider, model, voice, retention.
-  - Model checks via `ModelCatalog`.
-  - A diagnostics panel with `TurnMetrics` and `LlmInteraction`.
-  - IT/EN i18n and basic accessibility.
+  - Five preparation routes with a persistent draft, required-field hints and lossless Back.
+  - CVs, offers and resources in reusable profiles; edited uploads retain their original files.
+  - A dashboard and short, paginated histories, with comparable trend lines and table alternatives.
+  - Reports ordered around improvements and verified quotations; Markdown/PDF parity and raw JSON.
+  - Question/answer transcripts with audio, corrections and revision history.
+  - The meeting room, captions, volume, language/theme controls and report notifications.
+  - A local or ChatGPT-plan execution profile per interview, with local speech.
+  - Typed IT/EN dictionaries, breadcrumbs, identity and an accessibility self-assessment.
 - **Dependencies.** M5.
 - **Risks.** Visual scope creep; the UI sticks to shadcn.
 - **Tests.** Component tests, complete Playwright flows with fakes, axe checks.
