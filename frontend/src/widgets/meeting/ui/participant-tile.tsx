@@ -2,6 +2,8 @@ import { MicIcon, MicOffIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { cn } from '@/shared/lib/utils'
+import { useMessages } from '@/shared/i18n'
+import { meetingMessages } from './messages'
 
 interface ParticipantTileProps {
   name: string
@@ -22,6 +24,7 @@ const AVATAR: Record<ParticipantTileProps['tone'], string> = {
 
 /** A participant in the call: avatar, speaking rings, name plate and microphone state. */
 export function ParticipantTile(props: ParticipantTileProps) {
+  const t = useMessages(meetingMessages)
   const scale = 1 + props.level * 0.6
   return (
     <div
@@ -73,7 +76,7 @@ export function ParticipantTile(props: ParticipantTileProps) {
           'absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-full backdrop-blur',
           props.muted ? 'bg-red-500/80 text-white' : 'bg-black/50 text-white',
         )}
-        aria-label={props.muted ? 'microphone off' : 'microphone on'}
+        aria-label={props.muted ? t.micOff : t.micOn}
       >
         {props.muted ? <MicOffIcon className="size-4" /> : <MicIcon className="size-4" />}
       </div>

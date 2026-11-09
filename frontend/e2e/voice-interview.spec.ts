@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -83,6 +84,17 @@ test('a voice interview from the preparation to the end of the call', async ({ p
   await page.getByRole('button', { name: 'Save correction' }).click()
   await expect(answerText).toHaveText('Ho lavorato con FastAPI.')
   await expect(page.getByText('edited')).toBeVisible()
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(
+      (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
+      theme,
+    )
+    const scan = await new AxeBuilder({ page }).analyze()
+    expect(
+      scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+    ).toEqual([])
+  }
+  await page.screenshot({ path: 'test-results/transcript.png', fullPage: true })
 
   // The report assesses the corrected revision in the background (scripted evaluator).
   const reports = page.getByTestId('interview-report-panel')
@@ -96,13 +108,24 @@ test('a voice interview from the preparation to the end of the call', async ({ p
   await expect(content).toContainText('“Ho lavorato con FastAPI”')
   const types = { md: 'text/markdown', json: 'application/json', pdf: 'application/pdf' }
   for (const [format, type] of Object.entries(types)) {
-    const link = content.getByRole('link', { name: format.toUpperCase(), exact: true })
+    const link = page.getByRole('link', { name: format.toUpperCase(), exact: true })
     const href = await link.getAttribute('href')
     expect(href).not.toBeNull()
     const download = await page.request.get(href ?? '')
     expect(download.ok()).toBe(true)
     expect(download.headers()['content-type']).toContain(type)
   }
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(
+      (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
+      theme,
+    )
+    const scan = await new AxeBuilder({ page }).analyze()
+    expect(
+      scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+    ).toEqual([])
+  }
+  await page.screenshot({ path: 'test-results/interview-report.png', fullPage: true })
 
   // Regenerating keeps the earlier version.
   await page.goBack()

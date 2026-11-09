@@ -115,6 +115,16 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await expect(page.getByRole('link', { name: /^Version 1 ·/ })).toBeVisible()
   await expect(page.getByText('Typed text: there is no original file.')).toBeVisible()
   await noSeriousViolations(page)
+  await page.getByRole('link', { name: /^Version 1 ·/ }).click()
+  await expect(page).toHaveTitle('cv-report | ProbeLoop')
+  await expect(page.getByRole('heading', { name: 'Document checks' })).toBeVisible()
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((theme) => {
+      document.documentElement.classList.toggle('dark', theme === 'dark')
+    }, theme)
+    await noSeriousViolations(page)
+  }
+  await page.screenshot({ path: 'test-results/cv-report.png' })
 
   await page.goto('/interviews')
   await page

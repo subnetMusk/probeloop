@@ -3,7 +3,7 @@ import { CheckIcon, Loader2Icon, MicIcon, PhoneOffIcon, RotateCcwIcon, XIcon } f
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
-import { PROBLEM_TEXT, useAudio } from '@/shared/lib/audio'
+import { audioMessages, useAudio } from '@/shared/lib/audio'
 import { Captions } from '@/widgets/meeting'
 import { ControlBar } from '@/widgets/meeting'
 import { Dots, ParticipantTile } from '@/widgets/meeting'
@@ -13,12 +13,13 @@ import { Progress } from '@/shared/ui/progress'
 import { Wordmark } from '@/shared/ui/wordmark'
 import { micLevel, useAnimatedLevel } from '@/shared/lib/hooks'
 import { useHotkey } from '@/shared/lib/hooks'
-import { STEP_TEXT, formatClock, remainingSeconds } from '@/features/live-interview'
+import { formatClock, remainingSeconds } from '@/features/live-interview'
 import type { Entry, InterviewState } from '@/features/live-interview'
 import { useInterview } from '@/features/live-interview'
 import { cn } from '@/shared/lib/utils'
-import { T } from '@/shared/i18n'
-import { localise } from '@/shared/i18n'
+import { useMessages } from '@/shared/i18n'
+import { meetingMessages } from '@/widgets/meeting'
+import { callMessages } from './messages'
 
 function useNow(intervalMs: number): number {
   const [now, setNow] = useState(() => performance.now())
@@ -54,10 +55,11 @@ function Lobby({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () => void }) {
+  const t = useMessages(callMessages)
   const preparing = state.preparing
   const failed = preparing?.steps.some((s) => s.state === 'failed') ?? false
   return (
-    <Lobby title={failed ? 'The interview could not start' : 'Joining the interview…'}>
+    <Lobby title={failed ? t.failed : t.joining}>
       <div className="flex flex-col gap-5">
         <Progress value={(preparing?.progress ?? 0) * 100} data-testid="preparation-progress" />
         <ul className="flex flex-col gap-3 text-sm">
@@ -72,10 +74,8 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
               )}
               {step.state === 'ready' && <CheckIcon className="size-4 text-success" />}
               {step.state === 'failed' && <XIcon className="size-4 text-red-400" />}
-              <span className="flex-1">
-                <T text={STEP_TEXT[step.name]} />
-              </span>
-              <span className="text-xs text-zinc-500">{step.state}</span>
+              <span className="flex-1">{t.steps[step.name]}</span>
+              <span className="text-xs text-zinc-500">{t.states[step.state]}</span>
             </li>
           ))}
         </ul>
@@ -88,7 +88,7 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
           ))}
         {!preparing && !state.notice && (
           <p className="text-sm text-zinc-400">
-            <T text={'Connecting'} />
+            {t.connecting}
             <Dots />
           </p>
         )}
@@ -96,18 +96,17 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
         {(failed || state.notice) && (
           <Button onClick={onRetry}>
             <RotateCcwIcon data-icon="inline-start" />
-            <T text={'Try again'} />
+            {t.retry}
           </Button>
         )}
-        <p className="text-xs text-zinc-500">
-          <T text={'Loading the language model can take a minute the first time.'} />
-        </p>
+        <p className="text-xs text-zinc-500">{t.loading}</p>
       </div>
     </Lobby>
   )
 }
 
 function Ended({ state, sessionId }: { state: InterviewState; sessionId: string }) {
+  const t = useMessages(callMessages)
   const answers = state.entries.filter((e) => e.speaker === 'candidate').length
   return (
     <Stage className="items-center overflow-y-auto p-6">
@@ -116,20 +115,11 @@ function Ended({ state, sessionId }: { state: InterviewState; sessionId: string 
           <div className="flex size-14 items-center justify-center rounded-full bg-zinc-800">
             <PhoneOffIcon className="size-6 text-zinc-300" />
           </div>
-          <h1 className="font-heading text-2xl font-semibold">
-            <T text={'The interview has ended'} />
-          </h1>
+          <h1 className="font-heading text-2xl font-semibold">{t.ended}</h1>
           <p className="text-sm text-zinc-400" data-testid="ended-summary">
-            {state.ended?.failure ??
-              `${answers} ${answers === 1 ? 'answer' : 'answers'} · ${formatClock(state.clock?.elapsedS ?? 0)} of conversation`}
+            {state.ended?.failure ?? t.summary(answers, formatClock(state.clock?.elapsedS ?? 0))}
           </p>
-          <p className="max-w-md text-xs text-zinc-500">
-            <T
-              text={
-                'The full transcript and the audio of the whole conversation are kept with the session. Your answers are now transcribed again, more accurately: review them before the report.'
-              }
-            />
-          </p>
+          <p className="max-w-md text-xs text-zinc-500">{t.kept}</p>
           <div className="flex gap-2">
             <Button asChild>
               <Link
@@ -137,13 +127,11 @@ function Ended({ state, sessionId }: { state: InterviewState; sessionId: string 
                 params={{ sessionId }}
                 data-testid="review-transcript"
               >
-                <T text={'Review the transcript'} />
+                {t.review}
               </Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link to="/new-interview">
-                <T text={'New interview'} />
-              </Link>
+              <Link to="/new-interview">{t.newInterview}</Link>
             </Button>
           </div>
         </div>
@@ -167,6 +155,9 @@ function lastOf(entries: Entry[], speaker: Entry['speaker']): Entry | undefined 
 
 /** The meeting, laid out like a video call. */
 export function InterviewPage() {
+  const t = useMessages(callMessages)
+  const meeting = useMessages(meetingMessages)
+  const audioText = useMessages(audioMessages)
   const { sessionId } = useParams({ from: '/live-interview/$sessionId' })
   const audio = useAudio()
   const kit = audio.kit
@@ -203,24 +194,14 @@ export function InterviewPage() {
 
   if (!kit) {
     return (
-      <Lobby title={localise('Enable the microphone to join')}>
+      <Lobby title={t.enableTitle}>
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-zinc-400">
-            <T
-              text={
-                'The interview is spoken: the browser needs the microphone, and a click to play audio.'
-              }
-            />
-          </p>
+          <p className="text-sm text-zinc-400">{t.enableNote}</p>
           <Button onClick={() => void audio.enable()} disabled={audio.enabling}>
             <MicIcon data-icon="inline-start" />
-            <T text={'Enable microphone and audio'} />
+            {t.enable}
           </Button>
-          {audio.problem && (
-            <p className="text-sm text-red-400">
-              <T text={PROBLEM_TEXT[audio.problem]} />
-            </p>
-          )}
+          {audio.problem && <p className="text-sm text-red-400">{audioText[audio.problem]}</p>}
         </div>
       </Lobby>
     )
@@ -237,53 +218,44 @@ export function InterviewPage() {
   const interviewerTalking = speaking || phase === 'interviewer_thinking'
   const caption =
     answering || transcribing
-      ? { speaker: 'You', text: candidate && !candidate.final ? candidate.text : '' }
-      : { speaker: 'Interviewer', text: interviewerTalking ? (interviewer?.text ?? '') : '' }
+      ? { speaker: meeting.you, text: candidate && !candidate.final ? candidate.text : '' }
+      : { speaker: meeting.interviewer, text: interviewerTalking ? (interviewer?.text ?? '') : '' }
   const lastLatency = state.latenciesMs.at(-1)
 
   let interviewerStatus: ReactNode = null
-  if (state.status === 'paused') interviewerStatus = 'Paused'
+  if (state.status === 'paused') interviewerStatus = t.pausedShort
   else if (phase === 'interviewer_thinking')
     interviewerStatus = (
       <>
-        <T text={'Thinking'} />
+        {t.thinking}
         <Dots />
       </>
     )
-  else if (canAnswer) interviewerStatus = 'Waiting for your answer'
+  else if (canAnswer) interviewerStatus = t.waiting
 
   let candidateStatus: ReactNode = null
   if (transcribing)
     candidateStatus = (
       <>
-        <T text={'Transcribing'} />
+        {t.transcribing}
         <Dots />
       </>
     )
-  else if (answering) candidateStatus = 'Answering'
+  else if (answering) candidateStatus = t.answering
 
   return (
     <Stage>
       <header className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-2">
           <Wordmark className="text-base" />
-          <span className="font-medium">
-            <T text={'Mock interview'} />
-          </span>
-          <span className="text-zinc-500">
-            <T text={'· voice'} />
-          </span>
+          <span className="font-medium">{t.title}</span>
+          <span className="text-zinc-500">{t.voice}</span>
         </div>
         <div className="flex items-center gap-3 text-xs text-zinc-500">
-          {state.connection === 'closed' && (
-            <span className="text-red-400">
-              <T text={'Connection lost'} />
-            </span>
-          )}
+          {state.connection === 'closed' && <span className="text-red-400">{t.lost}</span>}
           {lastLatency !== undefined && (
             <span data-testid="latency">
-              <T text={'reply after '} />
-              {(lastLatency / 1000).toFixed(1)} s
+              {t.reply} {(lastLatency / 1000).toFixed(1)} s
             </span>
           )}
         </div>
@@ -294,7 +266,7 @@ export function InterviewPage() {
           <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
             <ParticipantTile
               testId="tile-interviewer"
-              name="Interviewer"
+              name={meeting.interviewer}
               role="ProbeLoop"
               initials="AI"
               tone="interviewer"
@@ -305,8 +277,8 @@ export function InterviewPage() {
             />
             <ParticipantTile
               testId="tile-candidate"
-              name="You"
-              role="Candidate"
+              name={meeting.you}
+              role={meeting.candidate}
               initials="YOU"
               tone="candidate"
               level={answering ? micLevel(audio.level) : 0}
@@ -322,12 +294,8 @@ export function InterviewPage() {
           )}
           {state.status === 'paused' && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-2xl bg-black/60 backdrop-blur-sm">
-              <p className="text-lg font-medium">
-                <T text={'The interview is paused'} />
-              </p>
-              <Button onClick={resume}>
-                <T text={'Resume'} />
-              </Button>
+              <p className="text-lg font-medium">{t.paused}</p>
+              <Button onClick={resume}>{t.resume}</Button>
             </div>
           )}
           <div className="min-h-14">

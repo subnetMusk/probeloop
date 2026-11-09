@@ -9,8 +9,8 @@ import type { ReactNode } from 'react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import { cn } from '@/shared/lib/utils'
-import { T } from '@/shared/i18n'
-import { localise } from '@/shared/i18n'
+import { useMessages } from '@/shared/i18n'
+import { meetingMessages } from './messages'
 
 function RoundButton(props: {
   label: string
@@ -61,6 +61,7 @@ interface ControlBarProps {
 
 /** The bottom bar of the call: timer, answer button, panels and end call. */
 export function ControlBar(props: ControlBarProps) {
+  const t = useMessages(meetingMessages)
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-3">
       <div className="flex items-center gap-3 text-sm text-zinc-300">
@@ -83,7 +84,7 @@ export function ControlBar(props: ControlBarProps) {
             className="flex h-12 items-center gap-2 rounded-full bg-red-500 px-5 font-medium text-white transition-colors hover:bg-red-600 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
           >
             <SquareIcon className="size-4 fill-current" />
-            <T text={'End of answer'} />
+            {t.endAnswer}
           </button>
         ) : (
           <button
@@ -94,18 +95,14 @@ export function ControlBar(props: ControlBarProps) {
             className="flex h-12 items-center gap-2 rounded-full bg-brand px-5 font-medium text-brand-foreground transition-colors hover:bg-brand/85 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
           >
             <MicIcon className="size-5" />
-            <T text={'Answer'} />
+            {t.answer}
           </button>
         )}
-        <RoundButton
-          label={localise('Captions')}
-          active={props.captions}
-          onClick={props.onToggleCaptions}
-        >
+        <RoundButton label={t.captions} active={props.captions} onClick={props.onToggleCaptions}>
           <CaptionsIcon />
         </RoundButton>
         <RoundButton
-          label={localise('Transcript')}
+          label={t.transcript}
           active={props.transcript}
           onClick={props.onToggleTranscript}
           testId="toggle-transcript"
@@ -113,7 +110,7 @@ export function ControlBar(props: ControlBarProps) {
           <MessageSquareTextIcon />
         </RoundButton>
         <RoundButton
-          label={localise('End call')}
+          label={t.endCall}
           onClick={props.onEndCall}
           className="w-16 bg-red-600 text-white hover:bg-red-700"
           testId="end-call"
@@ -122,7 +119,7 @@ export function ControlBar(props: ControlBarProps) {
         </RoundButton>
       </div>
       <div className="hidden justify-end text-xs text-zinc-500 md:flex">
-        <T text={props.canAnswer || props.answering ? 'Space: answer / end of answer' : ''} />
+        {(props.canAnswer || props.answering) && t.shortcut}
       </div>
     </div>
   )

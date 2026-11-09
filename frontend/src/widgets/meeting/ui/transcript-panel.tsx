@@ -4,11 +4,12 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/shared/ui/button'
 import type { Entry } from '@/features/live-interview'
 import { cn } from '@/shared/lib/utils'
-import { T } from '@/shared/i18n'
-import { localise } from '@/shared/i18n'
+import { useMessages } from '@/shared/i18n'
+import { meetingMessages } from './messages'
 
 /** The whole conversation, as chat bubbles, in a side panel. */
 export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClose?: () => void }) {
+  const t = useMessages(meetingMessages)
   const bottom = useRef<HTMLDivElement>(null)
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
@@ -16,16 +17,9 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
   return (
     <aside className="flex min-h-0 w-full flex-col rounded-2xl bg-zinc-900 ring-1 ring-white/5 md:w-96">
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
-        <h2 className="text-sm font-medium text-zinc-100">
-          <T text={'Transcript'} />
-        </h2>
+        <h2 className="text-sm font-medium text-zinc-100">{t.transcript}</h2>
         {onClose && (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={onClose}
-            aria-label={localise('Close the transcript')}
-          >
+          <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label={t.close}>
             <XIcon />
           </Button>
         )}
@@ -34,11 +28,7 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
         data-testid="transcript"
       >
-        {entries.length === 0 && (
-          <p className="text-sm text-zinc-500">
-            <T text={'The conversation will appear here.'} />
-          </p>
-        )}
+        {entries.length === 0 && <p className="text-sm text-zinc-500">{t.empty}</p>}
         {entries.map((entry) => {
           const mine = entry.speaker === 'candidate'
           return (
@@ -50,8 +40,8 @@ export function TranscriptPanel({ entries, onClose }: { entries: Entry[]; onClos
               )}
             >
               <span className="text-[11px] text-zinc-500">
-                <T text={mine ? 'You' : 'Interviewer'} />
-                {entry.incomplete && ' · partly not transcribed'}
+                {mine ? t.you : t.interviewer}
+                {entry.incomplete && t.incomplete}
               </span>
               <div
                 className={cn(

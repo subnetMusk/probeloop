@@ -5,9 +5,10 @@ import { Loader2Icon } from 'lucide-react'
 import { useDraft } from '@/entities/preparation'
 import { startAnalysis } from '@/features/edit-documents'
 import { FactReview } from '@/features/review-facts'
-import { api } from '@/shared/api'
+import { api, localizeProblem } from '@/shared/api'
 import type { PreparationView } from '@/shared/api'
-import { localise, useMessages } from '@/shared/i18n'
+import { useMessages } from '@/shared/i18n'
+import { useLanguage } from '@/shared/lib/preferences'
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -17,6 +18,7 @@ import { stepPath } from '../model/paths'
 import { StepFooter, StepFrame } from './step-frame'
 
 export function ReviewStep() {
+  const language = useLanguage()
   const t = useMessages(newInterviewMessages)
   const navigate = useNavigate()
   const client = useQueryClient()
@@ -74,7 +76,11 @@ export function ReviewStep() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3" aria-live="polite">
             <Progress value={(view?.analysis?.progress ?? 0) * 100} />
-            <p>{view?.analysis?.message ? localise(view.analysis.message) : t.analysis.waiting}</p>
+            <p>
+              {view?.analysis?.message
+                ? localizeProblem(view.analysis.message, language)
+                : t.analysis.waiting}
+            </p>
             <p className="text-sm text-muted-foreground">{t.analysis.leave}</p>
           </CardContent>
         </Card>
@@ -83,7 +89,10 @@ export function ReviewStep() {
         <Alert variant="destructive">
           <AlertTitle>{t.analysis.failed}</AlertTitle>
           <AlertDescription className="flex flex-col items-start gap-3">
-            <span>{preparation.error?.message ?? (view?.error ? localise(view.error) : null)}</span>
+            <span>
+              {preparation.error?.message ??
+                (view?.error ? localizeProblem(view.error, language) : null)}
+            </span>
             <Button
               type="button"
               variant="outline"

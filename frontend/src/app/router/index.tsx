@@ -7,8 +7,6 @@ import {
   redirect,
 } from '@tanstack/react-router'
 
-import { SessionPage } from '@/legacy/pages/session-page'
-import { ReportPage } from '@/legacy/pages/report-page'
 import type { JSX } from 'react'
 
 import { canOpen, firstOpenStep, getDraft } from '@/entities/preparation'
@@ -18,6 +16,8 @@ import { CvCheckDetailPage } from '@/pages/cv-check-detail'
 import { CvChecksPage } from '@/pages/cv-checks'
 import { DashboardPage } from '@/pages/dashboard'
 import { InterviewsPage } from '@/pages/interviews'
+import { InterviewDetailPage } from '@/pages/interview-detail'
+import { ReportPage } from '@/pages/report'
 import { InterviewPage } from '@/pages/live-interview'
 import {
   CheckStep,
@@ -123,7 +123,7 @@ const interviewRoute = createRoute({
 const interviewIndexRoute = createRoute({
   getParentRoute: () => interviewRoute,
   path: '/',
-  component: SessionPage,
+  component: InterviewDetailPage,
 })
 const interviewReportRoute = createRoute({
   getParentRoute: () => interviewRoute,

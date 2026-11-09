@@ -31,23 +31,6 @@ export default tseslint.config(
     },
   },
   {
-    // Screens that the redesign replaces live in src/legacy; only app and pages may use them.
-    files: ['src/{shared,entities,features,widgets}/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['@/legacy/*'],
-              message: 'Only app and pages may import legacy screens (ADR 0014).',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
     files: ['**/*.{js,mjs}'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },

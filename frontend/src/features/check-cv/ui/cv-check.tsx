@@ -5,9 +5,9 @@ import { useEffect } from 'react'
 
 import { RequirementList } from '@/entities/preparation'
 import { rememberReportJob } from '@/entities/report-job'
-import { api, isRunning } from '@/shared/api'
+import { api, isRunning, localizeProblem } from '@/shared/api'
 import type { ExecutionProfile, JobView } from '@/shared/api'
-import { defineMessages, localise, useMessages } from '@/shared/i18n'
+import { defineMessages, useMessages } from '@/shared/i18n'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { score } from '@/shared/lib/format'
@@ -140,14 +140,14 @@ export function CvCheck({
             <p className="flex items-center gap-2 text-sm">
               <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
               {t.running}
-              {job.message ? `: ${localise(job.message)}` : ''}
+              {job.message ? `: ${localizeProblem(job.message, ui)}` : ''}
             </p>
             <Progress value={job.progress * 100} />
           </div>
         )}
         {job?.status === 'failed' && job.error && (
           <p role="alert" className="text-sm text-destructive">
-            {localise(job.error)}
+            {localizeProblem(job.error, ui)}
           </p>
         )}
         {hasCv && (

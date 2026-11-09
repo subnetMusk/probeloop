@@ -1,8 +1,8 @@
 import { CheckCircle2Icon, CircleAlertIcon, Loader2Icon, MicIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { defineMessages, localise, useMessages } from '@/shared/i18n'
-import { PROBLEM_TEXT } from '@/shared/lib/audio'
+import { defineMessages, useMessages } from '@/shared/i18n'
+import { audioMessages } from '@/shared/lib/audio'
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -61,6 +61,7 @@ function Check({ ok, pending, children }: { ok: boolean; pending?: boolean; chil
 /** Enable the microphone, watch its level, and check the local speech services. */
 export function MicrophoneCheck({ language }: { language: string }) {
   const t = useMessages(messages)
+  const audioText = useMessages(audioMessages)
   const { audio, speech, voice } = useVoiceReadiness(language)
   return (
     <Card>
@@ -94,7 +95,7 @@ export function MicrophoneCheck({ language }: { language: string }) {
         {audio.problem && (
           <Alert variant="destructive">
             <AlertTitle>{t.unavailable}</AlertTitle>
-            <AlertDescription>{localise(PROBLEM_TEXT[audio.problem])}</AlertDescription>
+            <AlertDescription>{audioText[audio.problem]}</AlertDescription>
           </Alert>
         )}
         <ul className="flex flex-col gap-2" data-testid="speech-status">

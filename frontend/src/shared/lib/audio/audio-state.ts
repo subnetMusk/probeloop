@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import { defineMessages } from '@/shared/i18n/messages'
 
 import type { Microphone, MicrophoneProblem } from './microphone'
 import type { SpeechPlayer } from './player'
@@ -26,11 +27,21 @@ export function useAudio(): AudioState {
   return state
 }
 
-export const PROBLEM_TEXT: Record<NonNullable<AudioState['problem']>, string> = {
-  denied: 'Microphone access was denied. Allow it in the browser and try again.',
-  not_found: 'No microphone was found. Connect one and try again.',
-  unsupported:
-    'This browser cannot capture audio here. Use a recent Chrome or Firefox on localhost.',
-  failed: 'The microphone could not be opened.',
-  lost: 'The microphone stopped (was it unplugged?). Enable it again.',
-}
+export const audioMessages = defineMessages({
+  en: {
+    denied: 'Microphone access was denied. Allow it in the browser and try again.',
+    not_found: 'No microphone was found. Connect one and try again.',
+    unsupported:
+      'This browser cannot capture audio here. Use a recent Chrome or Firefox on localhost.',
+    failed: 'The microphone could not be opened.',
+    lost: 'The microphone stopped (was it unplugged?). Enable it again.',
+  },
+  it: {
+    denied: 'Accesso al microfono negato. Consentilo nel browser e riprova.',
+    not_found: 'Nessun microfono trovato. Collegane uno e riprova.',
+    unsupported:
+      'Questo browser non può registrare qui. Usa una versione recente di Chrome o Firefox su localhost.',
+    failed: 'Impossibile aprire il microfono.',
+    lost: 'Il microfono si è fermato. Attivalo di nuovo.',
+  },
+})

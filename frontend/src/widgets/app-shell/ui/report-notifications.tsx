@@ -1,15 +1,29 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import { api, isRunning } from '@/shared/api'
+import { api, isRunning, localizeProblem } from '@/shared/api'
 import { Button } from '@/shared/ui/button'
 import { dismissReportJob, useReportJobs } from '@/entities/report-job'
 import { useLanguage } from '@/shared/lib/preferences'
-import { T } from '@/shared/i18n'
+import { defineMessages, useMessages } from '@/shared/i18n'
+
+const messages = defineMessages({
+  en: {
+    ready: 'Your report is ready',
+    failed: 'Processing failed or unavailable',
+    dismiss: 'Dismiss',
+  },
+  it: {
+    ready: 'Il report è pronto',
+    failed: 'Elaborazione non riuscita o non disponibile',
+    dismiss: 'Chiudi avviso',
+  },
+})
 
 export function ReportNotifications() {
   const ids = useReportJobs()
-  const it = useLanguage() === 'it'
+  const language = useLanguage()
+  const t = useMessages(messages)
   const client = useQueryClient()
   const jobs = useQuery({
     queryKey: ['report-notifications', ids],
@@ -47,14 +61,11 @@ export function ReportNotifications() {
             >
               {job?.status === 'succeeded' && typeof reportId === 'string' ? (
                 <Link className="underline" to="/reports/$reportId" params={{ reportId }}>
-                  {it ? 'Il report è pronto' : 'Your report is ready'}
+                  {t.ready}
                 </Link>
               ) : (
                 <span>
-                  {it
-                    ? 'Elaborazione non riuscita o non disponibile'
-                    : 'Processing failed or unavailable'}
-                  : {job?.error && <T text={job.error} />}
+                  {t.failed}: {job?.error && localizeProblem(job.error, language)}
                 </span>
               )}
               <Button
@@ -64,7 +75,7 @@ export function ReportNotifications() {
                   dismissReportJob(id)
                 }}
               >
-                {it ? 'Chiudi avviso' : 'Dismiss'}
+                {t.dismiss}
               </Button>
             </div>
           )

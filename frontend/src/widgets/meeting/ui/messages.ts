@@ -1,0 +1,36 @@
+import { defineMessages } from '@/shared/i18n'
+
+export const meetingMessages = defineMessages({
+  en: {
+    answer: 'Answer',
+    endAnswer: 'End of answer',
+    captions: 'Captions',
+    transcript: 'Transcript',
+    endCall: 'End call',
+    shortcut: 'Space: answer / end of answer',
+    close: 'Close the transcript',
+    empty: 'The conversation will appear here.',
+    you: 'You',
+    interviewer: 'Interviewer',
+    candidate: 'Candidate',
+    incomplete: ' · partly not transcribed',
+    micOff: 'microphone off',
+    micOn: 'microphone on',
+  },
+  it: {
+    answer: 'Rispondi',
+    endAnswer: 'Fine risposta',
+    captions: 'Sottotitoli',
+    transcript: 'Trascritto',
+    endCall: 'Termina colloquio',
+    shortcut: 'Spazio: rispondi / fine risposta',
+    close: 'Chiudi il trascritto',
+    empty: 'La conversazione apparirà qui.',
+    you: 'Tu',
+    interviewer: 'Intervistatore',
+    candidate: 'Candidato',
+    incomplete: ' · trascrizione parziale',
+    micOff: 'microfono spento',
+    micOn: 'microfono acceso',
+  },
+})
