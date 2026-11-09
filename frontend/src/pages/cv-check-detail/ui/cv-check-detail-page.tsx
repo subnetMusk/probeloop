@@ -11,6 +11,7 @@ import { score, shortDate } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
+import { PAGE_TITLE, Page, PageHeader } from '@/shared/ui/page-header'
 
 const messages = defineMessages({
   en: {
@@ -143,27 +144,24 @@ export function CvCheckDetailPage() {
     queryFn: () => api.cvReviews(snapshotId),
   })
   const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
-  if (snapshot.isPending) return <main className="mx-auto max-w-5xl px-6 py-8">{t.loading}</main>
+  if (snapshot.isPending) return <Page>{t.loading}</Page>
   if (!snapshot.data)
     return (
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <Page>
         <p role="alert">{t.notFound}</p>
-      </main>
+      </Page>
     )
   const cv = snapshot.data.documents.find((d) => d.kind === 'cv')
   const offer = snapshot.data.documents.find((d) => d.kind === 'job_offer')
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
-      <header className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-brand-text">{t.eyebrow}</p>
-        <h1 className="truncate text-3xl font-semibold tracking-tight">
-          {cv?.filename ?? cv?.title ?? 'CV'}
-        </h1>
-        <p className="text-muted-foreground">
-          {offer ? (offer.filename ?? offer.title) : t.noOffer} ·{' '}
-          {t.approved(shortDate(snapshot.data.created_at, language))}
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow={t.eyebrow}
+        title={<h1 className={`${PAGE_TITLE} truncate`}>{cv?.filename ?? cv?.title ?? 'CV'}</h1>}
+        description={`${offer ? (offer.filename ?? offer.title) : t.noOffer} · ${t.approved(
+          shortDate(snapshot.data.created_at, language),
+        )}`}
+      />
       <div className="grid items-start gap-6 lg:grid-cols-5">
         <div className="flex flex-col gap-6 lg:col-span-3">
           {cv && <DocumentCard title={t.cv} document={cv} preview />}
@@ -217,6 +215,6 @@ export function CvCheckDetailPage() {
           </Card>
         </div>
       </div>
-    </main>
+    </Page>
   )
 }

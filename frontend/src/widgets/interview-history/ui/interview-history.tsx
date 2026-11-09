@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { CloudIcon } from 'lucide-react'
 import { useState } from 'react'
+import { cn } from 'cn'
 
 import {
   INTERVIEW_TYPES,
@@ -17,7 +18,7 @@ import { defineMessages, useMessages } from '@/shared/i18n'
 import { minutes, relativeDay } from '@/shared/lib/format'
 import { usePaged } from '@/shared/lib/pagination'
 import { useLanguage } from '@/shared/lib/preferences'
-import { FilterPills, ListCard } from '@/shared/ui/list-card'
+import { FilterPills, ListCard, ListEmpty, ROW_HEIGHT } from '@/shared/ui/list-card'
 import { Pager } from '@/shared/ui/pager'
 import { ScoreBadge } from '@/shared/ui/score-badge'
 
@@ -74,11 +75,11 @@ function Row({ entry, manage }: { entry: InterviewHistoryEntry; manage: boolean 
   ].filter((part): part is string => part !== null)
   const report = entry.latest_report
   return (
-    <li className="flex items-center gap-2" data-testid="interview-row">
+    <li className={cn(ROW_HEIGHT, 'flex items-center gap-2')} data-testid="interview-row">
       <Link
         to="/interviews/$sessionId"
         params={{ sessionId: entry.id }}
-        className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/50"
+        className="-mx-2 flex h-full min-w-0 flex-1 items-center gap-3 rounded-lg px-2 hover:bg-muted/50"
       >
         <span
           aria-hidden="true"
@@ -144,6 +145,7 @@ export function InterviewHistory({
   return (
     <ListCard
       title={title}
+      rows={manage ? undefined : pageSize}
       action={
         !manage &&
         (history.data?.length ?? 0) > pageSize && (
@@ -188,15 +190,15 @@ export function InterviewHistory({
         </p>
       )}
       {history.data?.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">
+        <ListEmpty>
           {t.empty}{' '}
           <Link to="/new-interview" className="text-brand-text underline">
             {t.start}
           </Link>
-        </p>
+        </ListEmpty>
       )}
       {history.data && history.data.length > 0 && entries.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">{t.noMatch}</p>
+        <ListEmpty>{t.noMatch}</ListEmpty>
       )}
       <ul className="flex flex-col divide-y">
         {paged.items.map((entry) => (

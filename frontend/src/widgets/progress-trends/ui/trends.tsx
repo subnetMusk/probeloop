@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { InfoIcon } from 'lucide-react'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { cn } from 'cn'
 
 import { TYPE_COLORS, interviewLabels, isInterviewType, labelOf } from '@/entities/interview'
 import { progressQuery } from '@/entities/report'
@@ -9,7 +12,8 @@ import { score, shortDate } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { FilterPills } from '@/shared/ui/list-card'
-import { TrendChart } from '@/shared/ui/trend-chart'
+import { ChartLegend, TrendChart } from '@/shared/ui/trend-chart'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
 import type { ChartPoint, ChartSeries } from '@/shared/ui/trend-chart'
 import { trendLines, typesWithScores } from '../model/series'
 import type { TrendPoint } from '../model/series'
@@ -21,6 +25,7 @@ const messages = defineMessages({
       description: 'The overall score of each interview’s latest report, from 1 to 5.',
       empty: 'The trend starts with the report of your first interview.',
       filter: 'Interview type',
+      count: (count: number) => (count === 1 ? '1 report' : `${String(count)} reports`),
       all: 'All',
       chart: (count: number) => `Overall interview scores over time, ${String(count)} reports.`,
     },
@@ -28,9 +33,11 @@ const messages = defineMessages({
       title: 'CV check scores',
       description: 'The overall score of each CV check, from 1 to 5.',
       empty: 'The trend starts with your first CV check.',
+      count: (count: number) => (count === 1 ? '1 check' : `${String(count)} checks`),
       chart: (count: number) => `Overall CV check scores over time, ${String(count)} checks.`,
     },
     note: 'Lines join reports scored the same way; a new line starts when the evaluator changes.',
+    about: 'How the points are joined',
     scoredBy: (model: string) => `Scored by ${model}`,
     loading: 'Loading…',
     table: {
@@ -48,6 +55,7 @@ const messages = defineMessages({
       description: 'Il punteggio complessivo dell’ultimo report di ogni colloquio, da 1 a 5.',
       empty: 'L’andamento parte dal report del tuo primo colloquio.',
       filter: 'Tipo di colloquio',
+      count: (count: number) => (count === 1 ? '1 report' : `${String(count)} report`),
       all: 'Tutti',
       chart: (count: number) =>
         `Punteggi complessivi dei colloqui nel tempo, ${String(count)} report.`,
@@ -56,9 +64,11 @@ const messages = defineMessages({
       title: 'Punteggi dei CV check',
       description: 'Il punteggio complessivo di ogni controllo del CV, da 1 a 5.',
       empty: 'L’andamento parte dal tuo primo CV check.',
+      count: (count: number) => (count === 1 ? '1 controllo' : `${String(count)} controlli`),
       chart: (count: number) => `Punteggi complessivi dei CV check nel tempo, ${String(count)}.`,
     },
     note: 'Le linee uniscono report valutati allo stesso modo; una nuova linea parte quando cambia il valutatore.',
+    about: 'Come vengono uniti i punti',
     scoredBy: (model: string) => `Valutato da ${model}`,
     loading: 'Caricamento…',
     table: {
@@ -117,12 +127,26 @@ function useChartPoints() {
   }
 }
 
-function Chart({
+const CHART_HEIGHT = 220
+
+/**
+ * One trend card. Both cards share this structure (title, a row for filters or a caption and
+ * the legend, then a chart of fixed height), so they line up side by side.
+ */
+function TrendCard({
+  title,
+  description,
+  info,
+  controls,
   series,
   label,
   empty,
   pending,
 }: {
+  title: string
+  description: string
+  info?: ReactNode
+  controls: ReactNode
   series: ChartSeries[]
   label: string
   empty: string
@@ -130,21 +154,51 @@ function Chart({
 }) {
   const t = useMessages(messages)
   const language = useLanguage()
-  if (pending) return <p className="py-16 text-center text-sm text-muted-foreground">{t.loading}</p>
-  if (series.every((s) => s.segments.length === 0))
-    return (
-      <p className="rounded-lg border border-dashed px-4 py-16 text-center text-sm text-muted-foreground">
-        {empty}
-      </p>
-    )
-  return (
+  const placeholder = (text: string, dashed: boolean) => (
+    <p
+      className={cn(
+        'flex items-center justify-center rounded-lg px-4 text-center text-sm text-muted-foreground',
+        dashed && 'border border-dashed',
+      )}
+      style={{ height: CHART_HEIGHT }}
+    >
+      {text}
+    </p>
+  )
+  const chart = pending ? (
+    placeholder(t.loading, false)
+  ) : series.every((s) => s.segments.length === 0) ? (
+    placeholder(empty, true)
+  ) : (
     <TrendChart
       series={series}
       ariaLabel={label}
       formatX={(x) => shortDate(x, language)}
       formatY={(y) => score(y, language)}
       table={t.table}
+      height={CHART_HEIGHT}
+      legend={false}
     />
+  )
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center gap-1.5">
+          <CardTitle role="heading" aria-level={2}>
+            {title}
+          </CardTitle>
+          {info}
+        </div>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-3">
+        <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          {controls}
+          {series.length > 1 && <ChartLegend series={series} />}
+        </div>
+        {chart}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -170,15 +224,25 @@ export function InterviewTrend() {
   }))
   const count = series.reduce((sum, s) => sum + s.segments.flat().length, 0)
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <CardTitle role="heading" aria-level={2}>
-            {t.interviews.title}
-          </CardTitle>
-          <CardDescription>{t.interviews.description}</CardDescription>
-        </div>
-        {types.length > 1 && (
+    <TrendCard
+      title={t.interviews.title}
+      description={t.interviews.description}
+      info={
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={t.about}
+              className="rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <InfoIcon className="size-4" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">{t.note}</TooltipContent>
+        </Tooltip>
+      }
+      controls={
+        types.length > 1 ? (
           <FilterPills
             label={t.interviews.filter}
             value={type}
@@ -188,18 +252,15 @@ export function InterviewTrend() {
               label: value === 'all' ? t.interviews.all : labelOf(labels, 'types', value),
             }))}
           />
-        )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <Chart
-          series={series}
-          label={t.interviews.chart(count)}
-          empty={t.interviews.empty}
-          pending={progress.isPending}
-        />
-        {count > 1 && <p className="text-xs text-muted-foreground">{t.note}</p>}
-      </CardContent>
-    </Card>
+        ) : (
+          <span className="text-xs text-muted-foreground">{t.interviews.count(count)}</span>
+        )
+      }
+      series={series}
+      label={t.interviews.chart(count)}
+      empty={t.interviews.empty}
+      pending={progress.isPending}
+    />
   )
 }
 
@@ -216,21 +277,14 @@ export function CvTrend() {
   }))
   const count = series.reduce((sum, s) => sum + s.segments.flat().length, 0)
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle role="heading" aria-level={2}>
-          {t.cv.title}
-        </CardTitle>
-        <CardDescription>{t.cv.description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Chart
-          series={series}
-          label={t.cv.chart(count)}
-          empty={t.cv.empty}
-          pending={progress.isPending}
-        />
-      </CardContent>
-    </Card>
+    <TrendCard
+      title={t.cv.title}
+      description={t.cv.description}
+      controls={<span className="text-xs text-muted-foreground">{t.cv.count(count)}</span>}
+      series={series}
+      label={t.cv.chart(count)}
+      empty={t.cv.empty}
+      pending={progress.isPending}
+    />
   )
 }

@@ -34,7 +34,7 @@ export function ReportNotifications() {
       query.state.data?.some(({ job }) => job === null || isRunning(job)) ? 3000 : false,
   })
   return (
-    <div className="mx-auto max-w-5xl px-6" aria-live="polite">
+    <div className="mx-auto max-w-6xl px-6" aria-live="polite">
       {jobs.data
         ?.filter(({ job }) => !isRunning(job ?? undefined))
         .map(({ id, job }) => {

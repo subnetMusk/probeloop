@@ -3,6 +3,7 @@ import { PlusIcon } from 'lucide-react'
 
 import { defineMessages, useMessages } from '@/shared/i18n'
 import { Button } from '@/shared/ui/button'
+import { Page, PageHeader } from '@/shared/ui/page-header'
 import { InterviewHistory } from '@/widgets/interview-history'
 
 const messages = defineMessages({
@@ -22,20 +23,20 @@ const messages = defineMessages({
 export function InterviewsPage() {
   const t = useMessages(messages)
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">{t.title}</h1>
-          <p className="text-muted-foreground">{t.subtitle}</p>
-        </div>
-        <Button asChild variant="outline">
-          <Link to="/new-interview">
-            <PlusIcon data-icon="inline-start" />
-            {t.start}
-          </Link>
-        </Button>
-      </header>
+    <Page>
+      <PageHeader
+        title={t.title}
+        description={t.subtitle}
+        actions={
+          <Button asChild variant="outline">
+            <Link to="/new-interview">
+              <PlusIcon data-icon="inline-start" />
+              {t.start}
+            </Link>
+          </Button>
+        }
+      />
       <InterviewHistory pageSize={15} manage />
-    </main>
+    </Page>
   )
 }

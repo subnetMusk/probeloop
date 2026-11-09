@@ -26,7 +26,7 @@ export function StatTile({
   icon?: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl p-4 ring-1 ring-foreground/10">
+    <div className="flex h-full flex-col gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
       <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
         <span>{label}</span>
         {icon && <span aria-hidden="true">{icon}</span>}
@@ -53,7 +53,7 @@ export function StatTile({
           </span>
         )}
       </div>
-      {note && <p className="text-xs text-muted-foreground">{note}</p>}
+      {note && <p className="mt-auto text-xs text-muted-foreground">{note}</p>}
     </div>
   )
 }

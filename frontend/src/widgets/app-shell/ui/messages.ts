@@ -12,6 +12,7 @@ export const shellMessages = defineMessages({
       settings: 'Settings',
     },
     breadcrumbs: 'Breadcrumbs',
+    backToTop: 'Back to top',
     footer: {
       madeBy: 'Made by',
       accessibility: 'Accessibility statement (WCAG 2.2 AA, self-assessed)',
@@ -28,6 +29,7 @@ export const shellMessages = defineMessages({
       settings: 'Impostazioni',
     },
     breadcrumbs: 'Percorso',
+    backToTop: 'Torna su',
     footer: {
       madeBy: 'Realizzato da',
       accessibility: 'Dichiarazione di accessibilità (WCAG 2.2 AA, autovalutazione)',

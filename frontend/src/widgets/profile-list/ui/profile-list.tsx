@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowRightIcon, PlayIcon } from 'lucide-react'
+import { cn } from 'cn'
 
 import { profilesQuery } from '@/entities/profile'
 import { DeleteProfile, RenameProfile } from '@/features/manage-profile'
@@ -11,7 +12,7 @@ import { relativeDay } from '@/shared/lib/format'
 import { usePaged } from '@/shared/lib/pagination'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Button } from '@/shared/ui/button'
-import { ListCard } from '@/shared/ui/list-card'
+import { ListCard, ListEmpty, ROW_HEIGHT } from '@/shared/ui/list-card'
 import { Pager } from '@/shared/ui/pager'
 
 const messages = defineMessages({
@@ -52,7 +53,7 @@ function Row({ profile, manage }: { profile: ProfileView; manage: boolean }) {
     manage ? t.updated(relativeDay(profile.updated_at, language)) : null,
   ].filter((part): part is string => part !== null)
   return (
-    <li className="flex items-center gap-2 py-2.5" data-testid="profile-row">
+    <li className={cn(ROW_HEIGHT, 'flex items-center gap-2')} data-testid="profile-row">
       <div className="flex min-w-0 flex-1 flex-col">
         <RenameProfile profile={profile} className="truncate font-medium" />
         <span className="truncate text-xs text-muted-foreground">{parts.join(' · ')}</span>
@@ -94,6 +95,7 @@ export function ProfileList({ pageSize, manage = false }: { pageSize: number; ma
   return (
     <ListCard
       title={title}
+      rows={manage ? undefined : pageSize}
       action={
         !manage &&
         sorted.length > pageSize && (
@@ -109,9 +111,7 @@ export function ProfileList({ pageSize, manage = false }: { pageSize: number; ma
           {profiles.error.message}
         </p>
       )}
-      {profiles.data?.length === 0 && (
-        <p className="py-4 text-sm text-muted-foreground">{t.empty}</p>
-      )}
+      {profiles.data?.length === 0 && <ListEmpty>{t.empty}</ListEmpty>}
       <ul className="flex flex-col divide-y">
         {paged.items.map((profile) => (
           <Row key={profile.id} profile={profile} manage={manage} />

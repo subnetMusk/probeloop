@@ -15,12 +15,16 @@ import { defineMessages, useMessages } from '@/shared/i18n'
 import { minutes, score } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Button } from '@/shared/ui/button'
+import { Page, PageHeader } from '@/shared/ui/page-header'
 import { StatTile } from '@/shared/ui/stat-tile'
 import { CvCheckList } from '@/widgets/cv-check-list'
 import { InterviewHistory } from '@/widgets/interview-history'
 import { ProfileList } from '@/widgets/profile-list'
 import { CvTrend, InterviewTrend } from '@/widgets/progress-trends'
 import { kpisOf } from '../model/kpis'
+
+/** Rows per page of each list on the dashboard. */
+const PAGE = 4
 
 const messages = defineMessages({
   en: {
@@ -77,23 +81,23 @@ export function DashboardPage() {
   const fresh = interviews.data?.length === 0 && checks.data?.length === 0
   const delta = kpis.latest?.delta
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">{t.title}</h1>
-          <p className="text-muted-foreground">{t.subtitle}</p>
-        </div>
-        <Button
-          asChild
-          size="lg"
-          className="h-10 bg-brand px-4 text-brand-foreground hover:bg-brand/90"
-        >
-          <Link to="/new-interview">
-            <PlusIcon data-icon="inline-start" />
-            {t.start}
-          </Link>
-        </Button>
-      </header>
+    <Page>
+      <PageHeader
+        title={t.title}
+        description={t.subtitle}
+        actions={
+          <Button
+            asChild
+            size="lg"
+            className="h-10 bg-brand px-4 text-brand-foreground hover:bg-brand/90"
+          >
+            <Link to="/new-interview">
+              <PlusIcon data-icon="inline-start" />
+              {t.start}
+            </Link>
+          </Button>
+        }
+      />
 
       {fresh ? (
         <section className="relative overflow-hidden rounded-2xl p-8 ring-1 ring-foreground/10">
@@ -147,25 +151,19 @@ export function DashboardPage() {
               icon={<FileCheckIcon className="size-4" />}
             />
           </section>
-          <div className="grid gap-6 lg:grid-cols-5">
-            <div className="lg:col-span-3">
-              <InterviewTrend />
-            </div>
-            <div className="lg:col-span-2">
-              <CvTrend />
-            </div>
+          {/* Two charts of equal width and height. */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <InterviewTrend />
+            <CvTrend />
           </div>
         </>
       )}
-      <div className="grid items-start gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <InterviewHistory pageSize={5} />
-        </div>
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <CvCheckList pageSize={3} />
-          <ProfileList pageSize={4} />
-        </div>
+      {/* Three lists of the same page size: equal cards, rows and pagers aligned. */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <InterviewHistory pageSize={PAGE} />
+        <CvCheckList pageSize={PAGE} />
+        <ProfileList pageSize={PAGE} />
       </div>
-    </main>
+    </Page>
   )
 }

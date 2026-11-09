@@ -2,11 +2,20 @@ import type { ReactNode } from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from './card'
 
-/** A titled card holding a short list, an optional link to the full list and a pager. */
+/** Every list row has this height, so lists side by side line up row by row. */
+export const ROW_HEIGHT = 'h-14'
+const ROW_REM = 3.5
+
+/**
+ * A titled card holding a short list, an optional link to the full list and a pager. The card
+ * fills its grid cell, the list keeps room for a whole page, and the pager sits at the bottom, so
+ * cards in one row have the same height and their pagers line up.
+ */
 export function ListCard({
   title,
   action,
   toolbar,
+  rows,
   children,
   footer,
 }: {
@@ -15,13 +24,15 @@ export function ListCard({
   action?: ReactNode
   /** Filters, below the title. */
   toolbar?: ReactNode
+  /** The page size: the list keeps room for this many rows. */
+  rows?: number
   children: ReactNode
   footer?: ReactNode
 }) {
   return (
-    <Card className="gap-2">
+    <Card className="h-full gap-3">
       <CardHeader className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex min-h-7 items-center justify-between gap-3">
           <CardTitle role="heading" aria-level={2}>
             {title}
           </CardTitle>
@@ -29,11 +40,25 @@ export function ListCard({
         </div>
         {toolbar}
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {children}
-        {footer}
+      <CardContent className="flex flex-1 flex-col gap-2">
+        <div
+          className="flex flex-1 flex-col"
+          style={rows ? { minHeight: `${String(rows * ROW_REM)}rem` } : undefined}
+        >
+          {children}
+        </div>
+        {footer && <div className="mt-auto min-h-8">{footer}</div>}
       </CardContent>
     </Card>
+  )
+}
+
+/** The message of an empty list, centred in the room the list keeps. */
+export function ListEmpty({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-1 items-center justify-center px-2 py-6 text-center text-sm text-muted-foreground">
+      <p>{children}</p>
+    </div>
   )
 }
 

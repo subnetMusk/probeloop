@@ -21,6 +21,7 @@ import { defineMessages, useMessages } from '@/shared/i18n'
 import { shortDate } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Button } from '@/shared/ui/button'
+import { PAGE_TITLE, Page, PageHeader } from '@/shared/ui/page-header'
 
 const messages = defineMessages({
   en: {
@@ -142,45 +143,39 @@ export function ProfileDetailPage() {
   const { profileId } = useParams({ from: '/profiles/$profileId' })
   const profiles = useQuery(profilesQuery)
   const profile = profiles.data?.find((p) => p.id === profileId)
-  if (profiles.isPending) return <main className="mx-auto max-w-5xl px-6 py-8">{t.loading}</main>
+  if (profiles.isPending) return <Page>{t.loading}</Page>
   if (!profile)
     return (
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <Page>
         <p role="alert">{t.notFound}</p>
-      </main>
+      </Page>
     )
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm font-medium text-brand-text">{t.eyebrow}</p>
-          <RenameProfile
-            profile={profile}
-            nameAs="h1"
-            className="truncate text-3xl font-semibold tracking-tight"
-          />
-          <p className="text-muted-foreground">
-            {t.updated(shortDate(profile.updated_at, language))}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            className="bg-brand text-brand-foreground hover:bg-brand/90"
-            onClick={() => {
-              start(profile)
-            }}
-          >
-            <PlayIcon data-icon="inline-start" />
-            {t.use}
-          </Button>
-          <DeleteProfile
-            profile={profile}
-            onDeleted={() => void navigate({ to: '/profiles', replace: true })}
-          />
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow={t.eyebrow}
+        title={<RenameProfile profile={profile} nameAs="h1" className={`${PAGE_TITLE} truncate`} />}
+        description={t.updated(shortDate(profile.updated_at, language))}
+        actions={
+          <>
+            <Button
+              type="button"
+              className="bg-brand text-brand-foreground hover:bg-brand/90"
+              onClick={() => {
+                start(profile)
+              }}
+            >
+              <PlayIcon data-icon="inline-start" />
+              {t.use}
+            </Button>
+            <DeleteProfile
+              profile={profile}
+              onDeleted={() => void navigate({ to: '/profiles', replace: true })}
+            />
+          </>
+        }
+      />
       <Editor key={`${profile.id}-${String(profile.updated_at)}`} profile={profile} />
-    </main>
+    </Page>
   )
 }

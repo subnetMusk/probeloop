@@ -41,6 +41,24 @@ function ticksBetween(min: number, max: number, label: (x: number) => string): n
   return ticks.length === 1 ? [(min + max) / 2] : ticks
 }
 
+/** Line keys and names of the series, for two or more series. */
+export function ChartLegend({ series }: { series: readonly ChartSeries[] }) {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      {series.map((s) => (
+        <li key={s.id} className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="h-0.5 w-3.5 rounded-full"
+            style={{ backgroundColor: s.color }}
+          />
+          {s.name}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
  * Scores over time on a fixed 1 to 5 scale. Lines are 2 px, points have a ring in the surface
  * colour, and a crosshair with a tooltip follows the pointer to the nearest point. Every value
@@ -53,6 +71,7 @@ export function TrendChart({
   formatY,
   table,
   height = 220,
+  legend = true,
 }: {
   series: ChartSeries[]
   ariaLabel: string
@@ -60,6 +79,8 @@ export function TrendChart({
   formatY: (y: number) => string
   table: { summary: string; date: string; series: string; value: string; open: string }
   height?: number
+  /** False when the legend is drawn elsewhere, for example beside the chart's filters. */
+  legend?: boolean
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(640)
@@ -110,20 +131,7 @@ export function TrendChart({
   const rows = [...points].sort((a, b) => b.point.x - a.point.x)
   return (
     <div className="flex flex-col gap-3">
-      {series.length > 1 && (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {series.map((s) => (
-            <li key={s.id} className="flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="h-0.5 w-3.5 rounded-full"
-                style={{ backgroundColor: s.color }}
-              />
-              {s.name}
-            </li>
-          ))}
-        </ul>
-      )}
+      {legend && series.length > 1 && <ChartLegend series={series} />}
       <div ref={box} className="relative w-full" style={{ height }}>
         <svg
           role="img"

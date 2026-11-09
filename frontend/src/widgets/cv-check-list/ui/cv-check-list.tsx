@@ -8,7 +8,7 @@ import { defineMessages, useMessages } from '@/shared/i18n'
 import { relativeDay } from '@/shared/lib/format'
 import { usePaged } from '@/shared/lib/pagination'
 import { useLanguage } from '@/shared/lib/preferences'
-import { ListCard } from '@/shared/ui/list-card'
+import { ListCard, ListEmpty, ROW_HEIGHT } from '@/shared/ui/list-card'
 import { Pager } from '@/shared/ui/pager'
 import { ScoreBadge } from '@/shared/ui/score-badge'
 
@@ -54,11 +54,11 @@ function Row({ entry }: { entry: CvCheckHistoryEntry }) {
     report.versions > 1 ? t.versions(report.versions) : null,
   ].filter((part): part is string => part !== null)
   return (
-    <li data-testid="cv-check-row">
+    <li className={ROW_HEIGHT} data-testid="cv-check-row">
       <Link
         to="/cv-checks/$snapshotId"
         params={{ snapshotId: entry.snapshot_id }}
-        className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/50"
+        className="-mx-2 flex h-full items-center gap-3 rounded-lg px-2 hover:bg-muted/50"
       >
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
           <FileTextIcon className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -84,6 +84,7 @@ export function CvCheckList({ pageSize, full = false }: { pageSize: number; full
   return (
     <ListCard
       title={title}
+      rows={full ? undefined : pageSize}
       action={
         !full &&
         (checks.data?.length ?? 0) > pageSize && (
@@ -99,7 +100,7 @@ export function CvCheckList({ pageSize, full = false }: { pageSize: number; full
           {checks.error.message}
         </p>
       )}
-      {checks.data?.length === 0 && <p className="py-4 text-sm text-muted-foreground">{t.empty}</p>}
+      {checks.data?.length === 0 && <ListEmpty>{t.empty}</ListEmpty>}
       <ul className="flex flex-col divide-y">
         {paged.items.map((entry) => (
           <Row key={entry.snapshot_id} entry={entry} />

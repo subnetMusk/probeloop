@@ -1,4 +1,5 @@
 import { useMessages } from '@/shared/i18n'
+import { Page, PageHeader } from '@/shared/ui/page-header'
 import { accessibilityMessages } from './messages'
 
 const ISSUES = 'https://github.com/subnetMusk/probeloop/issues'
@@ -7,11 +8,8 @@ const ISSUES = 'https://github.com/subnetMusk/probeloop/issues'
 export function AccessibilityPage() {
   const t = useMessages(accessibilityMessages)
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-10">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold">{t.title}</h1>
-        <p className="text-muted-foreground">{t.updated}</p>
-      </header>
+    <Page narrow>
+      <PageHeader title={t.title} description={t.updated} />
       <section className="flex flex-col gap-2">
         <h2 className="text-xl font-semibold">{t.commitment.title}</h2>
         <p>{t.commitment.text}</p>
@@ -46,6 +44,6 @@ export function AccessibilityPage() {
           .
         </p>
       </section>
-    </main>
+    </Page>
   )
 }

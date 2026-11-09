@@ -77,22 +77,38 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await expect(page.getByRole('heading', { name: 'CV check scores' })).toBeVisible()
   await expect(page.getByRole('img', { name: /Overall CV check scores over time/ })).toBeVisible()
 
-  // Newest first, five at a time.
+  // Newest first, four at a time.
   const rows = page.getByTestId('interview-row')
-  await expect(rows).toHaveCount(5)
+  await expect(rows).toHaveCount(4)
   await expect(rows.first()).toContainText('HR screening')
   await expect(rows.first()).toContainText('Not started')
   const pager = page.getByRole('navigation', { name: 'Recent interviews' })
-  await expect(pager).toContainText(`1 of ${String(Math.ceil(interviews.length / 5))}`)
+  await expect(pager).toContainText(`1 of ${String(Math.ceil(interviews.length / 4))}`)
   await pager.getByRole('button', { name: 'Next page' }).click()
   await expect(pager).toContainText('2 of')
   await expect(page.getByRole('link', { name: 'All interviews' })).toBeVisible()
+
+  // Only the content scrolls; the round button brings it back to the top.
+  const content = page.getByTestId('content')
+  const top = page.getByRole('button', { name: 'Back to top' })
+  // Clicking the pager above scrolls it into view first.
+  await content.evaluate((element) => {
+    element.scrollTo({ top: 0 })
+  })
+  await expect(top).toBeHidden()
+  await content.evaluate((element) => {
+    element.scrollTo({ top: element.scrollHeight })
+  })
+  await expect(top).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeInViewport()
+  await top.click()
+  await expect.poll(() => content.evaluate((element) => element.scrollTop)).toBe(0)
   await noSeriousViolations(page)
 
   // The CV checks are a short list too; each opens its own page.
   const checks = page.getByTestId('cv-check-row')
   await expect(checks.first()).toBeVisible()
-  expect(await checks.count()).toBeLessThanOrEqual(3)
+  expect(await checks.count()).toBeLessThanOrEqual(4)
   await page.goto(`/cv-checks/${snapshotId}`)
   await expect(page).toHaveTitle('cv-check-detail | ProbeLoop')
   await expect(page.getByRole('heading', { name: 'Versions' })).toBeVisible()

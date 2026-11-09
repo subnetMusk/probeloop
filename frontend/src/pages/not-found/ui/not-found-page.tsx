@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 
 import { defineMessages, useMessages } from '@/shared/i18n'
 import { Button } from '@/shared/ui/button'
+import { Page, PageHeader } from '@/shared/ui/page-header'
 
 const messages = defineMessages({
   en: {
@@ -23,12 +24,11 @@ export function NotFoundPage() {
     document.title = 'not-found | ProbeLoop'
   }, [])
   return (
-    <main className="mx-auto flex max-w-3xl flex-col items-start gap-4 px-6 py-16">
-      <h1 className="text-3xl font-semibold">{t.title}</h1>
-      <p className="text-muted-foreground">{t.text}</p>
-      <Button asChild>
+    <Page narrow>
+      <PageHeader title={t.title} description={t.text} />
+      <Button asChild className="self-start">
         <Link to="/dashboard">{t.back}</Link>
       </Button>
-    </main>
+    </Page>
   )
 }
