@@ -3,6 +3,59 @@
 from __future__ import annotations
 
 ITALIAN = {
+    "CV report": "Report del CV",
+    "Interview report": "Report del colloquio",
+    "Overview": "Riepilogo",
+    "What to improve": "Cosa migliorare",
+    "Strengths": "Punti di forza",
+    "Question by question": "Domanda per domanda",
+    "Assessment criteria": "Criteri di valutazione",
+    "Job requirements": "Requisiti della posizione",
+    "Document checks": "Controlli del documento",
+    "Suggested rewrites": "Proposte di riscrittura",
+    "Questions to practise": "Domande per esercitarti",
+    "Original CV": "CV originale",
+    "How you spoke": "Come hai parlato",
+    "Technical details": "Dettagli tecnici",
+    "Answer": "Risposta",
+    "Question": "Domanda",
+    "Not scored": "Senza voto",
+    "Not assessable": "Non valutabile",
+    "No evidence-backed observations.": "Nessuna osservazione supportata da evidenze.",
+    "Suggested correction": "Correzione proposta",
+    "In the interview": "Nel colloquio",
+    "In your documents": "Nei tuoi documenti",
+    "Median pace": "Velocità mediana",
+    "Median response latency": "Latenza mediana di risposta",
+    "Fillers per minute": "Intercalari al minuto",
+    "Long pauses": "Pause lunghe",
+    "Talk share": "Quota di parola",
+    "Answer budget used": "Tempo obiettivo usato",
+    "Measures for each answer": "Misure per ogni risposta",
+    "Duration (s)": "Durata (s)",
+    "Words/min": "Parole/min",
+    "Fillers": "Intercalari",
+    "Latency (s)": "Latenza (s)",
+    "Model": "Modello",
+    "Prompt": "Prompt",
+    "Rubric": "Rubrica",
+    "Input hash": "Hash dell'input",
+    "Discarded model items": "Elementi del modello scartati",
+    "Edited answers assessed": "Risposte modificate valutate",
+    "Processing time": "Tempo di elaborazione",
+    "Typed text: there is no original file.": "Testo digitato: non c'è un file originale.",
+    "Judgements differ by at least two points.": "I giudizi differiscono di almeno due punti.",
+    "solid": "Solido",
+    "developing": "In sviluppo",
+    "needs_work": "Da migliorare",
+    "discussed": "Affrontato",
+    "not_shown": "Non dimostrato",
+    "met": "Dimostrato",
+    "partial": "In parte",
+    "review": "Da rivedere",
+    "info": "Informazione",
+    "pass": "Superato",
+    "not_assessable": "Non valutabile",
     "Relevance to the target": "Pertinenza rispetto al ruolo",
     "Evidence of impact": "Evidenza dei risultati",
     "Specificity and ownership": "Specificità e contributo personale",
@@ -52,8 +105,46 @@ ITALIAN = {
     "answer_budget_share": "Quota del tempo obiettivo usata per le risposte",
 }
 
+SECTION_LABELS = {
+    "overview": "Overview",
+    "improvements": "What to improve",
+    "strengths": "Strengths",
+    "questions": "Question by question",
+    "criteria": "Assessment criteria",
+    "requirements": "Job requirements",
+    "checks": "Document checks",
+    "rewrites": "Suggested rewrites",
+    "practice": "Questions to practise",
+    "original": "Original CV",
+    "delivery": "How you spoke",
+    "technical": "Technical details",
+}
+
+
+def section_label(value: str, language: str) -> str:
+    return label(SECTION_LABELS[value], language)
+
+
+ENGLISH = {
+    "solid": "Solid",
+    "developing": "Developing",
+    "needs_work": "Needs work",
+    "discussed": "Discussed",
+    "not_shown": "Not shown",
+    "met": "Shown",
+    "partial": "Partly shown",
+    "review": "Review",
+    "info": "Information",
+    "pass": "Passed",
+    "not_assessable": "Not assessable",
+    "logistics": "Logistics and closing",
+    "unclassified": "Question kind unclear",
+}
+
 
 def label(value: str, language: str) -> str:
     return (
-        ITALIAN.get(value, value.replace("_", " ")) if language == "it" else value.replace("_", " ")
+        ITALIAN.get(value, value.replace("_", " "))
+        if language == "it"
+        else ENGLISH.get(value, value.replace("_", " "))
     )

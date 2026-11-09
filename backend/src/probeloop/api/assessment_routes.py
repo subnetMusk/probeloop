@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict
 
 from probeloop.api.schemas import JobView
+from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.schemas import ReportData
 from probeloop.assessment.application.service import AssessmentService, ReportNotFoundError
 from probeloop.assessment.domain.model import Report, ReportKind
@@ -52,7 +53,7 @@ class ProgressGroupView(BaseModel):
 def assessment_router(
     assessment: AssessmentService,
     jobs: JobRunner,
-    export: Callable[[Report, str], bytes],
+    export: Callable[[Report, str, ExportSources], bytes],
     execution: Callable[[str | None], str] = lambda requested: requested or "local",
 ) -> APIRouter:
     router = APIRouter(prefix="/api")
@@ -113,7 +114,8 @@ def assessment_router(
             report = await assessment.report(report_id)
         except ReportNotFoundError as exc:
             raise HTTPException(404, "report not found") from exc
-        content = await asyncio.to_thread(export, report, format)
+        sources = await assessment.export_sources(report) if format != "json" else ExportSources({})
+        content = await asyncio.to_thread(export, report, format, sources)
         media_type = {"md": "text/markdown", "json": "application/json", "pdf": "application/pdf"}[
             format
         ]

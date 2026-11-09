@@ -8,6 +8,28 @@ import type { ReportData, SessionView } from '@/shared/api'
  */
 
 export type Band = 'solid' | 'developing' | 'needs_work'
+export const INTERVIEW_SECTIONS = [
+  'overview',
+  'improvements',
+  'strengths',
+  'questions',
+  'requirements',
+  'delivery',
+  'practice',
+  'technical',
+] as const
+export const CV_SECTIONS = [
+  'overview',
+  'criteria',
+  'requirements',
+  'checks',
+  'improvements',
+  'strengths',
+  'rewrites',
+  'practice',
+  'original',
+  'technical',
+] as const
 
 /** The same thresholds as the exports: 4 and above is solid, below 2.5 needs work. */
 export function bandOf(value: number | null): Band | null {
@@ -108,6 +130,7 @@ export interface AboutView {
 }
 
 export interface InterviewReportView {
+  sections: readonly string[]
   overall: number | null
   band: Band | null
   assessed: number
@@ -136,6 +159,7 @@ export interface CvCheckView {
 }
 
 export interface CvReportView {
+  sections: readonly string[]
   overall: number | null
   band: Band | null
   assessed: number
@@ -339,6 +363,7 @@ export function toInterviewReportView(
   }))
   const topicChecks = report.checks.filter((c) => c.id.startsWith('topic:'))
   return {
+    sections: INTERVIEW_SECTIONS,
     overall: report.overall ?? null,
     band: bandOf(report.overall ?? null),
     assessed: report.assessed,
@@ -374,6 +399,7 @@ export function toCvReportView(report: ReportData): CvReportView {
     }))
     .sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status])
   return {
+    sections: CV_SECTIONS,
     overall: report.overall ?? null,
     band: bandOf(report.overall ?? null),
     assessed: report.assessed,

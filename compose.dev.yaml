@@ -46,5 +46,8 @@ services:
         - action: sync
           path: ./frontend/src
           target: /app/src
+        - action: sync
+          path: ./backend/tests/fixtures/synthetic/assessment/report-outline.json
+          target: /backend/tests/fixtures/synthetic/assessment/report-outline.json
         - action: rebuild
           path: ./frontend/package-lock.json

@@ -185,11 +185,9 @@ export function InterviewReport({ view }: { view: InterviewReportView }) {
           <p className="text-sm text-muted-foreground">{t.statuses.not_assessable}</p>
         )}
       </ReportSection>
-      {view.practice.length > 0 && (
-        <ReportSection id="practice" title={t.practice}>
-          <Notes notes={view.practice} />
-        </ReportSection>
-      )}
+      <ReportSection id="practice" title={t.practice}>
+        <Notes notes={view.practice} />
+      </ReportSection>
       <TechnicalDetails
         about={view.about}
         unstable={[...view.criteria, ...view.units.flatMap((unit) => unit.scores)].some(

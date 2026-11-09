@@ -111,7 +111,7 @@ def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path:
             assert report["delivery"]
             md = client.get(f"/api/reports/{report['id']}/export/md")
             assert md.status_code == 200
-            assert "Provenance" in md.text
+            assert "Technical details" in md.text
             exported = client.get(f"/api/reports/{report['id']}/export/json").json()
             assert exported == report
             if original is None:
@@ -119,6 +119,9 @@ def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path:
             else:
                 assert report["input_fingerprint"] != original["input_fingerprint"]
         assert client.get(f"/api/reports/{original['id']}").json() == original
+        old_export = client.get(f"/api/reports/{original['id']}/export/md").text
+        assert session.turns[1].revisions[0].text in old_export
+        assert "I personally designed the recovery procedure." not in old_export
         assert len(client.get(f"/api/sessions/{session.id}/reports").json()) == 2
 
         [entry] = client.get("/api/history/interviews").json()

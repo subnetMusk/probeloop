@@ -19,7 +19,6 @@ def paired_scores(first: tuple[Score, ...], second: tuple[Score, ...]) -> tuple[
                 replace(
                     score,
                     value=None,
-                    reason=reverse.reason if reverse.value is None else score.reason,
                 )
             )
         else:
@@ -27,7 +26,7 @@ def paired_scores(first: tuple[Score, ...], second: tuple[Score, ...]) -> tuple[
                 replace(
                     score,
                     value=(score.value + reverse.value) / 2,
-                    reason="\n".join(dict.fromkeys((score.reason, reverse.reason))),
+                    reason=score.reason,
                     evidence=tuple(dict.fromkeys((*score.evidence, *reverse.evidence))),
                     unstable=abs(score.value - reverse.value) >= 2,
                 )

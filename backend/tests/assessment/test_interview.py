@@ -65,12 +65,14 @@ def test_anchor_disagreement_missing_values_and_equal_criterion_weights() -> Non
         (Evidence("turn-1", "A wrong statement", 1),),
         unit_id="u0",
     )
-    second = replace(first, value=5)
+    second = replace(first, value=5, reason="A second reason that must not be repeated.")
     paired = paired_scores((first,), (second,))[0]
     assert paired.value == 3
     assert paired.unstable
+    assert paired.reason == first.reason
     missing = paired_scores((first,), (replace(second, value=None),))[0]
     assert missing.value is None
+    assert missing.reason == first.reason
     aggregate = aggregate_scores(
         (
             paired,

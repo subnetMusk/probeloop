@@ -1,0 +1,779 @@
+{
+  "interview": {
+    "report": {
+      "id": "r1",
+      "kind": "interview",
+      "subject_id": "s1",
+      "session_id": "s1",
+      "snapshot_id": null,
+      "version": 2,
+      "created_at": 100,
+      "language": "it",
+      "rubric_id": "interview.v1",
+      "rubric_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "model_ref": "chatgpt:gpt-6.1-terra",
+      "prompt_ref": "judge_unit@v3",
+      "input_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "overall": 3.9,
+      "assessed": 4,
+      "criteria": 5,
+      "dropped": 1,
+      "duration_s": 120,
+      "disclaimer": "Valutazione formativa.",
+      "units": [
+        {
+          "id": "u0",
+          "topic_id": "t1",
+          "kind": "technical",
+          "question_seqs": [
+            0,
+            2
+          ],
+          "answer_seqs": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "u4",
+          "topic_id": "t9",
+          "kind": "logistics",
+          "question_seqs": [
+            4
+          ],
+          "answer_seqs": [
+            5
+          ]
+        }
+      ],
+      "unit_scores": [
+        {
+          "criterion_id": "technical.accuracy",
+          "label": "Correttezza",
+          "value": 4,
+          "reason": "Spiega bene il partizionamento.\nPartizionamento corretto.",
+          "evidence": [
+            {
+              "source_id": "turn-3",
+              "quote": "partizioni per cliente",
+              "turn_seq": 3
+            }
+          ],
+          "unstable": false,
+          "unit_id": "u0"
+        }
+      ],
+      "scores": [
+        {
+          "criterion_id": "technical.accuracy",
+          "label": "Correttezza",
+          "value": 4,
+          "reason": "1/1",
+          "evidence": [
+            {
+              "source_id": "turn-3",
+              "quote": "partizioni per cliente",
+              "turn_seq": 3
+            }
+          ],
+          "unstable": false,
+          "unit_id": null
+        }
+      ],
+      "observations": [
+        {
+          "kind": "summary",
+          "text": "Buona base tecnica.",
+          "evidence": [],
+          "replacement": null,
+          "unit_id": null
+        },
+        {
+          "kind": "technical_error",
+          "text": "Kafka non garantisce l’ordine tra partizioni.",
+          "evidence": [
+            {
+              "source_id": "turn-1",
+              "quote": "ordine globale",
+              "turn_seq": 1
+            }
+          ],
+          "replacement": "L’ordine è garantito solo dentro una partizione.",
+          "unit_id": "u0"
+        },
+        {
+          "kind": "strength",
+          "text": "Esempi concreti.",
+          "evidence": [],
+          "replacement": null,
+          "unit_id": "u0"
+        },
+        {
+          "kind": "question",
+          "text": "Come gestiresti i retry?",
+          "evidence": [],
+          "replacement": null,
+          "unit_id": null
+        }
+      ],
+      "checks": [
+        {
+          "id": "topic:t1",
+          "status": "covered",
+          "detail": "Kafka",
+          "evidence": []
+        },
+        {
+          "id": "requirement:f1",
+          "status": "discussed_model",
+          "detail": "Kafka",
+          "evidence": [
+            {
+              "source_id": "turn-1",
+              "quote": "Kafka",
+              "turn_seq": 1
+            }
+          ]
+        },
+        {
+          "id": "document_requirement:f1",
+          "status": "partial",
+          "detail": "Kafka",
+          "evidence": []
+        },
+        {
+          "id": "document_requirement:f2",
+          "status": "met",
+          "detail": "Python",
+          "evidence": []
+        }
+      ],
+      "delivery": [
+        {
+          "id": "answer_duration",
+          "value": 30,
+          "unit": "s",
+          "detail": "",
+          "turn_seq": 1
+        },
+        {
+          "id": "speaking_rate",
+          "value": 120,
+          "unit": "words/min",
+          "detail": "",
+          "turn_seq": 1
+        },
+        {
+          "id": "fillers",
+          "value": 2,
+          "unit": "count",
+          "detail": "",
+          "turn_seq": 1
+        },
+        {
+          "id": "answer_latency",
+          "value": 1.5,
+          "unit": "s",
+          "detail": "",
+          "turn_seq": 1
+        },
+        {
+          "id": "answer_duration",
+          "value": 30,
+          "unit": "s",
+          "detail": "",
+          "turn_seq": 3
+        },
+        {
+          "id": "speaking_rate",
+          "value": 140,
+          "unit": "words/min",
+          "detail": "",
+          "turn_seq": 3
+        },
+        {
+          "id": "fillers",
+          "value": 1,
+          "unit": "count",
+          "detail": "",
+          "turn_seq": 3
+        },
+        {
+          "id": "answer_latency",
+          "value": null,
+          "unit": "s",
+          "detail": "",
+          "turn_seq": 3
+        },
+        {
+          "id": "candidate_talk_share",
+          "value": 62.5,
+          "unit": "%",
+          "detail": "",
+          "turn_seq": null
+        }
+      ],
+      "revisions": [
+        {
+          "seq": 1,
+          "revision": 1
+        },
+        {
+          "seq": 3,
+          "revision": 2
+        }
+      ]
+    },
+    "session": {
+      "id": "s1",
+      "topics": [
+        {
+          "id": "t1",
+          "title": "Kafka in produzione"
+        }
+      ],
+      "turns": [
+        {
+          "seq": 0,
+          "speaker": "interviewer",
+          "text": "Come usi Kafka?",
+          "elapsed_s": 0,
+          "audio": null,
+          "action": null,
+          "status": null,
+          "topic_id": "t1",
+          "words": [],
+          "revisions": [
+            {
+              "number": 1,
+              "text": "Come usi Kafka?",
+              "source": "stt",
+              "engine_ref": null,
+              "created_at": 0
+            }
+          ]
+        },
+        {
+          "seq": 1,
+          "speaker": "candidate",
+          "text": "Con un ordine globale.",
+          "elapsed_s": 10,
+          "audio": "/audio/1.wav",
+          "action": null,
+          "status": null,
+          "topic_id": "t1",
+          "words": [],
+          "revisions": [
+            {
+              "number": 1,
+              "text": "Con un ordine globale.",
+              "source": "stt",
+              "engine_ref": null,
+              "created_at": 0
+            }
+          ]
+        },
+        {
+          "seq": 2,
+          "speaker": "interviewer",
+          "text": "E le partizioni?",
+          "elapsed_s": 20,
+          "audio": null,
+          "action": null,
+          "status": null,
+          "topic_id": "t1",
+          "words": [],
+          "revisions": [
+            {
+              "number": 1,
+              "text": "E le partizioni?",
+              "source": "stt",
+              "engine_ref": null,
+              "created_at": 0
+            }
+          ]
+        },
+        {
+          "seq": 3,
+          "speaker": "candidate",
+          "text": "Ultima versione.",
+          "elapsed_s": 30,
+          "audio": "/audio/3.wav",
+          "action": null,
+          "status": null,
+          "topic_id": "t1",
+          "words": [],
+          "revisions": [
+            {
+              "number": 1,
+              "text": "Prima versione.",
+              "source": "stt",
+              "engine_ref": null,
+              "created_at": 0
+            },
+            {
+              "number": 2,
+              "text": "Partizioni per cliente.",
+              "source": "user_edit",
+              "engine_ref": null,
+              "created_at": 0
+            },
+            {
+              "number": 3,
+              "text": "Ultima versione.",
+              "source": "user_edit",
+              "engine_ref": null,
+              "created_at": 0
+            }
+          ]
+        },
+        {
+          "seq": 4,
+          "speaker": "interviewer",
+          "text": "Domande?",
+          "elapsed_s": 40,
+          "audio": null,
+          "action": null,
+          "status": null,
+          "topic_id": "t1",
+          "words": [],
+          "revisions": [
+            {
+              "number": 1,
+              "text": "Domande?",
+              "source": "stt",
+              "engine_ref": null,
+              "created_at": 0
+            }
+          ]
+        },
+        {
+          "seq": 5,
+          "speaker": "candidate",
+          "text": "Nessuna.",
+          "elapsed_s": 50,
+          "audio": "/audio/5.wav",
+          "action": null,
+          "status": null,
+          "topic_id": "t1",
+          "words": [],
+          "revisions": [
+            {
+              "number": 1,
+              "text": "Nessuna.",
+              "source": "stt",
+              "engine_ref": null,
+              "created_at": 0
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "sections": [
+        "overview",
+        "improvements",
+        "strengths",
+        "questions",
+        "requirements",
+        "delivery",
+        "practice",
+        "technical"
+      ],
+      "overall": 3.9,
+      "band": "developing",
+      "assessed": 4,
+      "criteria_count": 5,
+      "summary": {
+        "kind": "summary",
+        "text": "Buona base tecnica.",
+        "replacement": null,
+        "quotes": [],
+        "unit": null
+      },
+      "improvements": [
+        {
+          "kind": "technical_error",
+          "text": "Kafka non garantisce l’ordine tra partizioni.",
+          "replacement": "L’ordine è garantito solo dentro una partizione.",
+          "quotes": [
+            {
+              "text": "ordine globale",
+              "answer": 1
+            }
+          ],
+          "unit": 1
+        }
+      ],
+      "strengths": [
+        {
+          "kind": "strength",
+          "text": "Esempi concreti.",
+          "replacement": null,
+          "quotes": [],
+          "unit": 1
+        }
+      ],
+      "rewrites": [],
+      "practice": [
+        {
+          "kind": "question",
+          "text": "Come gestiresti i retry?",
+          "replacement": null,
+          "quotes": [],
+          "unit": null
+        }
+      ],
+      "criteria": [
+        {
+          "id": "technical.accuracy",
+          "label": "Correttezza",
+          "value": 4.0,
+          "reason": "1/1",
+          "unstable": false,
+          "quotes": [
+            {
+              "text": "partizioni per cliente",
+              "answer": 2
+            }
+          ]
+        }
+      ],
+      "units": [
+        {
+          "number": 1,
+          "kind": "technical",
+          "scored": true,
+          "questions": [
+            "Come usi Kafka?",
+            "E le partizioni?"
+          ],
+          "answers": [
+            {
+              "number": 1,
+              "text": "Con un ordine globale."
+            },
+            {
+              "number": 2,
+              "text": "Partizioni per cliente."
+            }
+          ],
+          "scores": [
+            {
+              "id": "technical.accuracy",
+              "label": "Correttezza",
+              "value": 4.0,
+              "reason": "Spiega bene il partizionamento.",
+              "unstable": false,
+              "quotes": [
+                {
+                  "text": "partizioni per cliente",
+                  "answer": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "number": 2,
+          "kind": "logistics",
+          "scored": false,
+          "questions": [
+            "Domande?"
+          ],
+          "answers": [
+            {
+              "number": 3,
+              "text": "Nessuna."
+            }
+          ],
+          "scores": []
+        }
+      ],
+      "requirements": [
+        {
+          "id": "f1",
+          "text": "Kafka",
+          "interview": "discussed",
+          "documents": "partial",
+          "quotes": [
+            {
+              "text": "Kafka",
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "id": "f2",
+          "text": "Python",
+          "interview": null,
+          "documents": "met",
+          "quotes": []
+        }
+      ],
+      "checks": [],
+      "delivery": {
+        "median_rate": 130.0,
+        "median_latency": 1.5,
+        "fillers_per_minute": 3.0,
+        "long_pauses": null,
+        "talk_share": 62.5,
+        "budget_share": null,
+        "per_answer": [
+          {
+            "answer": 1,
+            "duration": 30.0,
+            "rate": 120.0,
+            "fillers": 2.0,
+            "pauses": null,
+            "latency": 1.5
+          },
+          {
+            "answer": 2,
+            "duration": 30.0,
+            "rate": 140.0,
+            "fillers": 1.0,
+            "pauses": null,
+            "latency": null
+          }
+        ]
+      },
+      "technical": {
+        "model": "chatgpt:gpt-6.1-terra",
+        "prompt": "judge_unit@v3",
+        "rubric": "interview.v1",
+        "rubric_hash": "aaaaaaaa",
+        "fingerprint": "bbbbbbbb",
+        "dropped": 1,
+        "edited_answers": 1,
+        "duration_s": 120.0,
+        "disclaimer": "Valutazione formativa."
+      },
+      "unstable": false
+    }
+  },
+  "cv": {
+    "report": {
+      "id": "r1",
+      "kind": "cv",
+      "subject_id": "snapshot",
+      "session_id": null,
+      "snapshot_id": "snapshot",
+      "version": 2,
+      "created_at": 100,
+      "language": "it",
+      "rubric_id": "interview.v1",
+      "rubric_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "model_ref": "chatgpt:gpt-6.1-terra",
+      "prompt_ref": "judge_unit@v3",
+      "input_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "overall": 3.9,
+      "assessed": 4,
+      "criteria": 5,
+      "dropped": 1,
+      "duration_s": 120,
+      "disclaimer": "Valutazione formativa.",
+      "units": [],
+      "unit_scores": [],
+      "scores": [
+        {
+          "criterion_id": "technical.accuracy",
+          "label": "Correttezza",
+          "value": 4,
+          "reason": "1/1",
+          "evidence": [
+            {
+              "source_id": "turn-3",
+              "quote": "partizioni per cliente",
+              "turn_seq": 3
+            }
+          ],
+          "unstable": false,
+          "unit_id": null
+        }
+      ],
+      "observations": [
+        {
+          "kind": "summary",
+          "text": "Synthetic CV summary.",
+          "evidence": [],
+          "unit_id": null,
+          "replacement": null
+        },
+        {
+          "kind": "improvement",
+          "text": "Add an example of ownership.",
+          "evidence": [],
+          "unit_id": null,
+          "replacement": null
+        },
+        {
+          "kind": "strength",
+          "text": "The experience is relevant.",
+          "evidence": [],
+          "unit_id": null,
+          "replacement": null
+        },
+        {
+          "kind": "rewrite",
+          "text": "Describe the result.",
+          "evidence": [],
+          "unit_id": null,
+          "replacement": "Reduced processing time by 20%."
+        },
+        {
+          "kind": "question",
+          "text": "How did you measure the result?",
+          "evidence": [],
+          "unit_id": null,
+          "replacement": null
+        }
+      ],
+      "checks": [
+        {
+          "id": "pass",
+          "status": "pass",
+          "detail": "Synthetic passed check.",
+          "evidence": []
+        },
+        {
+          "id": "na",
+          "status": "not_assessable",
+          "detail": "Synthetic unassessable check.",
+          "evidence": []
+        },
+        {
+          "id": "review",
+          "status": "review",
+          "detail": "Synthetic review check.",
+          "evidence": []
+        },
+        {
+          "id": "info",
+          "status": "info",
+          "detail": "Synthetic information check.",
+          "evidence": []
+        }
+      ],
+      "delivery": [],
+      "revisions": []
+    },
+    "expected": {
+      "sections": [
+        "overview",
+        "criteria",
+        "requirements",
+        "checks",
+        "improvements",
+        "strengths",
+        "rewrites",
+        "practice",
+        "original",
+        "technical"
+      ],
+      "overall": 3.9,
+      "band": "developing",
+      "assessed": 4,
+      "criteria_count": 5,
+      "summary": {
+        "kind": "summary",
+        "text": "Synthetic CV summary.",
+        "replacement": null,
+        "quotes": [],
+        "unit": null
+      },
+      "improvements": [
+        {
+          "kind": "improvement",
+          "text": "Add an example of ownership.",
+          "replacement": null,
+          "quotes": [],
+          "unit": null
+        }
+      ],
+      "strengths": [
+        {
+          "kind": "strength",
+          "text": "The experience is relevant.",
+          "replacement": null,
+          "quotes": [],
+          "unit": null
+        }
+      ],
+      "rewrites": [
+        {
+          "kind": "rewrite",
+          "text": "Describe the result.",
+          "replacement": "Reduced processing time by 20%.",
+          "quotes": [],
+          "unit": null
+        }
+      ],
+      "practice": [
+        {
+          "kind": "question",
+          "text": "How did you measure the result?",
+          "replacement": null,
+          "quotes": [],
+          "unit": null
+        }
+      ],
+      "criteria": [
+        {
+          "id": "technical.accuracy",
+          "label": "Correttezza",
+          "value": 4.0,
+          "reason": "1/1",
+          "unstable": false,
+          "quotes": [
+            {
+              "text": "partizioni per cliente",
+              "answer": null
+            }
+          ]
+        }
+      ],
+      "units": [],
+      "requirements": [],
+      "checks": [
+        {
+          "id": "review",
+          "status": "review",
+          "detail": "Synthetic review check.",
+          "quotes": []
+        },
+        {
+          "id": "info",
+          "status": "info",
+          "detail": "Synthetic information check.",
+          "quotes": []
+        },
+        {
+          "id": "pass",
+          "status": "pass",
+          "detail": "Synthetic passed check.",
+          "quotes": []
+        },
+        {
+          "id": "na",
+          "status": "not_assessable",
+          "detail": "Synthetic unassessable check.",
+          "quotes": []
+        }
+      ],
+      "delivery": null,
+      "technical": {
+        "model": "chatgpt:gpt-6.1-terra",
+        "prompt": "judge_unit@v3",
+        "rubric": "interview.v1",
+        "rubric_hash": "aaaaaaaa",
+        "fingerprint": "bbbbbbbb",
+        "dropped": 1,
+        "edited_answers": 0,
+        "duration_s": 120.0,
+        "disclaimer": "Valutazione formativa."
+      },
+      "unstable": false
+    }
+  }
+}

@@ -22,6 +22,7 @@ from probeloop.ai.scheduled import ScheduledChatModel
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
 from probeloop.assessment.application.interview_review import InterviewReviewer
+from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.rubrics import load_rubric
 from probeloop.assessment.application.service import (
     CV_REVIEW_JOB,
@@ -80,7 +81,7 @@ class Container:
     engine: AsyncEngine
     extractor: TextExtractor
     assessment: AssessmentService
-    export_report: Callable[[Report, str], bytes]
+    export_report: Callable[[Report, str, ExportSources], bytes]
     data: DataService
     profiles: ExecutionProfiles
     # The interviewer, analysis and evaluation roles, each with a model per profile.

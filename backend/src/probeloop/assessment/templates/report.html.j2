@@ -1,67 +1,39 @@
 <!doctype html>
 <html lang="{{ report.language }}">
 <meta charset="utf-8">
-<title>ProbeLoop - {{ 'Revisione CV' if it and report.kind.value == 'cv' else 'CV review' if report.kind.value == 'cv' else 'Report del colloquio' if it else 'Interview report' }}</title>
+<title>ProbeLoop - {{ outline.title }}</title>
 <style>
-@page { size: A4; margin: 18mm; @bottom-right { content: counter(page) ' / ' counter(pages); font-size: 9pt; color: #64748b; } }
-body { font: 9.5pt/1.4 'DejaVu Sans', sans-serif; color: #172033; }
-h1 { font-size: 23pt; color: #3730a3; margin: 0 0 4mm; }
-h2 { font-size: 15pt; margin: 7mm 0 3mm; break-after: avoid; }
-h3 { font-size: 10.5pt; margin: 3mm 0 1.5mm; break-after: avoid; }
-p, blockquote { margin: 2mm 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-blockquote { color: #475569; border-left: 2pt solid #c7d2fe; padding-left: 3mm; }
-.muted { color: #64748b; font-size: 9pt; }
-.summary { border: 1pt solid #cbd5e1; padding: 4mm; }
-.rating { font-size: 22pt; font-weight: bold; color: #3730a3; }
-.entry { border-bottom: 0.5pt solid #e2e8f0; padding-bottom: 2mm; break-inside: avoid; }
-.provenance { font-size: 7.5pt; line-height: 1.2; }
-.quote { break-inside: avoid; }
-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
-thead { display: table-header-group; }
-th, td { text-align: left; padding: 1.5mm; border-bottom: 0.5pt solid #e2e8f0; }
-tr { break-inside: avoid; }
+@page { size: A4; margin: 18mm; @bottom-right { content: counter(page) ' / ' counter(pages); font-size: 9pt; color: #666; } }
+body { font: 9.5pt/1.45 'DejaVu Sans', sans-serif; color: #171717; }
+h1 { font-size: 24pt; margin: 0 0 2mm; } h1 span { color: #7c3aed; }
+h2 { font-size: 16pt; margin: 7mm 0 3mm; break-after: avoid; }
+h3 { font-size: 11pt; margin: 4mm 0 2mm; break-after: avoid; }
+p, blockquote { white-space: pre-wrap; overflow-wrap: anywhere; margin: 2mm 0; }
+blockquote { border-left: 2pt solid #7c3aed; padding-left: 3mm; color: #555; }
+.hero { border: 1pt solid #ddd; border-top: 3pt solid #7c3aed; border-radius: 3mm; padding: 5mm; }
+.rating { font-size: 27pt; font-weight: bold; } .muted { color: #555; font-size: 8.5pt; }
+.entry { padding-bottom: 2mm; border-bottom: .5pt solid #ddd; }
+.correction { border-left: 2pt solid #ea580c; padding: 2mm 3mm; background: #f5f5f5; }
+.technical { font-size: 8pt; } .appendix { margin-top: 8mm; }
+table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+thead { display: table-header-group; } th, td { text-align: left; vertical-align: top; padding: 2mm; border-bottom: .5pt solid #ddd; overflow-wrap: anywhere; }
+tr, blockquote { break-inside: avoid; }
 </style>
-<h1>ProbeLoop</h1>
-<p>{{ 'Revisione CV' if it and report.kind.value == 'cv' else 'CV review' if report.kind.value == 'cv' else 'Report del colloquio' if it else 'Interview report' }} - v{{ report.version }}</p>
-<div class="summary">
-<p class="rating">{{ report.overall if report.overall is not none else 'NA' }} / 5</p>
-<p>{{ report.assessed }}/{{ report.criteria }} {{ 'criteri valutabili' if it else 'assessable criteria' }}</p>
-<p>{{ report.disclaimer }}</p>
-</div>
-<h2>{{ 'Criteri aggregati' if it else 'Aggregated criteria' }}</h2>
-{% macro scores(items, show_quotes=true) %}
-{% for score in items %}<div class="entry">
-<h3>{{ score.label }}: {{ score.value if score.value is not none else 'NA' }} / 5{% if score.unstable %} - {{ 'instabile' if it else 'unstable' }}{% endif %}</h3>
-<p>{{ score.reason }}</p>
-{% if show_quotes %}{% for e in score.evidence %}<div class="quote"><blockquote>{{ e.quote }}</blockquote><p class="muted">{{ e.source_id }}</p></div>{% endfor %}{% else %}<p class="muted">{{ score.evidence | map(attribute='source_id') | unique | join(', ') }}</p>{% endif %}
-</div>{% endfor %}
-{% endmacro %}
-{% if report.kind.value == 'cv' %}{{ scores(report.scores) }}{% else %}
-<table><thead><tr><th>{{ 'Criterio' if it else 'Criterion' }}</th><th>{{ 'Voto' if it else 'Score' }}</th><th>{{ 'Risposte valutabili' if it else 'Assessable answers' }}</th></tr></thead><tbody>
-{% for score in report.scores %}<tr><td>{{ score.label }}<br><span class="muted">{{ score.criterion_id }}</span></td><td>{{ score.value if score.value is not none else 'NA' }}{% if score.unstable %} *{% endif %}</td><td>{{ score.reason }}</td></tr>{% endfor %}
-</tbody></table><p class="muted">* {{ 'Disaccordo di almeno due punti tra i giudizi.' if it else 'At least two points of disagreement between judgements.' }}</p>{% endif %}
-{% for unit in report.units %}
-<h2>{{ 'Unità di risposta' if it else 'Answer unit' }} {{ unit.id }} - {{ label(unit.kind) }}</h2>
-<p class="muted">{{ 'Domande' if it else 'Questions' }}: {{ unit.question_seqs | join(', ') }}; {{ 'risposte' if it else 'answers' }}: {{ unit.answer_seqs | join(', ') }}</p>
-{{ scores(report.unit_scores | selectattr('unit_id', 'equalto', unit.id), false) }}
-{% for e in evidence_by_unit[unit.id] %}<div class="quote"><blockquote>{{ e.quote }}</blockquote><p class="muted">{{ e.source_id }}</p></div>{% endfor %}
-{% endfor %}
-<h2>{{ 'Osservazioni del modello' if it else 'Model observations' }}</h2>
-{% for note in report.observations %}<div class="entry"><h3>{{ label(note.kind) }}</h3><p>{{ note.text }}</p>
-{% for e in note.evidence %}<div class="quote"><blockquote>{{ e.quote }}</blockquote><p class="muted">{{ e.source_id }}</p></div>{% endfor %}
-{% if note.replacement %}<p>{{ note.replacement }}</p>{% endif %}</div>{% endfor %}
-<h2>{{ 'Controlli e copertura' if it else 'Checks and coverage' }}</h2>
-{% for check in report.checks %}<p>{{ check.status }} - {{ check.detail }}</p>{% for e in check.evidence %}<blockquote>{{ e.quote }}</blockquote>{% endfor %}{% endfor %}
-{% if report.delivery %}<h2>{{ 'Misure di esposizione' if it else 'Delivery measures' }}</h2>
-<table><thead><tr><th>{{ 'Turno' if it else 'Turn' }}</th><th>{{ 'Durata (s)' if it else 'Duration (s)' }}</th><th>{{ 'Parole/min' if it else 'Words/min' }}</th><th>{{ 'Intercalari' if it else 'Fillers' }}</th><th>{{ 'Pause' if it else 'Pauses' }}</th><th>{{ 'Pause (s)' }}</th><th>{{ 'Latenza (s)' if it else 'Latency (s)' }}</th></tr></thead><tbody>
-{% for seq, values in delivery_rows.items() %}<tr><td>{{ seq }}</td>{% for key in ['answer_duration', 'speaking_rate', 'fillers', 'long_pauses', 'pause_duration', 'answer_latency'] %}<td>{{ values[key] if values[key] is not none else 'NA' }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
-{% for metric in report.delivery if metric.turn_seq is none %}<p>{{ label(metric.id) }}: {{ metric.value if metric.value is not none else 'NA' }} {{ metric.unit }}</p>{% endfor %}
-{% for group in report.delivery | groupby('id') %}<p class="muted">{{ label(group.grouper) }}: {{ group.list[0].detail }}</p>{% endfor %}{% endif %}
-<h2>{{ 'Provenienza' if it else 'Provenance' }}</h2>
-<p class="muted provenance">{{ report.rubric_id }} - {{ report.rubric_hash }}
-{{ report.model_ref }} - {{ report.prompt_ref }}
-Input: {{ report.input_fingerprint }}
-Snapshot: {{ report.snapshot_id }}
-{{ 'Revisioni' if it else 'Revisions' }}: {% for r in report.revisions %}{{ r.seq }}:v{{ r.revision }} {% endfor %}
-{{ report.duration_s }} s; {{ 'elementi scartati' if it else 'discarded items' }}: {{ report.dropped }}</p>
+{% macro quotes(items) %}{% for quote in items %}<blockquote>{{ quote.text }}{% if quote.answer is not none %}<br><span class="muted">{{ label('Answer') }} {{ quote.answer }}</span>{% endif %}</blockquote>{% endfor %}{% endmacro %}
+{% macro notes(items) %}{% for note in items %}<div class="entry">{% if note.unit is not none %}<h3>{{ label('Question') }} {{ note.unit }}</h3>{% endif %}<p>{{ note.text }}</p>{{ quotes(note.quotes) }}{% if note.replacement %}<div class="correction"><strong>{{ label('Suggested correction') }}</strong><p>{{ note.replacement }}</p></div>{% endif %}</div>{% else %}<p class="muted">{{ label('No evidence-backed observations.') }}</p>{% endfor %}{% endmacro %}
+{% macro criteria(items) %}{% for item in items %}<div class="entry"><h3>{{ item.label }}: {{ item.value if item.value is not none else label('Not assessable') }} / 5{% if item.unstable %} *{% endif %}</h3><p>{{ item.reason }}</p>{{ quotes(item.quotes) }}</div>{% endfor %}{% endmacro %}
+<h1>Probe<span>Loop</span></h1><p>{{ outline.title }} - v{{ report.version }}</p>
+{% for section in outline.sections %}
+<section id="{{ section }}"><h2>{{ heading(section) }}</h2>
+{% if section == 'overview' %}<div class="hero"><p class="rating">{{ outline.overall if outline.overall is not none else label('Not assessable') }} / 5</p><p>{{ label(outline.band) if outline.band else '' }} · {{ outline.assessed }}/{{ outline.criteria_count }}</p>{% if outline.summary %}{{ notes([outline.summary]) }}{% endif %}</div>
+{% elif section in ['improvements', 'strengths', 'rewrites', 'practice'] %}{{ notes(outline[section]) }}
+{% elif section == 'criteria' %}{{ criteria(outline.criteria) }}
+{% elif section == 'questions' %}{% for unit in outline.units %}<h3>{{ label('Question') }} {{ unit.number }}</h3>{% for question in unit.questions %}<p>{{ question }}</p>{% endfor %}{% for answer in unit.answers %}<h3>{{ label('Answer') }} {{ answer.number }}</h3><p>{{ answer.text }}</p>{% endfor %}{% if unit.scored %}{{ criteria(unit.scores) }}{% else %}<p class="muted">{{ label(unit.kind) }} · {{ label('Not scored') }}</p>{% endif %}{% endfor %}<h3>{{ label('Assessment criteria') }}</h3>{{ criteria(outline.criteria) }}
+{% elif section == 'requirements' %}<table><thead><tr><th>{{ heading('requirements') }}</th><th>{{ label('In the interview') }}</th><th>{{ label('In your documents') }}</th></tr></thead><tbody>{% for row in outline.requirements %}<tr><td>{{ row.text }}{{ quotes(row.quotes) }}</td><td>{{ label(row.interview) if row.interview else '—' }}</td><td>{{ label(row.documents) if row.documents else '—' }}</td></tr>{% endfor %}</tbody></table>
+{% elif section == 'checks' %}{% for check in outline.checks %}<p><strong>{{ label(check.status) }}</strong>: {{ check.detail }}</p>{{ quotes(check.quotes) }}{% endfor %}
+{% elif section == 'delivery' and outline.delivery %}{% set d = outline.delivery %}<table><tbody>{% for name, value, unit in [('Median pace', d.median_rate, label('Words/min')), ('Median response latency', d.median_latency, 's'), ('Fillers per minute', d.fillers_per_minute, ''), ('Long pauses', d.long_pauses, ''), ('Talk share', d.talk_share, '%'), ('Answer budget used', d.budget_share, '%')] %}<tr><th>{{ label(name) }}</th><td>{{ value if value is not none else label('Not assessable') }}{% if value is not none %} {{ unit }}{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% elif section == 'original' %}<p>{{ outline.original or label('Typed text: there is no original file.') }}</p>
+{% elif section == 'technical' %}{% set a = outline.technical %}<div class="technical">{% for name, value in [('Model', a.model), ('Prompt', a.prompt), ('Rubric', a.rubric ~ ' · ' ~ a.rubric_hash), ('Input hash', a.fingerprint), ('Discarded model items', a.dropped), ('Edited answers assessed', a.edited_answers), ('Processing time', a.duration_s ~ ' s')] %}<p><strong>{{ label(name) }}</strong>: {{ value }}</p>{% endfor %}{% if outline.unstable %}<p>* {{ label('Judgements differ by at least two points.') }}</p>{% endif %}<p>{{ a.disclaimer }}</p></div>
+{% endif %}</section>{% endfor %}
+{% if outline.delivery %}<section class="appendix"><h2>{{ label('Measures for each answer') }}</h2><table><thead><tr>{% for name in ['Answer', 'Duration (s)', 'Words/min', 'Fillers', 'Long pauses', 'Latency (s)'] %}<th>{{ label(name) }}</th>{% endfor %}</tr></thead><tbody>{% for row in outline.delivery.per_answer %}<tr><td>{{ row.answer }}</td>{% for value in [row.duration, row.rate, row.fillers, row.pauses, row.latency] %}<td>{{ value if value is not none else '—' }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></section>{% endif %}
 </html>

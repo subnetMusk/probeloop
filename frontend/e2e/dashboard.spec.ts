@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { setTheme } from './helpers/theme.js'
 
 // The backend runs with scripted models (compose.test.yaml). The history is seeded through the
 // API, so these tests do not depend on what other specs left in the test volume.
@@ -119,9 +120,7 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await expect(page).toHaveTitle('cv-report | ProbeLoop')
   await expect(page.getByRole('heading', { name: 'Document checks' })).toBeVisible()
   for (const theme of ['light', 'dark']) {
-    await page.evaluate((theme) => {
-      document.documentElement.classList.toggle('dark', theme === 'dark')
-    }, theme)
+    await setTheme(page, theme)
     await noSeriousViolations(page)
   }
   await page.screenshot({ path: 'test-results/cv-report.png' })

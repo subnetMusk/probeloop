@@ -136,7 +136,7 @@ jobs:
 
       - name: Lint, format, type check, unit tests and build
         run: |
-          docker run --rm -v "$PWD/frontend:/work" -w /work node:24.22.0-trixie-slim sh -c \
+          docker run --rm -v "$PWD:/repo" -w /repo/frontend node:24.22.0-trixie-slim sh -c \
             "npm ci --no-audit --no-fund && npm run lint && npm run lint:fsd && npm run format:check \
              && npm run typecheck && npm test && npm run build"
 

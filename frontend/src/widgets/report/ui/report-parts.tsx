@@ -132,6 +132,7 @@ export function Hero({
   const language = useLanguage()
   return (
     <section
+      id="overview"
       aria-label={t.overall}
       className="relative overflow-hidden rounded-2xl border bg-card p-6 sm:p-8"
     >

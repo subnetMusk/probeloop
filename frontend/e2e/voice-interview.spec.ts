@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
+import { setTheme } from './helpers/theme.js'
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
@@ -85,10 +86,7 @@ test('a voice interview from the preparation to the end of the call', async ({ p
   await expect(answerText).toHaveText('Ho lavorato con FastAPI.')
   await expect(page.getByText('edited')).toBeVisible()
   for (const theme of ['light', 'dark']) {
-    await page.evaluate(
-      (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
-      theme,
-    )
+    await setTheme(page, theme)
     const scan = await new AxeBuilder({ page }).analyze()
     expect(
       scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
@@ -114,12 +112,25 @@ test('a voice interview from the preparation to the end of the call', async ({ p
     const download = await page.request.get(href ?? '')
     expect(download.ok()).toBe(true)
     expect(download.headers()['content-type']).toContain(type)
+    if (format === 'md') {
+      const markdown = await download.text()
+      const headings = [...markdown.matchAll(/^## (.+)$/gm)].map((match) => match[1])
+      expect(headings.slice(0, 8)).toEqual([
+        'Overview',
+        'What to improve',
+        'Strengths',
+        'Question by question',
+        'Job requirements',
+        'How you spoke',
+        'Questions to practise',
+        'Technical details',
+      ])
+      expect(markdown).toContain('Ho lavorato con FastAPI.')
+      expect(markdown).toContain('Questa è la domanda di prova numero 1?')
+    }
   }
   for (const theme of ['light', 'dark']) {
-    await page.evaluate(
-      (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
-      theme,
-    )
+    await setTheme(page, theme)
     const scan = await new AxeBuilder({ page }).analyze()
     expect(
       scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),

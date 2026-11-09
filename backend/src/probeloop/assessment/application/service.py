@@ -19,6 +19,7 @@ from probeloop.assessment.application.history import (
     latest_by_subject,
 )
 from probeloop.assessment.application.interview_review import CallTrace, InterviewReviewer
+from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.ports import ReportStore
 from probeloop.assessment.domain.model import (
     Check,
@@ -30,7 +31,7 @@ from probeloop.assessment.domain.model import (
 from probeloop.assessment.domain.progress import ProgressGroup, latest_reports, progress_groups
 from probeloop.context.domain.model import ContextSnapshot, DocumentKind
 from probeloop.interview.application.ports import SessionStore
-from probeloop.interview.domain.model import CandidateTurn
+from probeloop.interview.domain.model import CandidateTurn, InterviewerTurn
 from probeloop.platform.jobs import Job, JobError, Progress
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,38 @@ class AssessmentService:
         if report is None:
             raise ReportNotFoundError(report_id)
         return report
+
+    async def export_sources(self, report: Report) -> ExportSources:
+        """Read the immutable snapshot and the exact transcript revisions that were assessed."""
+        transcript: dict[int, str] = {}
+        if report.session_id:
+            session = await self.sessions.load(report.session_id)
+            revisions = {r.seq: r.revision for r in report.revisions}
+            if session:
+                for turn in session.turns:
+                    if isinstance(turn, InterviewerTurn):
+                        transcript[turn.seq] = turn.move.utterance
+                    elif turn.seq in revisions:
+                        transcript[turn.seq] = next(
+                            (r.text for r in turn.revisions if r.number == revisions[turn.seq]), ""
+                        )
+        if report.kind is not ReportKind.CV or not report.snapshot_id:
+            return ExportSources(transcript)
+        snapshot = await self._snapshot(report.snapshot_id)
+        facts = {fact.id: fact.text for fact in snapshot.job_facts}
+        requirements = tuple(
+            Check(
+                f"document_requirement:{match.requirement_id}",
+                match.status.value,
+                facts[match.requirement_id],
+            )
+            for match in snapshot.matches
+            if match.requirement_id in facts
+        )
+        cv = next((d for d in snapshot.documents if d.kind is DocumentKind.CV), None)
+        return ExportSources(
+            transcript, requirements, (cv.filename or cv.title) if cv and cv.has_original else None
+        )
 
     async def practice_questions(self, snapshot_id: str) -> tuple[str, ...]:
         reports = await self.store.reports(ReportKind.CV, snapshot_id)
