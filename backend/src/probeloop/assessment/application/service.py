@@ -201,7 +201,7 @@ class AssessmentService:
             rubric_id=rubric.ref,
             rubric_hash=rubric.digest,
             model_ref=self.reviewer.model.model_ref,
-            prompt_ref="review_cv@v1",
+            prompt_ref=self.reviewer.prompt_ref,
             input_fingerprint=hashlib.sha256(
                 f"{snapshot.content_hash}:{language}:{rubric.digest}".encode()
             ).hexdigest(),

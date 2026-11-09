@@ -72,6 +72,13 @@ class UnitObservationOut(Strict):
     text: str = Field(min_length=1, max_length=400)
 
 
+class CvObservationOut(Strict):
+    kind: Literal["strength", "improvement", "rewrite", "question"]
+    evidence: list[EvidenceData] = Field(min_length=1, max_length=2)
+    text: str = Field(min_length=1, max_length=400)
+    replacement: str | None = Field(default=None, max_length=600)
+
+
 class ClaimCheckOut(Strict):
     """An independent check of one statement that a judge reported as a technical error."""
 
@@ -87,23 +94,35 @@ class SynthesisOut(Strict):
     summary: str = Field(min_length=1, max_length=800)
 
 
+def _criteria_output(criteria: tuple[str, ...]) -> type[Strict]:
+    scores: dict[str, Any] = {c: (CriterionOut, ...) for c in criteria}
+    return create_model("CriteriaOut", __base__=Strict, **scores)
+
+
+def cv_output(criteria: tuple[str, ...]) -> type[Strict]:
+    """Require every CV criterion; evidence precedes its reason and numeric score."""
+    return create_model(
+        "CvJudgementsOut",
+        __base__=Strict,
+        scores=(_criteria_output(criteria), ...),
+        observations=(list[CvObservationOut], Field(max_length=5)),
+    )
+
+
 def unit_output(criteria: tuple[str, ...], *, observations: bool) -> type[Strict]:
     """The schema of one judging pass: every rubric criterion exactly once, in rubric order.
 
     The pass that lists the anchors in descending order exists to average out position bias in
     the scores, so it returns scores only; observations and coverage come from the other pass.
     """
-    scores: dict[str, Any] = {c: (CriterionOut, ...) for c in criteria}
-    fields: dict[str, Any] = {
-        "scores": (create_model("CriteriaOut", __base__=Strict, **scores), ...)
-    }
+    fields: dict[str, Any] = {"scores": (_criteria_output(criteria), ...)}
     if observations:
         fields["observations"] = (list[UnitObservationOut], Field(max_length=3))
         fields["coverage"] = (list[RequirementOut], Field(max_length=10))
     return create_model("UnitJudgementOut", __base__=Strict, **fields)
 
 
-def unit_judgements(output: Strict) -> JudgementsOut:
+def criterion_judgements(output: Strict) -> JudgementsOut:
     """Convert a validated pass into the shape shared with the evidence checks."""
     data = output.model_dump()
     return JudgementsOut(
@@ -121,6 +140,7 @@ def unit_judgements(output: Strict) -> JudgementsOut:
                 kind=item["kind"],
                 text=item["text"],
                 evidence=[EvidenceData(**e) for e in item["evidence"]],
+                replacement=item.get("replacement"),
             )
             for item in data.get("observations", [])
         ],

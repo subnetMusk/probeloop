@@ -31,8 +31,8 @@ from probeloop.assessment.application.rubrics import Rubric, load_rubric
 from probeloop.assessment.application.schemas import (
     ClaimCheckOut,
     SynthesisOut,
+    criterion_judgements,
     unit_coverage,
-    unit_judgements,
     unit_output,
 )
 from probeloop.assessment.application.segmentation import (
@@ -224,7 +224,11 @@ class InterviewReviewer:
                     self._outputs[(unit.kind, full)],
                 )
                 scores, pass_notes, rejected = checked_judgements(
-                    unit_judgements(output), rubric, sources, language=language, unit_id=unit.id
+                    criterion_judgements(output),
+                    rubric,
+                    sources,
+                    language=language,
+                    unit_id=unit.id,
                 )
                 dropped += rejected
                 passes.append(_without_unelicited(scores, unit, past[unit.id], language))

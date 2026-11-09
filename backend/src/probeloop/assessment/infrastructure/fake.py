@@ -38,9 +38,8 @@ def scripted_assessment(request: ChatRequest) -> str:
     evidence = [{"source_id": source_id, "quote": quote, "turn_seq": None}]
     return json.dumps(
         {
-            "scores": [
-                {
-                    "criterion_id": name,
+            "scores": {
+                name: {
                     "score": 3,
                     "reason": "Synthetic assessment.",
                     "evidence": evidence,
@@ -54,7 +53,7 @@ def scripted_assessment(request: ChatRequest) -> str:
                     "depth",
                     "readability",
                 )
-            ],
+            },
             "observations": [
                 {
                     "kind": "question",
