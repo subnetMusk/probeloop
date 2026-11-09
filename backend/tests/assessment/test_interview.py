@@ -45,8 +45,12 @@ def test_followups_group_and_closing_is_never_scored() -> None:
     output = KindsOut.model_validate(
         {
             "units": [
-                {"unit_id": "u0", "kind": "behavioral", "past_example": True},
-                {"unit_id": "u8", "kind": "technical", "past_example": False},
+                {"unit_id": "u0", "focus": "past_behavior", "past_example": True},
+                {
+                    "unit_id": "u8",
+                    "focus": "technical_explanation_or_design",
+                    "past_example": False,
+                },
             ]
         }
     )
@@ -54,6 +58,46 @@ def test_followups_group_and_closing_is_never_scored() -> None:
     assert result[0].kind == "behavioral"
     assert result[1].kind == "unclassified"
     assert result[-1].kind == "logistics"
+
+
+def test_unanswered_followup_does_not_change_an_earlier_answer_unit() -> None:
+    session = synthetic_session()
+    # The candidate ends the interview after hearing the follow-up, without answering it.
+    session = replace(session, turns=session.turns[:3])
+    units = answer_units(session)
+    assert len(units) == 1
+    assert units[0].question_seqs == (0,)
+    assert units[0].answer_seqs == (1,)
+    # The question is still available in the frozen transcript.
+    assert session.turns[-1].seq == 2
+
+
+def test_nontechnical_rubrics_agree_with_the_requested_past_example() -> None:
+    units = answer_units(synthetic_session())
+    for focus, past, expected in (
+        ("imagined_nontechnical_situation", True, "behavioral"),
+        ("past_behavior", False, "hypothetical"),
+    ):
+        output = KindsOut.model_validate(
+            {"units": [{"unit_id": "u0", "focus": focus, "past_example": past}]}
+        )
+        assert classified(units, output)[0].kind == expected
+
+
+async def test_unanswered_followup_is_not_shown_to_classifier_or_judges() -> None:
+    session = synthetic_session()
+    session = replace(session, turns=session.turns[:3])
+    model = FakeChatModel([_script(AGREE, [])])
+
+    async def progress(value: float, message: str | None) -> None:
+        pass
+
+    await InterviewReviewer(model).review(session, None, "en", progress)
+    classified_questions = json.loads(model.requests[0].messages[0].content)[0]["questions"]
+    assert [q["seq"] for q in classified_questions] == [0]
+    for request in _judges(model):
+        turns = json.loads(request.messages[0].content)["unit"]["turns"]
+        assert [turn["seq"] for turn in turns] == [0, 1]
 
 
 def test_anchor_disagreement_missing_values_and_equal_criterion_weights() -> None:
@@ -97,7 +141,11 @@ def _script(
                     "units": [
                         {
                             "unit_id": u["unit_id"],
-                            "kind": "behavioral" if u["unit_id"] == "u0" else "technical",
+                            "focus": (
+                                "past_behavior"
+                                if u["unit_id"] == "u0"
+                                else "technical_explanation_or_design"
+                            ),
                             "past_example": u["unit_id"] != "u6",
                         }
                         for u in data
@@ -333,4 +381,4 @@ def test_the_past_example_flag_is_decided_before_the_unit_kind() -> None:
     # Constrained decoding follows the schema's property order. Deciding the kind first made the
     # flag false for technical questions that also ask for a personal example.
     unit = KindsOut.model_json_schema()["$defs"]["KindOut"]
-    assert list(unit["properties"]) == ["unit_id", "past_example", "kind"]
+    assert list(unit["properties"]) == ["unit_id", "past_example", "focus"]

@@ -16,6 +16,12 @@ from probeloop.interview.domain.model import (
     MoveAction,
 )
 
+_KINDS = {
+    "motivation_or_career": "hr",
+    "technical_explanation_or_design": "technical",
+    "practical_arrangements": "logistics",
+}
+
 
 class KindOut(Strict):
     unit_id: str
@@ -23,9 +29,17 @@ class KindOut(Strict):
     # because judges were observed to score a plan as missing experience. It precedes `kind`:
     # constrained decoding follows this order, and deciding the kind first made the model answer
     # false for technical questions that also ask for a personal example
-    # (docs/research/interview-calibration.md).
+    # (docs/research/interview-calibration.md). The same order is retained for the focus labels.
     past_example: bool
-    kind: Literal["hr", "behavioral", "technical", "hypothetical", "logistics"]
+    # Descriptive focuses avoid overloading "hypothetical" with career aspirations.
+    # The report's stable rubric kinds are assigned in code.
+    focus: Literal[
+        "motivation_or_career",
+        "past_behavior",
+        "technical_explanation_or_design",
+        "imagined_nontechnical_situation",
+        "practical_arrangements",
+    ]
 
 
 class KindsOut(Strict):
@@ -49,7 +63,13 @@ def answer_units(session: InterviewSession) -> tuple[AnswerUnit, ...]:
                 )
         elif isinstance(turn, CandidateTurn) and units:
             units[-1] = replace(units[-1], answer_seqs=(*units[-1].answer_seqs, turn.seq))
-    return tuple(u for u in units if u.answer_seqs)
+    # A final unanswered follow-up must not change the rubric or the expectations for an
+    # earlier answer. It remains in the transcript, outside the scored unit.
+    return tuple(
+        replace(u, question_seqs=tuple(n for n in u.question_seqs if n < max(u.answer_seqs)))
+        for u in units
+        if u.answer_seqs
+    )
 
 
 def past_examples(units: tuple[AnswerUnit, ...], output: KindsOut) -> dict[str, bool]:
@@ -61,7 +81,16 @@ def past_examples(units: tuple[AnswerUnit, ...], output: KindsOut) -> dict[str, 
 
 def classified(units: tuple[AnswerUnit, ...], output: KindsOut) -> tuple[AnswerUnit, ...]:
     counts = {u.id: sum(item.unit_id == u.id for item in output.units) for u in units}
-    by_id = {item.unit_id: item.kind for item in output.units}
+    # Both nontechnical situation labels describe the same subject. The explicit request for
+    # past evidence decides which rubric applies, as it already does for the scoring guards.
+    by_id = {
+        item.unit_id: (
+            ("behavioral" if item.past_example else "hypothetical")
+            if item.focus in ("past_behavior", "imagined_nontechnical_situation")
+            else _KINDS[item.focus]
+        )
+        for item in output.units
+    }
     return tuple(
         replace(unit, kind=by_id[unit.id])
         if unit.kind != "logistics" and counts[unit.id] == 1

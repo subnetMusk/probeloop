@@ -1,0 +1,98 @@
+[
+  {
+    "id": "it-payments-motivation",
+    "questions": ["Grazie per aver accettato questa intervista. Sono un recruiter di PagaFacile e oggi valuteremo la sua candidatura per il ruolo di Backend Developer nel team Pagamenti. Per cominciare, lei ha lavorato nel settore logistica: mi può spiegare cosa l'ha portata a voler lavorare sulle API per i pagamenti?"],
+    "kind": "hr",
+    "past_example": false
+  },
+  {
+    "id": "en-payments-motivation",
+    "questions": ["Why do you want to work on payments APIs after working in logistics?"],
+    "kind": "hr",
+    "past_example": false
+  },
+  {
+    "id": "it-career-transition",
+    "questions": ["Cosa ti ha spinto a passare da un'agenzia web a un'azienda di logistica?"],
+    "kind": "hr",
+    "past_example": false
+  },
+  {
+    "id": "en-relevant-experience",
+    "questions": ["Which of your previous projects is most relevant to this backend role? Describe your contribution."],
+    "kind": "hr",
+    "past_example": true
+  },
+  {
+    "id": "it-past-conflict",
+    "questions": ["Raccontami un conflitto concreto con un collega: cosa hai fatto e qual è stato il risultato?"],
+    "kind": "behavioral",
+    "past_example": true
+  },
+  {
+    "id": "en-past-priority",
+    "questions": ["Tell me about a time you changed a team's priorities. What did you personally decide and learn?"],
+    "kind": "behavioral",
+    "past_example": true
+  },
+  {
+    "id": "it-imagined-conflict",
+    "questions": ["Come gestiresti un conflitto con un collega che non rispetta una scadenza?"],
+    "kind": "hypothetical",
+    "past_example": false
+  },
+  {
+    "id": "en-imagined-stakeholder",
+    "questions": ["What would you do if two stakeholders demanded incompatible priorities?"],
+    "kind": "hypothetical",
+    "past_example": false
+  },
+  {
+    "id": "it-api-design",
+    "questions": ["Come progetteresti un'API di pagamento idempotente?"],
+    "kind": "technical",
+    "past_example": false
+  },
+  {
+    "id": "en-api-design",
+    "questions": ["How would you implement an idempotent payment API?"],
+    "kind": "technical",
+    "past_example": false
+  },
+  {
+    "id": "it-technical-example",
+    "questions": ["Spiega l'atomicità delle transazioni e descrivi un guasto che hai riprodotto personalmente e la correzione che hai verificato."],
+    "kind": "technical",
+    "past_example": true
+  },
+  {
+    "id": "en-technical-example",
+    "questions": ["Explain PostgreSQL index write costs and describe a change you personally implemented, its alternatives and observed outcome."],
+    "kind": "technical",
+    "past_example": true
+  },
+  {
+    "id": "en-technical-followup-example",
+    "questions": ["How would you debug a slow API?", "Describe a time you actually did that and explain your own actions."],
+    "kind": "technical",
+    "past_example": true
+  },
+  {
+    "id": "it-notice",
+    "questions": ["Qual è il tuo periodo di preavviso e quando potresti iniziare?"],
+    "kind": "logistics",
+    "past_example": false
+  },
+  {
+    "id": "en-location",
+    "questions": ["Would you be available to work from our office two days a week?"],
+    "kind": "logistics",
+    "past_example": false
+  },
+  {
+    "id": "it-technical-explanation",
+    "questions": ["Qual è la differenza tra concorrenza e parallelismo?"],
+    "kind": "technical",
+    "past_example": false
+  }
+]

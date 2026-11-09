@@ -14,7 +14,11 @@ def scripted_assessment(request: ChatRequest) -> str:
         return json.dumps(
             {
                 "units": [
-                    {"unit_id": unit["unit_id"], "kind": "hr", "past_example": True}
+                    {
+                        "unit_id": unit["unit_id"],
+                        "focus": "motivation_or_career",
+                        "past_example": True,
+                    }
                     for unit in content
                 ]
             }
