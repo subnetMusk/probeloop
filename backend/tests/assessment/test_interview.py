@@ -48,7 +48,7 @@ def test_followups_group_and_closing_is_never_scored() -> None:
                 {"unit_id": "u0", "focus": "past_behavior", "past_example": True},
                 {
                     "unit_id": "u8",
-                    "focus": "technical_explanation_or_design",
+                    "focus": "technical",
                     "past_example": False,
                 },
             ]
@@ -141,11 +141,7 @@ def _script(
                     "units": [
                         {
                             "unit_id": u["unit_id"],
-                            "focus": (
-                                "past_behavior"
-                                if u["unit_id"] == "u0"
-                                else "technical_explanation_or_design"
-                            ),
+                            "focus": ("past_behavior" if u["unit_id"] == "u0" else "technical"),
                             "past_example": u["unit_id"] != "u6",
                         }
                         for u in data

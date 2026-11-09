@@ -18,7 +18,7 @@ from probeloop.interview.domain.model import (
 
 _KINDS = {
     "motivation_or_career": "hr",
-    "technical_explanation_or_design": "technical",
+    "technical": "technical",
     "practical_arrangements": "logistics",
 }
 
@@ -36,7 +36,7 @@ class KindOut(Strict):
     focus: Literal[
         "motivation_or_career",
         "past_behavior",
-        "technical_explanation_or_design",
+        "technical",
         "imagined_nontechnical_situation",
         "practical_arrangements",
     ]

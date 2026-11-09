@@ -25,10 +25,27 @@ from probeloop.interview.domain.model import (
 from probeloop.settings import Settings
 
 FIXTURE = Path(__file__).parent / "fixtures/synthetic/assessment/classification.json"
+PERSONAS = FIXTURE.with_name("personas.json")
+
+
+def classification_cases() -> list[dict[str, Any]]:
+    cases: list[dict[str, Any]] = json.loads(FIXTURE.read_text())
+    cases.extend(
+        {
+            "id": f"persona-{card['id']}",
+            "questions": [card["question"]],
+            "kind": "technical",
+            "past_example": True,
+        }
+        for card in json.loads(PERSONAS.read_text())
+    )
+    return cases
 
 
 def session_for(
     cases: list[dict[str, Any]],
+    *,
+    closing: bool = False,
 ) -> tuple[InterviewSession, dict[str, dict[str, Any]]]:
     session = make_session()
     session.start(0)
@@ -47,7 +64,21 @@ def session_for(
                 "Synthetic answer, deliberately irrelevant to classification.", now + 4
             )
             now += 5
-    session.end(EndReason.USER_ENDED, len(cases) * 60)
+    if closing:
+        now = len(cases) * 60.0
+        expected[f"u{len(session.turns)}"] = {
+            "id": "closing",
+            "kind": "logistics",
+            "past_example": False,
+        }
+        session.record_move(
+            InterviewerMove(MoveAction.WRAP_UP, "t1", "Do you have any questions for us?"), now
+        )
+        session.finish_speaking(now + 1)
+        session.start_answer(now + 2)
+        session.finish_answer(now + 3)
+        session.record_answer("No, thank you.", now + 4)
+    session.end(EndReason.USER_ENDED, (len(cases) + 1) * 60)
     return session, expected
 
 
@@ -62,13 +93,13 @@ async def run(args: argparse.Namespace) -> int:
     if args.debug_log:
         model = DebugLogChatModel(model, args.debug_log)
     reviewer = InterviewReviewer(model)
-    cases = json.loads(FIXTURE.read_text())
+    cases = classification_cases()
     groups = [[case] for case in cases] if args.isolated else [cases]
     rows = []
     traces: list[dict[str, Any]] = []
     for repetition in range(args.repetitions):
         for group in groups:
-            session, expected = session_for(group)
+            session, expected = session_for(group, closing=args.closing)
             calls: list[CallTrace] = []
             units, past = await reviewer._classify(session, calls)
             for unit in units:
@@ -87,8 +118,11 @@ async def run(args: argparse.Namespace) -> int:
         result = {
             "prompt_ref": reviewer.prompt_ref,
             "model": model.model_ref,
-            "fixture_sha256": hashlib.sha256(FIXTURE.read_bytes()).hexdigest(),
+            "fixture_sha256": hashlib.sha256(
+                json.dumps(cases, ensure_ascii=False).encode()
+            ).hexdigest(),
             "isolated": args.isolated,
+            "closing": args.closing,
             "kind_correct": sum(r["kind"] == r["expected_kind"] for r in rows),
             "past_example_correct": sum(
                 r["past_example"] == r["expected_past_example"] for r in rows
@@ -109,6 +143,9 @@ def main() -> None:
     parser.add_argument("--repetitions", type=int, default=3)
     parser.add_argument("--debug-log", type=Path)
     parser.add_argument("--isolated", action="store_true", help="classify each unit on its own")
+    parser.add_argument(
+        "--closing", action="store_true", help="include an answered closing question"
+    )
     args = parser.parse_args()
     if args.repetitions < 1:
         parser.error("--repetitions must be positive")

@@ -47,3 +47,31 @@ the transcript or establish judgement quality. The previous report remains uncha
 Raw measurements and screenshots remain under ignored `var/test-run/m7-*` paths. All 15 fake
 browser E2E checks passed after rebuilding, including CV and interview reports. The real
 `probeloop_data` mount was restored afterwards.
+
+## Version 5 checkpoint
+
+The full persona calibration was stopped after v4 misclassified the exact asyncio card as
+behavioral. The interrupted runs contain five local and four cloud reviews; their partial
+metrics are not a completed calibration. The original results and interruption record remain
+under ignored `var/test-run/m7-persona-v3-*` paths and have not been overwritten.
+
+Version 5 uses the broader `technical` focus label. The regression evaluator now includes all
+five exact persona questions and optionally an answered closing question. Three isolated
+repetitions with the closing question produce 126/126 correct kinds and 126/126 correct
+past-example flags with `ollama:qwen3.5:9b@ctx16384`. All 47 assessment tests pass.
+
+The rebuilt application generated HR report `01a1c179bdf37d66ab5bc4d99053acca` in 56.53 seconds
+and technical report `01a1c17c109d787998d0c3c92d44f6aa` in 151.88 seconds. The first contains
+only the answered HR question; all three units of the second remain technical. Both pages were
+inspected in the running browser. The technical report still discarded eight model items, and
+its suggestions illustrate why grounding and formative judgement quality require further work.
+The container mounts `probeloop_data`, with real engines enabled.
+
+This is a software-focused development sample. It establishes neither cross-profession
+transfer nor the reliability of specialist judgements. Cases used to adjust this prompt are
+development cases, not an independent validation set. The adaptive interview work must use
+separate professions and held-out conversations to assess transfer.
+
+```sh
+python -m evals.classification --isolated --closing --output /out/classification-v5.json
+```
