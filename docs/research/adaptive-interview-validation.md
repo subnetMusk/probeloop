@@ -37,6 +37,13 @@ never prewritten interview answers. `evals.adaptive_interviews` prepares confirm
 the real API and generates each response only after receiving the real app's WebSocket question.
 It pauses while the test actor generates its response, preserving operational-time semantics.
 
+`personas.v2.json` keeps the same split and adds what a 15-minute conversation needs: a private
+history the actor may draw on but the application never sees, one of four answer styles
+(detailed, concise and vague, confident with one mistaken belief, hesitant), and a job offer or
+a resource uploaded through the document API. Three cards hold a sourced mistaken belief; the
+actor receives the belief but never its correction. The actor says that it does not remember
+any detail outside its CV and history, so these runs also exercise declared limits.
+
 Preserve the persona, session, exchanges, events and model identity. Audit persona consistency,
 personal references, actual elicitation, hint meaning and follow-up relevance after generation.
 An automatically generated answer is not a trustworthy ground-truth label merely because its
