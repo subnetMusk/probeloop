@@ -1,0 +1,90 @@
+{
+  "development": [
+    {
+      "id": "software-junior", "language": "en",
+      "role": {"profession": "Software engineering", "target_role": "Backend developer", "seniority": "Junior", "responsibilities": ["Implement small changes with review", "Investigate failures under supervision"], "competencies": ["HTTP behavior", "Testing", "Reasoning about failures"]},
+      "cv": "Synthetic candidate. During a supervised internship I added request validation to a small booking API. I wrote tests for missing fields and reviewed failures with a mentor. Deployment decisions belonged to the mentor.",
+      "principles": "HTTP idempotence concerns the intended server effect of repeating a request. Tests should cover relevant failure cases. Ask for missing assumptions and acknowledge limited deployment experience.",
+      "sources": ["https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods"]
+    },
+    {
+      "id": "software-senior", "language": "it",
+      "role": {"profession": "Software engineering", "target_role": "Backend technical lead", "seniority": "Senior", "responsibilities": ["Own service reliability and review trade-offs", "Guide incident response"], "competencies": ["Failure recovery", "API design", "Evidence from incidents"]},
+      "cv": "Candidato sintetico. Ho coordinato la revisione di una API di prenotazione dopo richieste duplicate. Ho scelto una chiave di idempotenza persistita e verificato i casi di timeout con il team. La decisione finale sul prodotto spettava al responsabile prodotto.",
+      "principles": "Distinguish intended effects from response identity. Retry and concurrent duplicate handling require explicit assumptions; avoid exactly-once guarantees without boundaries.",
+      "sources": ["https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods"]
+    },
+    {
+      "id": "economics-junior", "language": "it",
+      "role": {"profession": "Economia", "target_role": "Analista economico", "seniority": "Junior", "responsibilities": ["Prepare descriptive analysis under review", "Explain limitations of indicators"], "competencies": ["Real and nominal measures", "Data comparability", "Uncertainty"]},
+      "cv": null,
+      "principles": "Distinguish nominal changes from price-adjusted changes. Check the period, population and price index. Do not claim causality from correlation or invent research experience.",
+      "sources": ["https://www.bea.gov/data/prices-inflation/gdp-price-index"]
+    },
+    {
+      "id": "economics-senior", "language": "en",
+      "role": {"profession": "Economics", "target_role": "Senior economic analyst", "seniority": "Senior", "responsibilities": ["Own methodological choices", "Communicate uncertainty to decision makers"], "competencies": ["Identification", "Real and nominal measures", "Sensitivity analysis"]},
+      "cv": "Synthetic candidate. I led a descriptive regional-price briefing. I selected comparable periods and documented missing observations. I presented uncertainty and alternative deflators; the briefing did not identify a causal policy effect.",
+      "principles": "Price indices measure different baskets and concepts. State identification assumptions before causal claims; distinguish a descriptive association from an estimated causal effect. Consider sensitivity and data revisions.",
+      "sources": ["https://www.bls.gov/cpi/questions-and-answers.htm", "https://www.bea.gov/data/prices-inflation/gdp-price-index"]
+    },
+    {
+      "id": "healthcare-junior", "language": "en",
+      "role": {"profession": "Medicine", "target_role": "Supervised internal medicine trainee", "seniority": "Junior trainee", "responsibilities": ["Recognise deterioration and seek senior help", "Communicate and hand over safely"], "competencies": ["Prioritisation", "Uncertainty", "Patient safety"]},
+      "cv": "Synthetic candidate. In supervised simulation training I practised structured handover for a deteriorating adult. I gathered observations and escalated concern to the supervising clinician. I have not independently managed critically ill patients.",
+      "principles": "Recognise own limits, assess urgency, gather observations and escalate promptly. Do not invent diagnoses, drug doses or independent clinical authority. Use local protocols and senior supervision for management decisions.",
+      "sources": ["https://www.gmc-uk.org/professional-standards/the-professional-standards/good-medical-practice"]
+    },
+    {
+      "id": "healthcare-senior", "language": "it",
+      "role": {"profession": "Medicina", "target_role": "Medico internista responsabile di équipe", "seniority": "Senior", "responsibilities": ["Coordinate safe assessment and escalation", "Supervise trainees and explain uncertainty"], "competencies": ["Clinical prioritisation", "Team communication", "Limits and escalation"]},
+      "cv": "Candidato sintetico. Ho guidato una simulazione di consegna clinica con specializzandi. Ho assegnato raccolta dei parametri e comunicazione delle priorità, poi discusso omissioni e limiti della simulazione. Non sono disponibili esiti clinici reali.",
+      "principles": "Coordinate assessment and resources, keep uncertainty explicit, delegate within competence and verify closed-loop handover. Do not invent clinical outcomes or definitive treatment without context.",
+      "sources": ["https://www.gmc-uk.org/professional-standards/the-professional-standards/good-medical-practice"]
+    },
+    {
+      "id": "operations-junior", "language": "it",
+      "role": {"profession": "Operations", "target_role": "Coordinatore ordini", "seniority": "Junior", "responsibilities": ["Track orders and escalate exceptions", "Maintain accurate customer updates"], "competencies": ["Prioritisation", "Checking information", "Customer communication"]},
+      "cv": "Candidato sintetico. In un tirocinio ho aggiornato un registro ordini e segnalato ritardi al supervisore. Ho confrontato conferme e date promesse prima di preparare gli aggiornamenti per i clienti. Non decidevo sconti o compensazioni.",
+      "principles": "Check facts and commitments, distinguish urgency from impact, escalate decisions outside authority and avoid promising unverified delivery dates.",
+      "sources": ["https://www.gov.uk/government/publications/success-profiles/success-profiles-civil-service-behaviours"]
+    },
+    {
+      "id": "operations-senior", "language": "en",
+      "role": {"profession": "Commercial operations", "target_role": "Operations manager", "seniority": "Senior", "responsibilities": ["Own exception priorities and customer commitments", "Coordinate teams and review process outcomes"], "competencies": ["Trade-offs", "Stakeholder communication", "Process improvement"]},
+      "cv": "Synthetic candidate. I coordinated a backlog review across sales and fulfilment. I introduced a shared exception log and assigned owners for customer updates. I compared unresolved cases weekly; no quantified revenue effect was measured.",
+      "principles": "Make constraints and authority explicit. Balance impact, urgency and fairness. Verify commitments before promising them, assign owners and check outcomes rather than claiming unmeasured improvements.",
+      "sources": ["https://www.gov.uk/government/publications/success-profiles/success-profiles-civil-service-behaviours"]
+    }
+  ],
+  "independent": [
+    {
+      "id": "teaching-junior", "language": "en",
+      "role": {"profession": "Education", "target_role": "Classroom teacher", "seniority": "Early career", "responsibilities": ["Plan lessons with mentor support", "Check learning and adapt feedback"], "competencies": ["Formative assessment", "Feedback", "Reflective practice"]},
+      "cv": "Synthetic candidate. During mentored practice I used short exit questions to identify a misconception in fractions. I adapted the next explanation with my mentor and checked pupils' reasoning. I have not led whole-school curriculum decisions.",
+      "principles": "Assess the gap in understanding before deciding feedback. Give actionable feedback and time for pupils to use it. A preferred written or verbal format does not itself guarantee learning.",
+      "sources": ["https://educationendowmentfoundation.org.uk/education-evidence/guidance-reports/feedback"]
+    },
+    {
+      "id": "teaching-senior", "language": "it",
+      "role": {"profession": "Istruzione", "target_role": "Docente coordinatore", "seniority": "Senior", "responsibilities": ["Coordinate evidence-informed teaching", "Support colleagues and evaluate implementation"], "competencies": ["Assessment design", "Feedback", "Implementation trade-offs"]},
+      "cv": "Candidato sintetico. Ho coordinato con colleghi una revisione delle domande di verifica sulle frazioni. Ho confrontato errori ricorrenti e organizzato un confronto sulle strategie di feedback. Non abbiamo isolato un effetto causale sui risultati della scuola.",
+      "principles": "Feedback should address a diagnosed learning gap and be usable by pupils. Consider workload, implementation and evidence quality rather than mandating one format. Do not invent measured attainment gains.",
+      "sources": ["https://educationendowmentfoundation.org.uk/education-evidence/guidance-reports/feedback"]
+    },
+    {
+      "id": "quality-junior", "language": "it",
+      "role": {"profession": "Qualità industriale", "target_role": "Tecnico qualità", "seniority": "Junior", "responsibilities": ["Record nonconformities and preserve traceability", "Assist supervised investigations"], "competencies": ["Evidence collection", "Containment", "Root-cause reasoning"]},
+      "cv": "Candidato sintetico. Durante un tirocinio ho registrato difetti di un lotto dimostrativo e raccolto misure con il supervisore. Ho mantenuto distinti prodotti verificati e non verificati. Non autorizzavo il rilascio dei lotti.",
+      "principles": "Separate containment from explaining and eliminating causes. A plausible cause is a hypothesis requiring evidence. Respect traceability and delegated authority; do not invent certification or release rights.",
+      "sources": ["https://asq.org/quality-resources/root-cause-analysis"]
+    },
+    {
+      "id": "quality-senior", "language": "en",
+      "role": {"profession": "Industrial quality", "target_role": "Quality engineering lead", "seniority": "Senior", "responsibilities": ["Own cross-functional nonconformity investigation", "Verify corrective-action effectiveness"], "competencies": ["Root-cause analysis", "Risk trade-offs", "Effectiveness verification"]},
+      "cv": "Synthetic candidate. I coordinated an investigation of recurring dimensional defects on a demonstration line. I compared measurement records across process conditions and assigned checks to process owners. We had not completed the effectiveness review at the time of the handover.",
+      "principles": "Distinguish immediate containment, cause investigation and corrective-action effectiveness. Test competing causes using process evidence; absence of a defect in a small follow-up sample is not proof that recurrence is impossible.",
+      "sources": ["https://asq.org/quality-resources/root-cause-analysis"]
+    }
+  ]
+}
