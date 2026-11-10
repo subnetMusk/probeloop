@@ -69,9 +69,14 @@ def elicited_scores(
 
 
 def elicited_criteria(session: InterviewSession, unit: AnswerUnit) -> set[str]:
-    return {
-        criterion
+    intents = [
+        turn.move.intent
         for turn in session.interviewer_turns()
         if turn.seq in unit.question_seqs and turn.move.intent and not turn.move.fallback
-        for criterion in turn.move.intent.elicited_criteria
-    }
+    ]
+    elicited = {criterion for intent in intents for criterion in intent.elicited_criteria}
+    if any(intent.purpose is MovePurpose.HINT for intent in intents):
+        # Support actually given on a task is evidence about autonomy, interpreted against the
+        # anchors; the number of hints itself is never a deduction.
+        elicited.add("autonomy")
+    return elicited

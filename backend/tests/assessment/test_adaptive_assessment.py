@@ -119,6 +119,57 @@ async def test_prose_cannot_penalize_an_unelicited_criterion() -> None:
     assert result.dropped >= 2
 
 
+def hinted_session() -> InterviewSession:
+    """One reasoning task followed by a recorded hint; neither intent lists autonomy."""
+    context = InterviewContext(
+        "",
+        "",
+        (Topic("t1", "Real and nominal growth", rubric_kind="technical", solvable=True),),
+        role_profile=RoleProfile("Economics", "Economist", "junior", confirmed=True),
+        policy_version="adaptive.v1",
+    )
+    session = InterviewSession("hinted", make_session().config, context, 0)
+    session.start(0)
+    moves = (
+        (MoveAction.NEW_TOPIC, TurnIntent(MovePurpose.NEW_TOPIC, elicited_criteria=("accuracy",))),
+        (
+            MoveAction.FOLLOW_UP,
+            TurnIntent(
+                MovePurpose.HINT,
+                elicited_criteria=("accuracy",),
+                answer_seq=1,
+                hint_level=1,
+            ),
+        ),
+    )
+    for i, (action, intent) in enumerate(moves):
+        now = i * 60
+        intent = replace(intent, rubric_kind="technical")
+        session.record_move(
+            InterviewerMove(action, "t1", "How would you remove the price effect?", intent=intent),
+            now,
+        )
+        session.finish_speaking(now + 1)
+        session.start_answer(now + 2)
+        session.finish_answer(now + 20)
+        session.record_answer("I would divide the nominal factor by the price factor.", now + 21)
+    session.end(EndReason.USER_ENDED, 150)
+    return session
+
+
+async def test_a_recorded_hint_makes_autonomy_assessable_without_a_deduction_rule() -> None:
+    model = FakeChatModel([scripted_assessment])
+    result = await InterviewReviewer(model).review(hinted_session(), None, "en", progress)
+    autonomy = next(s for s in result.scores if s.criterion_id == "common.autonomy")
+    assert autonomy.value is not None
+    judged = [
+        json.loads(r.messages[0].content)
+        for r in model.requests
+        if '"unit"' in r.messages[0].content
+    ]
+    assert {c["id"] for c in judged[0]["rubric"]["criteria"]} == {"accuracy", "autonomy"}
+
+
 def test_policy_context_roundtrips_and_level_changes_break_comparability() -> None:
     current = session()
     profile = current.context.role_profile
