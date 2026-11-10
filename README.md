@@ -6,11 +6,11 @@ based on your answers, your CV and the job offer. After the call you get a detai
 you can track your progress across sessions.
 
 > **Status: early development.** Document preparation, spoken interviews, transcript review and
-> CV reviews are implemented. Interview reports, settings and data/history workflows are a
-> development checkpoint with outstanding integration and model-quality acceptance. The first
-> draft evaluator took 27 minutes for four question/answer pairs and produced a technical false
-> positive. See the [continuation notes](docs/handoffs/2026-11-08-assessment-continuation.md) and
-> [roadmap](docs/roadmap.md); these features are not yet declared complete.
+> CV reviews and the M6 interface redesign are implemented. M7 now includes confirmed target
+> roles, source-linked objectives, adaptive turns and evidence-scoped reports on a 0–100 scale.
+> Cross-profession model-quality acceptance remains a separate gate. See the
+> [continuation notes](docs/handoffs/2026-11-09-adaptive-interview-continuation.md),
+> [validation protocol](docs/research/adaptive-interview-validation.md) and [roadmap](docs/roadmap.md).
 
 ## Goals
 
@@ -19,9 +19,16 @@ you can track your progress across sessions.
   discussed.
 - **Faithful transcription.** Transcripts are reviewable and correctable before evaluation.
   Correcting a transcript lets you regenerate the report without repeating the interview.
+- **An explicit target.** Confirm profession, target role and level before starting, including
+  when no CV is supplied. Seniority describes expected responsibilities; difficulty varies the
+  challenge within that level. Reviewed CV facts can ground experience probes, while follow-ups
+  can explore relevant points raised in an answer.
 - **Honest, verifiable feedback.** The evaluator is separate from the interviewer and applies
   versioned, interview-type-specific rubrics. Every judgement cites the transcript. Scores are
   formative measures, not predictions of hiring outcomes.
+  Reports show 0–100 scores converted from descriptive anchors, with unavailable criteria kept
+  unavailable. Autonomy is assessed once across the conversation, including how the candidate
+  uses clarification and support. A wider numeric scale does not imply finer reliable precision.
 - **Traceable context.** Information extracted from your CV, the job offer and supplied resources
   keeps its provenance (declared, observed or inferred). You review and approve it before the
   interview starts.

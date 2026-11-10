@@ -2,6 +2,106 @@
 
 Date: 2026-11-09. This records implementation progress, not release acceptance.
 
+## Latest active checkpoint
+
+Core assessment/presentation is saved as `dde632a`; the evidence-first schema correction is
+saved as `e2154da`. Local report v4 `01a1c1f9a1077d10883cd4603e6435a5` uses judge v6 and now has
+three supported scores (100, 75, 75) with zero discarded items. Numeric unavailability remains
+explicit for unelicited criteria. Requiring a quotation for every *active* criterion, even when
+it explains insufficient evidence, prevents the local decoder's early empty-list shortcut.
+
+The six remaining development cases completed in `/tmp/adaptive-development-local-v2`, copied
+to `var/test-run/adaptive-development-local-v2/`. They used a separate cloud actor to avoid the
+first local actor's incoherent, truncated answers. Together with the two cloud pilot cases they
+cover the eight development cards and balanced languages. Do not call these independent data.
+They exposed repeated demands for unavailable details and a hypothetical-to-historical drift.
+The first local-actor run also had incorrect economic claims endorsed by the interviewer and
+ended its third case with `llm_unavailable`; its three sessions were explicitly ended and
+preserved in `adaptive-development-local-v1-ended.tar.gz`.
+
+Current uncommitted flow changes use literal documentary quotations in the question context,
+omit uncorrected model inferences while retaining all persisted facts, admit user corrections,
+and ensure a real past-experience objective when documented history exists. A new internal
+`answer_limit` choice is quoted against the latest answer before audio. Explicit inability to
+recall/experience requires a change of evidence approach; missing context requires clarification.
+It is conversation control only and never grades the candidate. All metadata must be present
+before streaming speech. The normal next-question path remains one model generation.
+
+The latest real stack image is `656e9ab...` on `probeloop_data`. A retry of the failed development
+pattern is running: session `01a1c211fbe0710691bddc068576b710`, output
+`/tmp/adaptive-recall-local-v3`, exec session 49149. It uses the local interviewer, cloud actor,
+and realistic text answer engagement (word count / 2.4 seconds) rather than instant file answers.
+Do not restart the backend before saving its `/tmp` outputs. No independent case has run yet.
+
+Controlled calibration: `var/test-run/adaptive-pair-v1.json` contains two dynamically generated
+contrasts to the same real economic question. They are matched first-question calibration,
+separate from full-conversation acceptance. The source audit and exact fingerprints are in
+`adaptive-pair-v1-audit.json`. Five cloud regenerations each completed: detection 100%, ranking
+100%, zero unverified quotations, no corrections on the correct answer, max mean spread 0.167
+on 1–5 (4.17 public points). Raw and audited results, metrics and a tar archive are preserved.
+The local five-repeat run is still to do; restore these files to `/tmp` after recreations.
+
+Latest checks: 199 targeted application/context/assessment/eval tests passed, strict mypy and
+all nine import contracts passed. Earlier full checks below still need a final rerun. Rebuilt
+real report pages had zero serious/critical axe violations at 1440/light, 1280/dark and 390/dark;
+recorded clarification and both hints were visible. PDF exports were rendered with Poppler and
+inspected. The PDF skill was used for read-only visual inspection; no external PDF was authored.
+
+Remaining: finish/audit the retry, freeze the implementation for independent cases, run teaching
+and industrial quality at two levels, audit every probe (90% gate) and invented personal refs;
+finish local controlled calibration and four real voice cases. Voice services are ready. Only
+Italian voices are configured, so distribute the four Italian-language voice cases across
+local/cloud and junior/senior roles in different professions without changing account settings.
+Then final tests, docs/roadmap and final handoff, focused local commits, real volume check.
+
+## Earlier verification checkpoint
+
+Implementation after `dc630df` adds profession-neutral adaptive rubrics, common autonomy counted
+once, intent-based routing with diagnostic classification, guards for unelicited numeric and
+prose criteria, target-aware comparability and public 0–100 values. Legacy stored JSON without
+a scale remains 1–5; new JSON declares its scale and roundtrips without precision loss. The UI,
+history, charts and Markdown/PDF use the same public conversion. Reports expose the confirmed
+target, reference titles and recorded clarification/hints. A new-policy editorial pass selects
+ids only; code builds the scope summary. Judge v5 receives only the elicited rubric subset.
+
+Checks: 555 backend tests passed, 37 skipped and 22 live deselected before the last v5 subset
+change; all 59 assessment tests and the five focused adaptive tests passed after it. All 37
+PostgreSQL contracts passed on the dedicated `pgtest` database. Frontend lint/FSD/typecheck,
+77 Vitest tests, Prettier and production build passed. All 15 fake browser E2Es passed (two live
+tests skipped), including axe scans, target confirmation, 0–100 reports, revision regeneration
+and export order. The dashboard was visually inspected at 1280/1440 in light/dark; report desktop
+and mobile were inspected. The real stack is restored on `probeloop_data`.
+
+Development findings and evidence:
+
+- Real economics report v1 `01a1c1dbb4287dd9a0a475372224be0a` exposed unelicited experience prose.
+  V2 `01a1c1e80e32728abb1097ce6e05635f` removed that dimension but returned no numeric evidence
+  and exposed an empty-label summary. Both are preserved as development failures, not acceptance.
+  A diagnostic confirmed that the local judge returned nulls itself, rather than a quotation
+  matcher rejecting every score. V5 now receives only active criteria and separates assistance
+  from the other anchors. The current rebuilt v5 report job is `01a1c1ec9c2f71fb8514d2b03187a8ee`.
+- The two real cloud pilot conversations completed: software junior
+  `01a1c1e833b67aa7ab2ede1ed2dd42a5`, healthcare senior
+  `01a1c1e95a1f73c3bfd36fd4d7d67afa`, five dynamically generated answers each. Their persisted
+  exchanges were inspected: CV-based probes, hypothetical transitions and response-based probes
+  occurred without invented candidate experience. These are development cases only.
+  Evidence is copied to ignored `var/test-run/pilot-cloud-v2/` and its tar archive.
+- Six remaining development cards are currently running through the actual app with the local
+  profile, output `/tmp/adaptive-development-local-v1` in the backend container. The driver is
+  `evals.adaptive_interviews`, copied under `/tmp/evals` with `PYTHONPATH=/tmp`. Preserve outputs
+  before rebuilding: Docker recreation removes `/tmp`. A base64 tar stream via `docker exec`
+  retrieves these tmpfs files reliably; `docker cp` on this tmpfs was unreliable.
+- `evals.adaptive_replay` requires terminal new-policy sessions and an exact SHA256 input audit
+  before running repeated assessments. Its describe mode emits fingerprints only. It does not
+  write reports or mutate session data. Its two guard tests pass.
+
+Remaining acceptance: audit all development conversations and specialist facts against primary
+sources; run the independent four-card set only after development fixes; require at least 90%
+relevant probes and no invented personal references/data loss/unelicited penalties; frozen
+five-repeat checks per execution profile, detection/ranking/evidence thresholds; four real voice
+cases distributed across levels/profiles; final exports/browser inspection and final handoff.
+Do not conflate the old software calibration with these gates.
+
 ## Approved scope
 
 Implement [ADR 0016](../adr/0016-adaptive-role-based-interviews.md) within M7. Speak Italian

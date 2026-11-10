@@ -881,6 +881,40 @@ hiring outcomes.
 
 ## 17. Persistence
 
+### Adaptive policy and public score scale
+
+[ADR 0016](adr/0016-adaptive-role-based-interviews.md) introduces `adaptive.v1` for newly
+confirmed role profiles. Migration `0006` adds nullable preparation JSON; snapshot and session
+JSON retain the complete reviewed facts, source-linked objectives and confirmed expectations.
+Legacy sessions retain their original interviewer and assessment policy.
+
+The planner defines objectives rather than a question script. The next move uses the actual
+answer and relevant whole facts. Code derives action, latest-answer reference and hint level
+from a small model choice, validates documentary ids and elicited criteria before audio, and
+limits hints to two for an existing solvable problem. A transcript-introduced topic remains
+linked to that answer, never retroactively attributed to the CV. Persisted engagement time
+excludes pauses and model/STT/TTS delays. Topic windows share remaining time by priority within
+45–240 seconds and yield to global closing.
+
+Recorded question intent governs new-policy assessment; the profession-neutral classifier is
+diagnostic. The new rubrics are `technical.v3`, `hr.v2`, `behavioral.v2` and `hypothetical.v2`.
+They share autonomy anchors and aggregate it once as `common.autonomy`. Both numeric scores and
+prose observations must belong to the actual elicited subset; past-only criteria also require
+a past-example question. Double judging, verified candidate quotations and independent checks
+of proposed corrections remain. Editorial synthesis selects observation ids only; code builds
+the scope summary. Specialist interpretations are fallible model opinions, even with supplied
+reference documents or two agreeing model readings.
+
+Judges and calibration keep anchored 1–5 values. `ReportData` writes and returns an explicit
+`scale: "0_100"` with `(value - 1) * 25`; it reads old JSON without a scale as 1–5. JSON retains
+precision for lossless persistence; UI and Markdown/PDF round reading values to integers.
+Missing values never become zero. History and progress endpoints use the public scale too.
+Comparability keys include target expectations and policy; the dashboard uses the same boundary
+before displaying a delta. The shared outline fixture checks frontend/export parity.
+
+The [validation protocol](research/adaptive-interview-validation.md) keeps development cases
+separate from held-out professions and requires post-generation source/persona audits.
+
 **Database**
 
 - SQLite by default, with WAL and foreign keys enabled. PostgreSQL is supported (Compose profile
