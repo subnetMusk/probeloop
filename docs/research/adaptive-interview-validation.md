@@ -90,4 +90,41 @@ accuracy score reached 25, exactly the detection threshold. The variant was ther
 Reports keep anchored judgements and show integers obtained by aggregating them. One question in
 one profession cannot show that a finer scale never helps; it shows no benefit in this case.
 
+### Question-type labels and diagnostic classification
+
+Assessment enables experience, ownership, results and reflection only for questions that ask
+what the candidate actually did. The 61 recorded interviewer turns of the nine development
+conversations were labelled as actual experience, hypothetical or general, or mixed. The
+reference is an assistant reading of every turn, corrected by the owner on 12 reviewed turns,
+nine of them chosen because the assistant and the recorded intent disagreed. The owner agreed
+with the assistant on the question type in 11 of the 12. Labels, owner notes and raw classifier
+outputs are under the ignored `var/test-run/` (`adaptive-label-reference-v1.json`,
+`label-probe-v1/`, `laya-probe-v1/`). Agreement on the 57 turns that are not mixed:
+
+| Source | Agreement |
+|---|---|
+| Local interviewer's recorded intent (`ministral-3:8b`) | 17/45 |
+| Cloud interviewer's recorded intent (`gpt-6.1-terra`) | 12/12 |
+| Diagnostic classifier v6, local (`qwen3.5:9b`), each question alone | 39/57 |
+| Diagnostic classifier v6, cloud (`gpt-6.1-terra`), each question alone | 56/57 |
+| Laya multilingual 0.4.30, zero-shot `noul` at 0.5 | 26/57 |
+| Laya multilingual 0.4.30, zero-shot three-way `choice` | 36–39/57 |
+
+All 17 local-classifier misses read technical questions about an actual past situation in the
+software and economics senior cases as hypothetical, the same direction as the local
+interviewer. Both classifiers treated the four mixed questions as not asking for experience.
+Laya's `noul` probability stayed below 0.29 for every question, so its 0.5 decision equals always
+answering no; the `choice` range depends on whether the mixed option counts as experience. This
+matches the model card, which presents the checkpoints as a base to fine-tune rather than a
+zero-shot decision engine. On the host CPU it loaded in 7 s and answered two questions in about
+0.2 s; the same run inside Docker Desktop with weights bind-mounted from Windows did not finish
+in four minutes.
+
+The classifier does not return a question's purpose, so it cannot check hints or
+clarifications. Only the cloud classifier meets a 90% agreement threshold on question type, and
+the cloud interviewer already records correct types in this sample. A post-hoc agreement check
+would therefore add little on either profile; the local error has to be corrected where the
+question is decided. The reference is development data with only 12 owner-reviewed labels, and
+the cloud classifier is the same model as the synthetic candidate.
+
 Results and release disposition are recorded in the continuation handoff as checks finish.
