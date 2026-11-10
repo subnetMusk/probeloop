@@ -189,8 +189,23 @@ def scripted_moves(questions: int = 3) -> Callable[[ChatRequest], str]:
                     ]
                 }
             )
+        properties = (request.response_schema or {}).get("properties", {})
+        if "quotes" in properties:
+            # Two-step turns: the scripted answers state no limits.
+            return json.dumps({"quotes": []})
         asked = sum(1 for message in request.messages if message.role == "assistant")
-        if "purpose" in (request.response_schema or {}).get("properties", {}):
+        if "utterance" in properties and not {"action", "purpose"} & properties.keys():
+            # Second step of a two-step turn: the accepted decision is the last assistant
+            # message, so it is counted among the moves already asked.
+            decision = json.loads(request.messages[-2].content)
+            if decision["purpose"] != "closing":
+                utterance = f"Questa è la domanda di prova numero {asked}?"
+            elif "say goodbye" in request.messages[-1].content.casefold():
+                utterance = "Grazie, il colloquio di prova è terminato."
+            else:
+                utterance = "Ha domande per noi?"
+            return json.dumps({"utterance": utterance})
+        if "purpose" in properties:
             initial, _ = json.JSONDecoder().raw_decode(request.messages[0].content)
             ordinary = [t for t in initial["objectives"] if t["rubric_kind"] != "logistics"]
             closing = next(t for t in initial["objectives"] if t["rubric_kind"] == "logistics")
@@ -213,17 +228,18 @@ def scripted_moves(questions: int = 3) -> Callable[[ChatRequest], str]:
                 )
                 criteria = [c for c in topic["criteria"] if c != "autonomy" or not past]
                 utterance = f"Questa è la domanda di prova numero {asked + 1}?"
-            return json.dumps(
-                {
-                    "topic_id": topic["id"],
-                    "purpose": purpose,
-                    "past_example": past,
-                    "elicited_criteria": criteria,
-                    "fact_ids": [],
-                    "covered_topic_ids": [],
-                    "utterance": utterance,
-                }
-            )
+            choice = {
+                "topic_id": topic["id"],
+                "purpose": purpose,
+                "past_example": past,
+                "elicited_criteria": criteria,
+                "fact_ids": [],
+                "covered_topic_ids": [],
+            }
+            if "focus" in properties:
+                # First step of a two-step turn: the decision, without question text.
+                return json.dumps({**choice, "focus": f"Scripted test question {asked + 1}."})
+            return json.dumps({**choice, "utterance": utterance})
         if asked >= questions:
             action, utterance = "end", "Grazie, il colloquio di prova è terminato."
         else:

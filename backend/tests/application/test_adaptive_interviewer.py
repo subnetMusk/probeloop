@@ -7,6 +7,7 @@ from probeloop.ai.fake import FakeChatModel
 from probeloop.ai.ports import ChatRequest, estimated_tokens
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import StructuredOutputError
+from probeloop.bootstrap import scripted_moves
 from probeloop.context.domain.model import Fact, FactKind, FactOrigin, Review, RoleProfile, Subject
 from probeloop.interview.application.adaptive_interviewer import (
     AdaptiveChoice,
@@ -455,6 +456,26 @@ async def test_two_step_reads_stated_limits_before_deciding_and_keeps_only_quote
     assert done.move.intent.answer_limit == "stated_limit"
     assert done.move.prompt_ref is not None
     assert "interviewer_limits@v1" in done.move.prompt_ref
+
+
+async def test_the_scripted_model_of_the_browser_tests_answers_every_two_step_call() -> None:
+    # compose.test.yaml runs the default turn with this model; the browser tests read its text.
+    opening_model = FakeChatModel([scripted_moves()])
+    opening = [e async for e in LlmInterviewer(opening_model, two_step=True).next_move(request())]
+    assert len(opening_model.requests) == 2
+    assert isinstance(opening[-1], MoveDone)
+    assert opening[-1].move.utterance == "Buongiorno. Questa è la domanda di prova numero 1?"
+
+    model = FakeChatModel([scripted_moves()])
+    req = recalled("I planned the rollout in two waves.")
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    assert len(model.requests) == 3
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert (done.move.action, done.move.topic_id) == (MoveAction.FOLLOW_UP, "t1")
+    assert done.move.utterance == "Questa è la domanda di prova numero 2?"
+    assert done.move.intent is not None
+    assert done.move.intent.focus == "Scripted test question 2."
 
 
 async def test_a_malformed_limits_reply_leaves_the_turn_to_the_decision() -> None:
