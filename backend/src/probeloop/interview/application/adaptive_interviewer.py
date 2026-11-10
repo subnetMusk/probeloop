@@ -160,21 +160,20 @@ def checked_header(
     if choice.purpose in (MovePurpose.CLARIFICATION, MovePurpose.CLOSING):
         allowed.clear()
     elicited = list(dict.fromkeys(c for c in choice.elicited_criteria if c in allowed))
-    if (
-        "autonomy" in allowed
-        and "autonomy" not in elicited
-        and set(elicited)
-        & {
-            "reasoning",
-            "problem_solving",
-            "tradeoffs",
-            "plan",
-            "risks",
-            "validation",
-        }
-    ):
+    task = set(elicited) & {
+        "reasoning",
+        "problem_solving",
+        "tradeoffs",
+        "plan",
+        "risks",
+        "validation",
+    }
+    if "autonomy" in allowed and "autonomy" not in elicited and task:
         # A declared reasoning task elicits autonomy even if the model omits its id.
         elicited.append("autonomy")
+    if "autonomy" in elicited and not task:
+        # Autonomy is shown on a reasoning task; without one the question cannot elicit it.
+        elicited.remove("autonomy")
     if (
         frame_from_objective
         and past

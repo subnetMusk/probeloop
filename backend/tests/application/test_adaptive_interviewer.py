@@ -585,6 +585,18 @@ def test_open_reasoning_can_elicit_autonomy_without_admitting_solution_hints() -
     assert "autonomy" in checked_header(choice, req).elicited_criteria
 
 
+def test_autonomy_without_a_reasoning_task_is_not_counted_as_elicited() -> None:
+    choice = AdaptiveChoice(
+        topic_id="t1",
+        purpose=MovePurpose.NEW_TOPIC,
+        past_example=False,
+        elicited_criteria=["accuracy", "autonomy"],
+        fact_ids=[],
+        covered_topic_ids=[],
+    )
+    assert checked_header(choice, request()).elicited_criteria == ["accuracy"]
+
+
 @pytest.mark.parametrize(
     "changes",
     [
