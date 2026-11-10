@@ -1821,6 +1821,8 @@ export interface components {
          * @description Validated elicitation and assistance metadata recorded before the question is spoken.
          */
         TurnIntent: {
+            /** Answer Limit */
+            answer_limit?: string | null;
             /** Answer Seq */
             answer_seq?: number | null;
             /**
@@ -1833,6 +1835,8 @@ export interface components {
              * @default []
              */
             fact_ids?: string[];
+            /** Focus */
+            focus?: string | null;
             /**
              * Hint Level
              * @default 0

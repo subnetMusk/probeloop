@@ -386,6 +386,9 @@ async def test_two_step_keeps_the_decided_frame_and_states_limits_for_the_questi
     assert not move.move.intent.past_example
     assert move.move.utterance == "Assume a similar case: what would you check?"
     assert "Do not ask for that detail again" in model.requests[1].messages[-1].content
+    # Both labels are recorded for audits and future classifier data.
+    assert move.move.intent.answer_limit == "cannot_recall"
+    assert move.move.intent.focus == "How the candidate would check an uncertain estimate."
 
 
 async def test_two_step_decodes_only_legal_objectives_and_repairs_a_misnamed_topic_change() -> None:
@@ -420,6 +423,7 @@ async def test_code_decides_a_closing_that_is_the_only_legal_move() -> None:
     assert (done.move.action, done.move.topic_id) == (MoveAction.WRAP_UP, "t2")
     assert done.move.intent is not None
     assert done.move.intent.purpose is MovePurpose.CLOSING
+    assert done.move.intent.focus is None  # code made this decision
 
     wrap_up = asked("t2", action=MoveAction.WRAP_UP, fallback=True)
     req = replace(request(), turns=(prior, answer(1), wrap_up, answer(3)))

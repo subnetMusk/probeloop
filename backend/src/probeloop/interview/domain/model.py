@@ -173,6 +173,10 @@ class TurnIntent:
     answer_seq: int | None = None
     hint_level: int = 0
     rubric_kind: str | None = None
+    # Flow labels kept for audits and future classifier data, never scores: the limit the
+    # interviewer identified in the referenced answer, and what a two-step decision asked.
+    answer_limit: str | None = None
+    focus: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

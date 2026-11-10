@@ -67,6 +67,7 @@ class AdaptiveHeader(AdaptiveChoice):
             self.answer_seq,
             self.hint_level,
             self.rubric_kind,
+            self.answer_limit.kind if self.answer_limit else None,
         )
 
 
@@ -786,6 +787,8 @@ async def stream_two_step_move(
             ChatMessage("user", question_rules(request, header, decision.focus)),
         ),
     )
+    # A decision made by code is not a model label, so only a generated focus is recorded.
+    intent = replace(header.intent(), focus=decision.focus if raw else None)
     spoken = ""
     async for item in stream_structured(model, question, QuestionOut, stream_field="utterance"):
         if isinstance(item, FieldDelta):
@@ -794,7 +797,7 @@ async def stream_two_step_move(
                 if not spoken:
                     text = opening_greeting(request) + text
                 spoken += text
-                yield MoveDelta(text, MoveAction(header.action), header.topic_id, header.intent())
+                yield MoveDelta(text, MoveAction(header.action), header.topic_id, intent)
         else:
             utterance = (
                 opening_greeting(request)
@@ -802,7 +805,7 @@ async def stream_two_step_move(
             )
             action = MoveAction(header.action)
             if not spoken:
-                yield MoveDelta(utterance, action, header.topic_id, header.intent())
+                yield MoveDelta(utterance, action, header.topic_id, intent)
             yield MoveDone(
                 InterviewerMove(
                     action,
@@ -811,7 +814,7 @@ async def stream_two_step_move(
                     tuple(header.covered_topic_ids),
                     model_ref=model.model_ref,
                     prompt_ref=prompt_ref.replace("+adaptive.v1", "+adaptive.two_step.v1"),
-                    intent=header.intent(),
+                    intent=intent,
                 )
             )
 

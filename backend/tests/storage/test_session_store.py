@@ -36,7 +36,13 @@ async def test_adaptive_intent_and_topic_clock_survive_reloading(store: SqlSessi
     session.turns[0] = replace(
         turn,
         move=replace(
-            turn.move, intent=TurnIntent(MovePurpose.NEW_TOPIC, elicited_criteria=("reasoning",))
+            turn.move,
+            intent=TurnIntent(
+                MovePurpose.NEW_TOPIC,
+                elicited_criteria=("reasoning",),
+                answer_limit="cannot_recall",
+                focus="How the candidate would check an uncertain estimate.",
+            ),
         ),
     )
     session.topic_engagement_s = {"t2": 51.25}

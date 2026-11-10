@@ -371,6 +371,8 @@ def intent_from_json(data: dict[str, Any] | None) -> TurnIntent | None:
         data.get("answer_seq"),
         data.get("hint_level", 0),
         data.get("rubric_kind"),
+        data.get("answer_limit"),
+        data.get("focus"),
     )
 
 
