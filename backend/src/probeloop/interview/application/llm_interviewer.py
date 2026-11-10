@@ -35,6 +35,7 @@ from probeloop.interview.domain.model import (
 SYSTEM_PROMPT_VERSION = 2
 CONTEXT_PROMPT_VERSION = 2  # 2: the vocabulary of technical terms from the documents
 STATE_PROMPT_VERSION = 2
+LIMITS_PROMPT_VERSION = 1  # two-step adaptive turns: limits stated in the latest answer
 
 LANGUAGE_NAMES = {Language.ITALIAN: "Italian", Language.ENGLISH: "English"}
 
@@ -132,8 +133,18 @@ class LlmInterviewer:
         )
         chat_request, prompt_ref = self.build_request(request, window)
         if request.context.policy_version:
-            stream = stream_two_step_move if self._two_step else stream_adaptive_move
-            async for event in stream(self._model, chat_request, request, prompt_ref):
+            stream = (
+                stream_two_step_move(
+                    self._model,
+                    chat_request,
+                    request,
+                    prompt_ref,
+                    self._prompts.render("interviewer_limits", LIMITS_PROMPT_VERSION),
+                )
+                if self._two_step
+                else stream_adaptive_move(self._model, chat_request, request, prompt_ref)
+            )
+            async for event in stream:
                 yield event
             return
         spoken = ""

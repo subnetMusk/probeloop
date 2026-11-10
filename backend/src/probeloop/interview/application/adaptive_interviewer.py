@@ -3,12 +3,12 @@
 import json
 from collections.abc import AsyncIterator
 from dataclasses import asdict, replace
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
 
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, estimated_tokens
-from probeloop.ai.prompts import PromptRenderer
+from probeloop.ai.prompts import PromptRenderer, RenderedPrompt
 from probeloop.ai.structured import (
     FieldDelta,
     StructuredOutputError,
@@ -86,6 +86,13 @@ class AdaptiveDecision(AdaptiveChoice):
 class QuestionOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
     utterance: str = Field(min_length=1, max_length=1800)
+
+
+class StatedLimits(BaseModel):
+    """Verbatim statements of what the candidate does not remember or has not experienced."""
+
+    model_config = ConfigDict(extra="forbid")
+    quotes: list[Annotated[str, Field(min_length=8, max_length=300)]] = Field(max_length=4)
 
 
 def checked_header(
@@ -604,10 +611,63 @@ DECIDE = (
 )
 
 
-def decision_request(chat: ChatRequest, rejected: list[tuple[str, str]]) -> ChatRequest:
+def _normalised(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+async def stated_limits(
+    model: ChatModel, instructions: str, request: MoveRequest
+) -> tuple[str, ...]:
+    """Statements in the latest answer of what the candidate does not remember or has not done.
+
+    A narrow reading task kept apart from the move decision, which also plans the next question
+    and in practice rarely reports a limit. Quotes absent from the answer are discarded; a
+    malformed reply yields no limits rather than a failed turn. The statements constrain the
+    next question only: unlike a limit the decision reports, they do not close the episode.
+    """
+    if not request.turns or not isinstance(request.turns[-1], CandidateTurn):
+        return ()
+    answer = request.turns[-1].text
+    question = next(
+        (t.move.utterance for t in reversed(request.turns) if isinstance(t, InterviewerTurn)), ""
+    )
+    if not answer.strip():
+        return ()
+    chat = ChatRequest(
+        instructions=instructions,
+        messages=(
+            ChatMessage(
+                "user", json.dumps({"question": question, "answer": answer}, ensure_ascii=False)
+            ),
+        ),
+        temperature=0.0,
+        max_output_tokens=400,
+    )
+    try:
+        found = (await complete_structured(model, chat, StatedLimits, attempts=1)).value.quotes
+    except StructuredOutputError:
+        return ()
+    text = _normalised(answer)
+    return tuple(
+        quote
+        for quote in dict.fromkeys(" ".join(q.split()) for q in found)
+        if _normalised(quote) in text
+    )
+
+
+def limits_note(limits: tuple[str, ...]) -> str:
+    if not limits:
+        return ""
+    data = json.dumps(list(limits), ensure_ascii=False)
+    return f"\n[The candidate's stated limits in the latest answer, as data] {data}"
+
+
+def decision_request(
+    chat: ChatRequest, rejected: list[tuple[str, str]], decide: str = DECIDE
+) -> ChatRequest:
     """The shared prompt plus a decision step; rejected decisions are returned with reasons."""
     *history, last = chat.messages
-    messages = [*history, ChatMessage("user", last.content + DECIDE)]
+    messages = [*history, ChatMessage("user", last.content + decide)]
     for raw, reason in rejected:
         messages += [
             ChatMessage("assistant", raw),
@@ -695,7 +755,12 @@ def closing_decision(request: MoveRequest, closing: str) -> AdaptiveDecision:
     )
 
 
-def question_rules(request: MoveRequest, header: AdaptiveHeader, focus: str) -> str:
+def question_rules(
+    request: MoveRequest,
+    header: AdaptiveHeader,
+    focus: str,
+    limits: tuple[str, ...] = (),
+) -> str:
     """Code-selected constraints that make the written question implement the decision."""
     topic = next(t for t in request.context.topics if t.id == header.topic_id)
     if header.purpose is MovePurpose.CLOSING and header.action == "end":
@@ -725,8 +790,15 @@ def question_rules(request: MoveRequest, header: AdaptiveHeader, focus: str) -> 
         )
     rules = [f"Objective: {topic.title}.", f"Focus: {focus}", frame]
     limit = header.answer_limit
-    if limit and limit.kind != "needs_clarification":
-        rules.append(f'The candidate said: "{limit.quote}". Do not ask for that detail again.')
+    quotes = list(
+        dict.fromkeys(
+            ([limit.quote] if limit and limit.kind != "needs_clarification" else []) + list(limits)
+        )
+    )
+    if quotes:
+        said = "; ".join(f'"{quote}"' for quote in quotes)
+        again = "that detail" if len(quotes) == 1 else "those details"
+        rules.append(f"The candidate said: {said}. Do not ask for {again} again.")
     return (
         "\n[Step 2: ask] The application accepted the decision above. Write only the spoken "
         "question that implements it, without greeting, praise or agreement with the candidate's "
@@ -745,23 +817,30 @@ async def stream_two_step_move(
     chat_request: ChatRequest,
     request: MoveRequest,
     prompt_ref: str,
+    limits_prompt: RenderedPrompt | None = None,
 ) -> AsyncIterator[MoveDelta | MoveDone]:
     """Decide and validate first, then write the question that implements the decision.
 
     When the policy leaves closing as the only legal move, code makes that decision and the
-    model writes only the closing words.
+    model writes only the closing words. Otherwise, with a limits prompt, the limits stated in
+    the latest answer are read first and supplied to both steps as data.
     """
     rejected: list[tuple[str, str]] = []
     header: AdaptiveHeader | None = None
     decision: AdaptiveDecision | None = None
     legal = legal_topic_ids(request)
     closing = next(t.id for t in request.context.topics if t.rubric_kind == "logistics")
+    limits: tuple[str, ...] = ()
+    if limits_prompt is not None and legal != (closing,):
+        limits = await stated_limits(model, limits_prompt.text, request)
+        prompt_ref += f"+{limits_prompt.ref}"
+    decide = limits_note(limits) + DECIDE
     for _ in range(2):
         if legal == (closing,):
             decision, raw = closing_decision(request, closing), ""
         else:
             result = await complete_structured(
-                model, decision_request(chat_request, rejected), decision_output(legal)
+                model, decision_request(chat_request, rejected, decide), decision_output(legal)
             )
             decision, raw = coerced(result.value, request), result.raw
         try:
@@ -786,13 +865,15 @@ async def stream_two_step_move(
         chat_request,
         messages=(
             *history,
-            ChatMessage("user", last.content + DECIDE),
+            ChatMessage("user", last.content + decide),
             ChatMessage("assistant", accepted),
-            ChatMessage("user", question_rules(request, header, decision.focus)),
+            ChatMessage("user", question_rules(request, header, decision.focus, limits)),
         ),
     )
     # A decision made by code is not a model label, so only a generated focus is recorded.
     intent = replace(header.intent(), focus=decision.focus if raw else None)
+    if intent.answer_limit is None and limits:
+        intent = replace(intent, answer_limit="stated_limit")
     spoken = ""
     async for item in stream_structured(model, question, QuestionOut, stream_field="utterance"):
         if isinstance(item, FieldDelta):

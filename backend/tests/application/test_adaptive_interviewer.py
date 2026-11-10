@@ -387,6 +387,7 @@ async def test_two_step_keeps_the_decided_frame_and_states_limits_for_the_questi
     limit = {"kind": "cannot_recall", "quote": "I cannot recall that detail accurately."}
     model = FakeChatModel(
         [
+            json.dumps({"quotes": []}),
             decision(purpose="reasoning_probe", answer_limit=limit),
             json.dumps({"utterance": "Assume a similar case: what would you check?"}),
         ]
@@ -397,10 +398,80 @@ async def test_two_step_keeps_the_decided_frame_and_states_limits_for_the_questi
     assert move.move.intent is not None
     assert not move.move.intent.past_example
     assert move.move.utterance == "Assume a similar case: what would you check?"
-    assert "Do not ask for that detail again" in model.requests[1].messages[-1].content
+    assert "Do not ask for that detail again" in model.requests[2].messages[-1].content
     # Both labels are recorded for audits and future classifier data.
     assert move.move.intent.answer_limit == "cannot_recall"
     assert move.move.intent.focus == "How the candidate would check an uncertain estimate."
+
+
+def recalled(text: str) -> MoveRequest:
+    """An actual-experience question on t1 followed by the given answer."""
+    req = request()
+    topics = (replace(req.context.topics[0], past_example=True), req.context.topics[1])
+    prior = InterviewerTurn(
+        0,
+        0,
+        0,
+        InterviewerMove(
+            MoveAction.NEW_TOPIC,
+            "t1",
+            "Describe a release you planned.",
+            intent=TurnIntent(MovePurpose.NEW_TOPIC, True, rubric_kind="technical"),
+        ),
+    )
+    reply = replace(answer(1), revisions=(TranscriptRevision(1, text, RevisionSource.STT, 1),))
+    return replace(req, context=replace(req.context, topics=topics), turns=(prior, reply))
+
+
+async def test_two_step_reads_stated_limits_before_deciding_and_keeps_only_quoted_ones() -> None:
+    req = recalled("I planned the rollout in two waves, but I cannot recall the exact error rates.")
+    limits = {"quotes": ["I cannot recall  the exact error rates", "I never ran a rollout before"]}
+    model = FakeChatModel(
+        [
+            json.dumps(limits),
+            decision(purpose="evidence_probe", past_example=True, elicited_criteria=[]),
+            json.dumps({"utterance": "Who decided when the second wave started?"}),
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    assert len(model.requests) == 3
+    read, decide, ask = model.requests
+    assert "exact error rates" in read.messages[-1].content
+    assert "Describe a release you planned." in read.messages[-1].content
+    # Only the quote found in the answer reaches the decision and the question.
+    assert "I cannot recall the exact error rates" in decide.messages[-1].content
+    assert "I never ran a rollout" not in decide.messages[-1].content
+    assert ask.messages[: len(decide.messages)] == decide.messages
+    assert 'said: "I cannot recall the exact error rates". Do not ask for that detail' in (
+        ask.messages[-1].content
+    )
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    # A statement read by the separate step constrains the question, not the whole episode.
+    assert (done.move.action, done.move.topic_id) == (MoveAction.FOLLOW_UP, "t1")
+    assert done.move.intent is not None
+    assert done.move.intent.past_example
+    assert done.move.intent.answer_limit == "stated_limit"
+    assert done.move.prompt_ref is not None
+    assert "interviewer_limits@v1" in done.move.prompt_ref
+
+
+async def test_a_malformed_limits_reply_leaves_the_turn_to_the_decision() -> None:
+    req = recalled("I planned the rollout in two waves.")
+    model = FakeChatModel(
+        [
+            "not json",
+            decision(purpose="evidence_probe", past_example=True, elicited_criteria=[]),
+            json.dumps({"utterance": "Who decided when the second wave started?"}),
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    assert len(model.requests) == 3
+    assert "stated limits" not in model.requests[1].messages[-1].content
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.move.intent is not None
+    assert done.move.intent.answer_limit is None
 
 
 async def test_two_step_decodes_only_legal_objectives_and_repairs_a_misnamed_topic_change() -> None:
