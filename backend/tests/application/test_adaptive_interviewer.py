@@ -105,6 +105,55 @@ def test_prompt_uses_source_words_and_omits_unasserted_personal_inferences() -> 
     assert "I reviewed the observations myself." in text
 
 
+def test_explicit_recall_limit_requires_a_grounded_quote_and_a_change_of_approach() -> None:
+    req = request()
+    prior = InterviewerTurn(
+        0,
+        0,
+        0,
+        InterviewerMove(
+            MoveAction.NEW_TOPIC,
+            "t1",
+            "Describe a decision.",
+            intent=TurnIntent(MovePurpose.NEW_TOPIC, True, rubric_kind="technical"),
+        ),
+    )
+    reply = replace(
+        answer(1),
+        revisions=(
+            TranscriptRevision(
+                1, "I cannot recall that detail accurately.", RevisionSource.USER_EDIT, 1
+            ),
+        ),
+    )
+    req = replace(req, turns=(prior, reply))
+    limit = {"kind": "cannot_recall", "quote": "I cannot recall that detail accurately."}
+    with pytest.raises(StructuredOutputError, match="change the evidence approach"):
+        validate_header(
+            header(
+                action="follow_up",
+                purpose="evidence_probe",
+                past_example=True,
+                answer_seq=1,
+                answer_limit=limit,
+            ),
+            req,
+        )
+    validate_header(
+        header(action="follow_up", purpose="reasoning_probe", answer_seq=1, answer_limit=limit), req
+    )
+    with pytest.raises(StructuredOutputError, match="latest answer"):
+        validate_header(
+            header(
+                action="follow_up",
+                purpose="reasoning_probe",
+                answer_seq=1,
+                answer_limit={"kind": "cannot_recall", "quote": "An invented limitation."},
+            ),
+            req,
+        )
+
+
 def header(**changes: object) -> AdaptiveHeader:
     return AdaptiveHeader.model_validate(
         {

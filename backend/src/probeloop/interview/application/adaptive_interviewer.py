@@ -26,9 +26,17 @@ from probeloop.interview.domain.model import (
 from probeloop.interview.domain.time_policy import TimeDirective
 
 
+class AnswerLimit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["cannot_recall", "no_experience", "needs_clarification"]
+    quote: str = Field(min_length=8, max_length=300)
+
+
 class AdaptiveChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # Flow context only, never a score or a diagnosis of the candidate's abilities.
+    answer_limit: AnswerLimit | None = None
     topic_id: str = Field(max_length=32)
     purpose: MovePurpose
     past_example: bool
@@ -293,6 +301,23 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
     answers = [t for t in request.turns if isinstance(t, CandidateTurn)]
     last_answer = answers[-1] if answers else None
     moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    if header.answer_limit:
+        quote = " ".join(header.answer_limit.quote.split()).casefold()
+        if last_answer is None or quote not in " ".join(last_answer.text.split()).casefold():
+            raise StructuredOutputError("an answer limitation needs a quote from the latest answer")
+        if header.answer_limit.kind == "needs_clarification":
+            if header.purpose not in (
+                MovePurpose.CLARIFICATION,
+                MovePurpose.NEW_TOPIC,
+                MovePurpose.CLOSING,
+            ):
+                raise StructuredOutputError("resolve missing context before probing")
+        elif (
+            moves
+            and header.topic_id == moves[-1].move.topic_id
+            and (header.past_example or header.purpose is MovePurpose.EVIDENCE_PROBE)
+        ):
+            raise StructuredOutputError("accept the stated limit and change the evidence approach")
     if header.answer_seq is not None and (
         last_answer is None or header.answer_seq != last_answer.seq
     ):
