@@ -201,6 +201,21 @@ async def test_one_model_call_keeps_role_context_and_validates_metadata_before_s
     assert events[-1].move.intent is not None
 
 
+def test_open_reasoning_can_elicit_autonomy_without_admitting_solution_hints() -> None:
+    req = request()
+    topics = (replace(req.context.topics[0], solvable=False), req.context.topics[1])
+    req = replace(req, context=replace(req.context, topics=topics))
+    choice = AdaptiveChoice(
+        topic_id="t1",
+        purpose=MovePurpose.NEW_TOPIC,
+        past_example=False,
+        elicited_criteria=["reasoning"],
+        fact_ids=[],
+        covered_topic_ids=[],
+    )
+    assert "autonomy" in checked_header(choice, req).elicited_criteria
+
+
 @pytest.mark.parametrize(
     "changes",
     [

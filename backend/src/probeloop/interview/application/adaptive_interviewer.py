@@ -112,7 +112,7 @@ def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHead
     allowed = set(ASSESSMENT_CRITERIA[kind])
     if not past:
         allowed -= {"experience", "ownership", "specificity", "results", "reflection"}
-    if not topic.solvable or past:
+    if past or kind not in ("technical", "hypothetical"):
         allowed.discard("autonomy")
     if not answers:
         allowed.discard("followup_depth")
@@ -406,7 +406,11 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         raise StructuredOutputError("a plan does not elicit first-hand experience or outcomes")
     if "followup_depth" in header.elicited_criteria and not last_answer:
         raise StructuredOutputError("follow-up depth requires a prior answer")
-    if "autonomy" in header.elicited_criteria and (not topic.solvable or header.past_example):
+    if "autonomy" in header.elicited_criteria and (
+        header.past_example
+        or not set(header.elicited_criteria)
+        & {"reasoning", "problem_solving", "tradeoffs", "plan", "risks", "validation"}
+    ):
         raise StructuredOutputError("autonomy needs an elicited role-relevant reasoning task")
     if header.purpose is MovePurpose.HINT:
         previous = next((t.move for t in reversed(moves) if t.move.topic_id == topic.id), None)
