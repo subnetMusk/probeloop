@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from dataclasses import asdict
 from typing import Any
 
@@ -228,8 +229,12 @@ def select_facts(
     query: str = "",
     preferred_ids: tuple[str, ...] = (),
     max_chars: int = MAX_BRIEF_CHARS,
+    measure: Callable[[Fact], int] | None = None,
 ) -> tuple[Fact, ...]:
-    """Whole facts within a context budget; the source collection is never truncated."""
+    """Whole facts within a context budget; the source collection is never truncated.
+
+    `measure` gives the size of a fact as the caller will actually send it.
+    """
     words = set(re.findall(r"\w{4,}", query.casefold()))
     preferred = set(preferred_ids)
     ranked = sorted(
@@ -243,7 +248,7 @@ def select_facts(
     selected: list[Fact] = []
     size = 0
     for _, fact in ranked:
-        length = len(_fact_line(fact)) + 1
+        length = (measure(fact) if measure else len(_fact_line(fact))) + 1
         if size + length <= max_chars:
             selected.append(fact)
             size += length

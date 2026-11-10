@@ -17,13 +17,13 @@ from probeloop.ai.ports import (
     ContextOverflowError,
     LlmError,
     ModelCapabilities,
+    estimated_tokens,
 )
 
 logger = logging.getLogger(__name__)
 
 # Conservative characters-per-token ratio used only for the pre-flight check. The authoritative
 # check uses the `prompt_eval_count` reported by Ollama after the call.
-_CHARS_PER_TOKEN = 3.0
 _NS = 1e9
 
 
@@ -124,8 +124,7 @@ class OllamaChatModel:
         return options
 
     def _preflight(self, request: ChatRequest) -> None:
-        chars = len(request.instructions) + sum(len(m.content) for m in request.messages)
-        estimated = chars / _CHARS_PER_TOKEN + (request.max_output_tokens or 0)
+        estimated = estimated_tokens(request)
         if estimated > self._context_window:
             raise ContextOverflowError(
                 f"estimated {estimated:.0f} tokens exceed the context window of "

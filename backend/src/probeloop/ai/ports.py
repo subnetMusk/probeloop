@@ -48,6 +48,17 @@ class ChatRequest:
     reasoning: Literal["off", "default"] = "off"
 
 
+# A deliberately conservative estimate shared by the providers' preflight checks and by
+# callers that fit a prompt to a model's context window.
+CHARS_PER_TOKEN = 3.0
+
+
+def estimated_tokens(request: ChatRequest) -> float:
+    """Prompt plus reserved output, in tokens, without calling a tokenizer."""
+    chars = len(request.instructions) + sum(len(m.content) for m in request.messages)
+    return chars / CHARS_PER_TOKEN + (request.max_output_tokens or 0)
+
+
 @dataclass(frozen=True, slots=True)
 class ChatUsage:
     prompt_tokens: int | None = None

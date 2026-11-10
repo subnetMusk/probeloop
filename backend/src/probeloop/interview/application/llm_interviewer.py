@@ -97,9 +97,10 @@ class LlmInterviewer:
         A hosted model gains nothing from this; asking for its capabilities still checks that it
         can be used (for example that the user is signed in).
         """
-        if not (await self._model.capabilities()).preload:
+        capabilities = await self._model.capabilities()
+        if not capabilities.preload:
             return
-        chat_request, _ = self.build_request(request)
+        chat_request, _ = self.build_request(request, capabilities.context_window)
         await self._model.complete(
             replace(
                 chat_request,
@@ -117,7 +118,12 @@ class LlmInterviewer:
         the stream at the first question mark keeps one question per turn and stops the extra
         text from ever reaching the client or the speech synthesiser.
         """
-        chat_request, prompt_ref = self.build_request(request)
+        window = (
+            (await self._model.capabilities()).context_window
+            if request.context.policy_version
+            else None
+        )
+        chat_request, prompt_ref = self.build_request(request, window)
         if request.context.policy_version:
             async for event in stream_adaptive_move(self._model, chat_request, request, prompt_ref):
                 yield event
@@ -154,8 +160,13 @@ class LlmInterviewer:
                     )
                 )
 
-    def build_request(self, request: MoveRequest) -> tuple[ChatRequest, str]:
-        """Build an append-only prompt: everything except the last message is stable."""
+    def build_request(
+        self, request: MoveRequest, context_window: int | None = None
+    ) -> tuple[ChatRequest, str]:
+        """Build an append-only prompt: everything except the last message is stable.
+
+        With a context window, an adaptive prompt is reduced until it fits (see FIT_PLANS).
+        """
         config, context = request.config, request.context
         if context.policy_version:
             return adaptive_request(
@@ -166,6 +177,7 @@ class LlmInterviewer:
                 difficulty_guidance=DIFFICULTY_GUIDANCE[config.difficulty],
                 temperature=self._temperature,
                 top_p=self._top_p,
+                context_window=context_window,
             )
         system = self._prompts.render(
             "interviewer_system",

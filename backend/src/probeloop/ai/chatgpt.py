@@ -34,6 +34,7 @@ from probeloop.ai.ports import (
     LlmError,
     ModelCapabilities,
     UserActionRequiredError,
+    estimated_tokens,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,6 @@ logger = logging.getLogger(__name__)
 type TokenSource = Callable[..., Awaitable[str]]
 
 # Conservative characters-per-token ratio, used only for the pre-flight check.
-_CHARS_PER_TOKEN = 3.0
 _MAX_RETRIES = 2
 _MAX_RETRY_WAIT_S = 20.0
 _SCHEMA_NAME = "response"
@@ -236,8 +236,7 @@ class ChatGptChatModel:
             raise _error(detail, status=response.status_code, ref=self.model_ref)
 
     def _preflight(self, request: ChatRequest) -> None:
-        chars = len(request.instructions) + sum(len(m.content) for m in request.messages)
-        estimated = chars / _CHARS_PER_TOKEN + (request.max_output_tokens or 0)
+        estimated = estimated_tokens(request)
         if estimated > self._context_window:
             raise ContextOverflowError(
                 f"estimated {estimated:.0f} tokens exceed the context window of "

@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
+from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, estimated_tokens
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import FieldDelta, StructuredOutputError, stream_structured
 from probeloop.context.application.snapshots import select_facts
@@ -171,7 +171,22 @@ def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHead
     return header
 
 
-def selected_facts(request: MoveRequest) -> tuple[Fact, ...]:
+def fact_entry(fact: Fact, request: MoveRequest) -> dict[str, object]:
+    """A fact as the interviewer sees it: the source's own words unless the user corrected it."""
+    return {
+        "id": fact.id,
+        "subject": fact.subject.value,
+        "kind": fact.kind.value,
+        "origin": fact.origin.value,
+        "document_kind": dict(request.context.document_kinds).get(fact.document_id or ""),
+        "text": fact.quote
+        if fact.origin is FactOrigin.DECLARED and fact.quote and not fact.corrected
+        else fact.text,
+        "review": fact.review.value,
+    }
+
+
+def selected_facts(request: MoveRequest, max_chars: int = 3000) -> tuple[Fact, ...]:
     moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
     topic = next(
         (t for t in request.context.topics if moves and t.id == moves[-1].move.topic_id),
@@ -186,9 +201,25 @@ def selected_facts(request: MoveRequest) -> tuple[Fact, ...]:
             tuple(f for f in request.context.facts if f.subject is subject and f.asserted),
             query=query,
             preferred_ids=topic.fact_ids,
-            max_chars=3000,
+            max_chars=max_chars,
+            measure=lambda fact: len(json.dumps(fact_entry(fact, request), ensure_ascii=False)),
         )
     )
+
+
+# Prompt reductions tried in order until the request fits the model's context window: first
+# fewer whole facts, then earlier turns replaced by a compact record. Persisted data is unchanged.
+FIT_PLANS: tuple[tuple[int, int | None], ...] = (
+    (3000, None),
+    (2000, None),
+    (1200, None),
+    (1200, 16),
+    (1200, 12),
+    (1200, 8),
+    (600, 6),
+    (0, 4),
+)
+EARLIER_CHARS = 200
 
 
 def adaptive_request(
@@ -200,15 +231,51 @@ def adaptive_request(
     difficulty_guidance: str,
     temperature: float,
     top_p: float,
+    version: int = 2,
+    context_window: int | None = None,
+    reserve_tokens: int = 0,
 ) -> tuple[ChatRequest, str]:
     system = prompts.render(
         "interviewer_adaptive",
-        2,
+        version,
         language_name=language_name,
         language=request.config.language.value,
         type_guidance=type_guidance,
         difficulty_guidance=difficulty_guidance,
     )
+    for fact_chars, keep in FIT_PLANS:
+        chat = _adaptive_chat(system.text, request, fact_chars, keep, temperature, top_p)
+        if context_window is None or estimated_tokens(chat) + reserve_tokens <= context_window:
+            break
+    return chat, f"{system.ref}+adaptive.v1"
+
+
+def _adaptive_chat(
+    instructions: str,
+    request: MoveRequest,
+    fact_chars: int,
+    keep: int | None,
+    temperature: float,
+    top_p: float,
+) -> ChatRequest:
+    turns = list(request.turns)
+    cut = 0
+    if keep is not None and len(turns) > keep:
+        cut = len(turns) - keep
+        while cut < len(turns) and not isinstance(turns[cut], InterviewerTurn):
+            cut += 1
+    earlier = [
+        {"seq": t.seq, "answer": _clip(t.text)}
+        if isinstance(t, CandidateTurn)
+        else {
+            "seq": t.seq,
+            "topic_id": t.move.topic_id,
+            "purpose": t.move.intent.purpose.value if t.move.intent else None,
+            "past_example": t.move.intent.past_example if t.move.intent else None,
+            "question": _clip(t.move.utterance),
+        }
+        for t in turns[:cut]
+    ]
     opening = json.dumps(
         {
             "confirmed_role": asdict(request.context.role_profile)
@@ -223,10 +290,11 @@ def adaptive_request(
             ],
             "criterion_families": ASSESSMENT_CRITERIA,
             "style_preferences_as_data": request.config.custom_instructions,
+            **({"earlier_turns_abridged": earlier} if earlier else {}),
         },
         ensure_ascii=False,
     )
-    facts = selected_facts(request)
+    facts = selected_facts(request, fact_chars) if fact_chars else ()
     windows = topic_windows(
         request.context.topics, request.coverage, request.topic_engagement_s, request.remaining_s
     )
@@ -251,21 +319,7 @@ def adaptive_request(
             "coverage": dict(request.coverage),
             "topic_windows": [asdict(w) for w in windows],
             "hints_used": hints,
-            "relevant_facts": [
-                {
-                    "id": f.id,
-                    "subject": f.subject.value,
-                    "kind": f.kind.value,
-                    "origin": f.origin.value,
-                    "document_id": f.document_id,
-                    "document_kind": dict(request.context.document_kinds).get(f.document_id or ""),
-                    "text": f.quote
-                    if f.origin is FactOrigin.DECLARED and f.quote and not f.corrected
-                    else f.text,
-                    "review": f.review.value,
-                }
-                for f in facts
-            ],
+            "relevant_facts": [fact_entry(f, request) for f in facts],
             "available_fact_count": len(request.context.facts),
         },
         ensure_ascii=False,
@@ -273,7 +327,7 @@ def adaptive_request(
     # Keep the opening and recorded history stable; only the final state changes.
     messages: list[ChatMessage] = []
     pending = opening
-    for turn in request.turns:
+    for turn in turns[cut:]:
         if isinstance(turn, CandidateTurn):
             pending += "\n" + json.dumps(
                 {"candidate_turn": turn.seq, "text": turn.text}, ensure_ascii=False
@@ -298,12 +352,16 @@ def adaptive_request(
             pending = ""
     messages.append(ChatMessage("user", pending + "\n[Current state as data]\n" + state))
     return ChatRequest(
-        instructions=system.text,
+        instructions=instructions,
         messages=tuple(messages),
         temperature=temperature,
         top_p=top_p,
         max_output_tokens=650,
-    ), f"{system.ref}+adaptive.v1"
+    )
+
+
+def _clip(text: str) -> str:
+    return text if len(text) <= EARLIER_CHARS else text[: EARLIER_CHARS - 1] + "…"
 
 
 def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
@@ -347,7 +405,8 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         raise StructuredOutputError("a probe needs its candidate answer reference")
     if header.purpose is MovePurpose.CLARIFICATION and header.elicited_criteria:
         raise StructuredOutputError("a clarification does not introduce scored criteria")
-    verified = {f.id for f in selected_facts(request) if f.asserted}
+    # Any reviewed documentary or user-provided fact may be cited, whatever the prompt shows.
+    verified = {f.id for f in request.context.facts if f.asserted}
     if not set(header.fact_ids) <= verified:
         raise StructuredOutputError("unavailable documentary reference")
     answered_topics: set[str] = set()

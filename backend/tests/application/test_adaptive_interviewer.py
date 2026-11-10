@@ -4,6 +4,7 @@ from dataclasses import replace
 import pytest
 
 from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.ports import ChatRequest, estimated_tokens
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import StructuredOutputError
 from probeloop.context.domain.model import Fact, FactKind, FactOrigin, Review, RoleProfile, Subject
@@ -103,6 +104,66 @@ def test_prompt_uses_source_words_and_omits_unasserted_personal_inferences() -> 
     assert "A sweeping summary" not in text
     assert "Model-only personal inference" not in text
     assert "I reviewed the observations myself." in text
+
+
+def test_prompt_fits_the_context_window_keeping_the_latest_answer_verbatim() -> None:
+    req = request()
+    facts = tuple(
+        Fact(
+            f"f{n}",
+            Subject.CANDIDATE,
+            FactKind.PROJECT,
+            "Short summary",
+            FactOrigin.DECLARED,
+            "doc",
+            f"Long documentary passage {n}: " + "measured, reviewed and reported. " * 12,
+        )
+        for n in range(40)
+    )
+    turns: list[InterviewerTurn | CandidateTurn] = []
+    for n in range(0, 60, 2):
+        turns.append(
+            InterviewerTurn(
+                n,
+                0,
+                0,
+                InterviewerMove(
+                    MoveAction.FOLLOW_UP,
+                    "t1",
+                    f"Question {n}: " + "what would you check and why? " * 6,
+                    intent=TurnIntent(MovePurpose.REASONING_PROBE, rubric_kind="technical"),
+                ),
+            )
+        )
+        text = f"Answer {n + 1}: " + "I would compare the series and explain limits. " * 8
+        turns.append(
+            replace(
+                answer(n + 1),
+                revisions=(TranscriptRevision(1, text, RevisionSource.USER_EDIT, 1),),
+            )
+        )
+    req = replace(req, context=replace(req.context, facts=facts), turns=tuple(turns))
+
+    def build(window: int | None) -> ChatRequest:
+        chat, _ = adaptive_request(
+            PromptRenderer("probeloop.interview"),
+            req,
+            language_name="English",
+            type_guidance="professional",
+            difficulty_guidance="medium",
+            temperature=0.2,
+            top_p=0.9,
+            context_window=window,
+        )
+        return chat
+
+    assert estimated_tokens(build(None)) > 8192
+    fitted = build(8192)
+    assert estimated_tokens(fitted) <= 8192
+    content = "".join(m.content for m in fitted.messages)
+    assert turns[-1].text in content
+    assert "earlier_turns_abridged" in content
+    assert len(req.context.facts) == 40
 
 
 def test_explicit_recall_limit_requires_a_grounded_quote_and_a_change_of_approach() -> None:
