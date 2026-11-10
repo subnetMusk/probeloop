@@ -195,10 +195,41 @@ async def test_one_model_call_keeps_role_context_and_validates_metadata_before_s
     assert "junior" in model.requests[0].messages[0].content
     assert "Economics" in model.requests[0].messages[0].content
     assert (
-        "".join(e.text for e in events if isinstance(e, MoveDelta)) == "What would you check first?"
+        "".join(e.text for e in events if isinstance(e, MoveDelta))
+        == "Buongiorno. Consideriamo uno scenario ipotetico. What would you check first?"
     )
     assert isinstance(events[-1], MoveDone)
     assert events[-1].move.intent is not None
+
+
+async def test_the_spoken_experience_frame_elicits_the_recorded_contribution_criteria() -> None:
+    req = request()
+    topics = (replace(req.context.topics[0], past_example=True), req.context.topics[1])
+    req = replace(req, context=replace(req.context, topics=topics))
+    choice = AdaptiveChoice(
+        topic_id="t1",
+        purpose=MovePurpose.NEW_TOPIC,
+        past_example=False,
+        elicited_criteria=["reasoning"],
+        fact_ids=[],
+        covered_topic_ids=[],
+    )
+    model = FakeChatModel(
+        [
+            json.dumps(
+                {**choice.model_dump(mode="json"), "utterance": "How did you check the result?"}
+            )
+        ]
+    )
+    events = [event async for event in LlmInterviewer(model).next_move(req)]
+    assert isinstance(events[-1], MoveDone)
+    move = events[-1].move
+    assert move.intent is not None
+    assert move.intent.past_example
+    assert {"ownership", "experience"} <= set(move.intent.elicited_criteria)
+    assert "esempio reale" in move.utterance
+    assert "contributo personale" in move.utterance
+    assert "".join(e.text for e in events if isinstance(e, MoveDelta)).strip() == move.utterance
 
 
 def test_open_reasoning_can_elicit_autonomy_without_admitting_solution_hints() -> None:

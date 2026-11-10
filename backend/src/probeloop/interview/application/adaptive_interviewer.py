@@ -106,6 +106,9 @@ def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHead
         MovePurpose.CLARIFICATION,
         MovePurpose.CLOSING,
     )
+    if choice.purpose is MovePurpose.NEW_TOPIC:
+        # Code will actually speak this objective's evidence frame before the generated question.
+        past = topic.past_example
     kind = topic.rubric_kind or "logistics"
     if kind in ("behavioral", "hypothetical") and choice.purpose is not MovePurpose.CLARIFICATION:
         kind = "behavioral" if past else "hypothetical"
@@ -134,6 +137,15 @@ def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHead
     ):
         # A declared reasoning task elicits autonomy even if the model omits its id.
         elicited.append("autonomy")
+    if past and (
+        not moves
+        or choice.purpose is MovePurpose.NEW_TOPIC
+        or (moves[-1].move.intent is not None and not moves[-1].move.intent.past_example)
+    ):
+        # question_frame actually requests this evidence; it is not inferred from a goal.
+        elicited.extend(
+            c for c in ("experience", "ownership") if c in allowed and c not in elicited
+        )
     answered: set[str] = set()
     current = ""
     for turn in request.turns:
@@ -191,7 +203,7 @@ def adaptive_request(
 ) -> tuple[ChatRequest, str]:
     system = prompts.render(
         "interviewer_adaptive",
-        1,
+        2,
         language_name=language_name,
         language=request.config.language.value,
         type_guidance=type_guidance,
@@ -450,6 +462,8 @@ async def stream_adaptive_move(
         if isinstance(item, FieldDelta):
             buffered += item.text
             if header is None:
+                if any(key not in item.partial for key in AdaptiveChoice.model_fields):
+                    continue
                 try:
                     choice = AdaptiveChoice.model_validate(
                         {k: v for k, v in item.partial.items() if k in AdaptiveChoice.model_fields}
@@ -461,6 +475,8 @@ async def stream_adaptive_move(
             text = _speakable(buffered, header.action, spoken)
             buffered = ""
             if text:
+                if not spoken:
+                    text = question_frame(request, header) + text
                 spoken += text
                 yield MoveDelta(text, MoveAction(header.action), header.topic_id, header.intent())
         else:
@@ -469,7 +485,10 @@ async def stream_adaptive_move(
             )
             if header is not None and header != final:
                 raise StructuredOutputError("essential question metadata changed after emission")
-            utterance = _speakable(item.value.utterance, final.action, "").strip()
+            utterance = (
+                question_frame(request, final)
+                + _speakable(item.value.utterance, final.action, "").strip()
+            )
             if not spoken:
                 yield MoveDelta(utterance, MoveAction(final.action), final.topic_id, final.intent())
             yield MoveDone(
@@ -483,6 +502,39 @@ async def stream_adaptive_move(
                     intent=final.intent(),
                 )
             )
+
+
+def question_frame(request: MoveRequest, header: AdaptiveHeader) -> str:
+    """An explicit evidence contract, not an assertion that the candidate has that experience."""
+    if header.purpose in (MovePurpose.CLOSING, MovePurpose.CLARIFICATION, MovePurpose.HINT):
+        return ""
+    previous = next((t for t in reversed(request.turns) if isinstance(t, InterviewerTurn)), None)
+    changed = (
+        previous is None
+        or header.action == "new_topic"
+        or (
+            previous.move.intent is not None
+            and previous.move.intent.past_example != header.past_example
+        )
+    )
+    if not changed:
+        return ""
+    italian = request.config.language.value == "it"
+    opening = ("Buongiorno. " if italian else "Hello. ") if previous is None else ""
+    if header.past_example:
+        return opening + (
+            "Usi un esempio reale e descriva il Suo contributo personale; "
+            "se non ne dispone, lo dica. "
+            if italian
+            else "Use a real example and describe your own contribution; say if none applies. "
+        )
+    if header.rubric_kind in ("technical", "hypothetical"):
+        return opening + (
+            "Consideriamo uno scenario ipotetico. "
+            if italian
+            else "Let's use a hypothetical scenario. "
+        )
+    return opening
 
 
 def _speakable(text: str, action: str, spoken: str) -> str:
