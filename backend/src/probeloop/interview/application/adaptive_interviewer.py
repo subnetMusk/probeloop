@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from dataclasses import asdict, replace
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
 
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, estimated_tokens
 from probeloop.ai.prompts import PromptRenderer
@@ -611,11 +611,96 @@ def decision_request(chat: ChatRequest, rejected: list[tuple[str, str]]) -> Chat
     return replace(chat, messages=tuple(messages), max_output_tokens=450)
 
 
+def legal_topic_ids(request: MoveRequest) -> tuple[str, ...]:
+    """Objectives the time and topic policy admits for the next move.
+
+    A result containing only the closing objective means that closing is the only legal move.
+    """
+    closing = next(t.id for t in request.context.topics if t.rubric_kind == "logistics")
+    moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    if request.directive in (
+        TimeDirective.FINAL_QUESTION,
+        TimeDirective.CLOSE,
+        TimeDirective.FORCE_CLOSE,
+    ) or (bool(moves) and moves[-1].move.topic_id == closing):
+        return (closing,)
+    windows = topic_windows(
+        request.context.topics, request.coverage, request.topic_engagement_s, request.remaining_s
+    )
+    available = tuple(w.topic_id for w in windows if w.available)
+    if request.directive is TimeDirective.BEGIN_WRAP_UP:
+        current = moves[-1].move.topic_id if moves else ""
+        final_probe = any(t.elapsed_s >= request.config.target_duration_s * 0.85 for t in moves)
+        return (current, closing) if current in available and not final_probe else (closing,)
+    return available or (closing,)
+
+
+def decision_output(topic_ids: tuple[str, ...]) -> type[AdaptiveDecision]:
+    """Constrain decoding to the legal objectives; validation still checks every choice."""
+    return create_model(
+        "AdaptiveDecision",
+        __base__=AdaptiveDecision,
+        topic_id=(str, Field(max_length=32, json_schema_extra={"enum": list(topic_ids)})),
+    )
+
+
+def coerced(decision: AdaptiveDecision, request: MoveRequest) -> AdaptiveDecision:
+    """Repair purpose/objective contradictions that have only one reading.
+
+    No question text exists yet, so the question step implements the repaired decision. The
+    closing objective admits only the closing purpose; a probe of the latest answer under a
+    different objective introduces that objective.
+    """
+    topic = next((t for t in request.context.topics if t.id == decision.topic_id), None)
+    moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    current = moves[-1].move.topic_id if moves else None
+    if topic is not None and topic.rubric_kind == "logistics":
+        return decision.model_copy(
+            update={
+                "purpose": MovePurpose.CLOSING,
+                "past_example": False,
+                "elicited_criteria": [],
+                "fact_ids": [],
+            }
+        )
+    if decision.topic_id != current and decision.purpose in (
+        MovePurpose.EVIDENCE_PROBE,
+        MovePurpose.REASONING_PROBE,
+    ):
+        return decision.model_copy(update={"purpose": MovePurpose.NEW_TOPIC})
+    return decision
+
+
+def closing_decision(request: MoveRequest, closing: str) -> AdaptiveDecision:
+    moves = [t for t in request.turns if isinstance(t, InterviewerTurn)]
+    ending = (bool(moves) and moves[-1].move.topic_id == closing) or request.directive in (
+        TimeDirective.CLOSE,
+        TimeDirective.FORCE_CLOSE,
+    )
+    return AdaptiveDecision(
+        topic_id=closing,
+        purpose=MovePurpose.CLOSING,
+        past_example=False,
+        elicited_criteria=[],
+        fact_ids=[],
+        covered_topic_ids=[],
+        focus="Say goodbye after any reply to the candidate's questions."
+        if ending
+        else "Invite the candidate's questions about the role.",
+    )
+
+
 def question_rules(request: MoveRequest, header: AdaptiveHeader, focus: str) -> str:
     """Code-selected constraints that make the written question implement the decision."""
     topic = next(t for t in request.context.topics if t.id == header.topic_id)
-    if header.purpose is MovePurpose.CLOSING:
-        frame = "Close as the time directive requires; ask for no evidence and give no hint."
+    if header.purpose is MovePurpose.CLOSING and header.action == "end":
+        frame = (
+            "Answer the candidate's questions only with information in the supplied documents; "
+            "otherwise say that it is not available in this practice interview. Then say "
+            "goodbye, asking nothing further."
+        )
+    elif header.purpose is MovePurpose.CLOSING:
+        frame = "Ask whether the candidate has questions; ask for no evidence and give no hint."
     elif header.purpose is MovePurpose.CLARIFICATION:
         frame = "Resolve the ambiguity or answer the candidate's question; ask for no new evidence."
     elif header.purpose is MovePurpose.HINT:
@@ -656,15 +741,24 @@ async def stream_two_step_move(
     request: MoveRequest,
     prompt_ref: str,
 ) -> AsyncIterator[MoveDelta | MoveDone]:
-    """Decide and validate first, then write the question that implements the decision."""
+    """Decide and validate first, then write the question that implements the decision.
+
+    When the policy leaves closing as the only legal move, code makes that decision and the
+    model writes only the closing words.
+    """
     rejected: list[tuple[str, str]] = []
     header: AdaptiveHeader | None = None
     decision: AdaptiveDecision | None = None
+    legal = legal_topic_ids(request)
+    closing = next(t.id for t in request.context.topics if t.rubric_kind == "logistics")
     for _ in range(2):
-        result = await complete_structured(
-            model, decision_request(chat_request, rejected), AdaptiveDecision
-        )
-        decision = result.value
+        if legal == (closing,):
+            decision, raw = closing_decision(request, closing), ""
+        else:
+            result = await complete_structured(
+                model, decision_request(chat_request, rejected), decision_output(legal)
+            )
+            decision, raw = coerced(result.value, request), result.raw
         try:
             header = checked_header(
                 AdaptiveChoice.model_validate(decision.model_dump(exclude={"focus"})),
@@ -673,7 +767,9 @@ async def stream_two_step_move(
             )
             break
         except StructuredOutputError as exc:
-            rejected.append((result.raw, str(exc)))
+            if not raw:
+                raise
+            rejected.append((raw, str(exc)))
     if header is None or decision is None:
         raise StructuredOutputError(f"decision rejected: {rejected[-1][1]}")
     *history, last = chat_request.messages

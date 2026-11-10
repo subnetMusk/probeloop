@@ -10,6 +10,7 @@ from probeloop.ai.structured import StructuredOutputError
 from probeloop.context.domain.model import Fact, FactKind, FactOrigin, Review, RoleProfile, Subject
 from probeloop.interview.application.adaptive_interviewer import (
     AdaptiveChoice,
+    AdaptiveDecision,
     AdaptiveHeader,
     adaptive_request,
     checked_header,
@@ -385,6 +386,49 @@ async def test_two_step_keeps_the_decided_frame_and_states_limits_for_the_questi
     assert not move.move.intent.past_example
     assert move.move.utterance == "Assume a similar case: what would you check?"
     assert "Do not ask for that detail again" in model.requests[1].messages[-1].content
+
+
+async def test_two_step_decodes_only_legal_objectives_and_repairs_a_misnamed_topic_change() -> None:
+    req = request()
+    extra = Topic("t3", "Evidence checks", rubric_kind="technical", criteria=("reasoning",))
+    context = replace(req.context, topics=(req.context.topics[0], extra, req.context.topics[1]))
+    req = replace(req, context=context, topic_engagement_s={"t1": 241})
+    model = FakeChatModel(
+        [
+            decision(topic_id="t3", purpose="reasoning_probe"),
+            json.dumps({"utterance": "How would you check the evidence?"}),
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    schema = model.requests[0].response_schema
+    assert schema is not None
+    assert schema["properties"]["topic_id"]["enum"] == ["t3"]
+    assert list(schema["properties"]) == list(AdaptiveDecision.model_fields)
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert (done.move.action, done.move.topic_id) == (MoveAction.NEW_TOPIC, "t3")
+
+
+async def test_code_decides_a_closing_that_is_the_only_legal_move() -> None:
+    prior = asked("t1")
+    req = replace(request(), directive=TimeDirective.FINAL_QUESTION, turns=(prior, answer(1)))
+    model = FakeChatModel([json.dumps({"utterance": "Do you have any questions for us?"})])
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    assert len(model.requests) == 1
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert (done.move.action, done.move.topic_id) == (MoveAction.WRAP_UP, "t2")
+    assert done.move.intent is not None
+    assert done.move.intent.purpose is MovePurpose.CLOSING
+
+    wrap_up = asked("t2", action=MoveAction.WRAP_UP, fallback=True)
+    req = replace(request(), turns=(prior, answer(1), wrap_up, answer(3)))
+    model = FakeChatModel([json.dumps({"utterance": "Thank you, goodbye."})])
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.move.action is MoveAction.END
+    assert "supplied documents" in model.requests[0].messages[-1].content
 
 
 def test_a_started_closing_ends_and_an_early_one_waits_for_the_objectives() -> None:
