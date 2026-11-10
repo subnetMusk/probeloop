@@ -293,6 +293,92 @@ async def test_the_spoken_experience_frame_elicits_the_recorded_contribution_cri
     assert "".join(e.text for e in events if isinstance(e, MoveDelta)).strip() == move.utterance
 
 
+def decision(**changes: object) -> str:
+    return json.dumps(
+        {
+            "answer_limit": None,
+            "topic_id": "t1",
+            "purpose": "new_topic",
+            "past_example": False,
+            "elicited_criteria": ["reasoning"],
+            "fact_ids": [],
+            "covered_topic_ids": [],
+            "focus": "How the candidate would check an uncertain estimate.",
+            **changes,
+        }
+    )
+
+
+async def test_two_step_turn_validates_the_decision_before_any_question_text() -> None:
+    utterance = json.dumps({"utterance": "Suppose the estimate is uncertain: what first? More?"})
+    model = FakeChatModel([decision(), utterance], chunk_size=5)
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(request())]
+    assert len(model.requests) == 2
+    first, second = model.requests
+    assert "utterance" not in json.dumps(first.response_schema)
+    assert first.messages[-1].content.endswith("Do not write the question yet.")
+    # The question call extends the decision call, so a provider can reuse the processed prefix.
+    assert second.messages[: len(first.messages)] == first.messages
+    assert "hypothetical" in second.messages[-1].content
+    text = "".join(e.text for e in events if isinstance(e, MoveDelta))
+    assert text == "Buongiorno. Suppose the estimate is uncertain: what first?"
+    assert isinstance(events[-1], MoveDone)
+    assert events[-1].move.intent is not None
+    assert "autonomy" in events[-1].move.intent.elicited_criteria
+    assert events[-1].move.prompt_ref is not None
+    assert "interviewer_adaptive@v3" in events[-1].move.prompt_ref
+    assert "two_step" in events[-1].move.prompt_ref
+
+
+async def test_a_rejected_decision_is_returned_once_with_its_reason() -> None:
+    model = FakeChatModel(
+        [decision(topic_id="t9"), decision(), json.dumps({"utterance": "What would you check?"})]
+    )
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(request())]
+    assert len(model.requests) == 3
+    assert "unknown objective" in model.requests[1].messages[-1].content
+    assert isinstance(events[-1], MoveDone)
+
+
+async def test_two_step_keeps_the_decided_frame_and_states_limits_for_the_question() -> None:
+    req = request()
+    topics = (replace(req.context.topics[0], past_example=True), req.context.topics[1])
+    prior = InterviewerTurn(
+        0,
+        0,
+        0,
+        InterviewerMove(
+            MoveAction.NEW_TOPIC,
+            "t1",
+            "Describe a decision you made.",
+            intent=TurnIntent(MovePurpose.NEW_TOPIC, True, rubric_kind="technical"),
+        ),
+    )
+    reply = replace(
+        answer(1),
+        revisions=(
+            TranscriptRevision(
+                1, "I cannot recall that detail accurately.", RevisionSource.USER_EDIT, 1
+            ),
+        ),
+    )
+    req = replace(req, context=replace(req.context, topics=topics), turns=(prior, reply))
+    limit = {"kind": "cannot_recall", "quote": "I cannot recall that detail accurately."}
+    model = FakeChatModel(
+        [
+            decision(purpose="reasoning_probe", answer_limit=limit),
+            json.dumps({"utterance": "Assume a similar case: what would you check?"}),
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    move = events[-1]
+    assert isinstance(move, MoveDone)
+    assert move.move.intent is not None
+    assert not move.move.intent.past_example
+    assert move.move.utterance == "Assume a similar case: what would you check?"
+    assert "Do not ask for that detail again" in model.requests[1].messages[-1].content
+
+
 def test_open_reasoning_can_elicit_autonomy_without_admitting_solution_hints() -> None:
     req = request()
     topics = (replace(req.context.topics[0], solvable=False), req.context.topics[1])

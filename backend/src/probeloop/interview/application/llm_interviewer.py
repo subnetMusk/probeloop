@@ -13,9 +13,11 @@ from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import FieldDelta, stream_structured
 from probeloop.interview.application.adaptive_interviewer import (
+    AdaptiveDecision,
     AdaptiveMoveOutput,
     adaptive_request,
     stream_adaptive_move,
+    stream_two_step_move,
 )
 from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
 from probeloop.interview.domain.model import (
@@ -81,8 +83,11 @@ class LlmInterviewer:
         temperature: float = 0.6,
         top_p: float = 0.9,
         max_output_tokens: int = 320,
+        two_step: bool = False,
     ) -> None:
         self._model = model
+        # Adaptive sessions only: decide and validate, then write the question (two calls).
+        self._two_step = two_step
         self._prompts = PromptRenderer("probeloop.interview")
         self._temperature = temperature
         self._top_p = top_p
@@ -106,7 +111,9 @@ class LlmInterviewer:
                 chat_request,
                 max_output_tokens=1,
                 response_schema=(
-                    AdaptiveMoveOutput if request.context.policy_version else MoveOutput
+                    (AdaptiveDecision if self._two_step else AdaptiveMoveOutput)
+                    if request.context.policy_version
+                    else MoveOutput
                 ).model_json_schema(),
             )
         )
@@ -125,7 +132,8 @@ class LlmInterviewer:
         )
         chat_request, prompt_ref = self.build_request(request, window)
         if request.context.policy_version:
-            async for event in stream_adaptive_move(self._model, chat_request, request, prompt_ref):
+            stream = stream_two_step_move if self._two_step else stream_adaptive_move
+            async for event in stream(self._model, chat_request, request, prompt_ref):
                 yield event
             return
         spoken = ""
@@ -177,7 +185,10 @@ class LlmInterviewer:
                 difficulty_guidance=DIFFICULTY_GUIDANCE[config.difficulty],
                 temperature=self._temperature,
                 top_p=self._top_p,
+                version=3 if self._two_step else 2,
                 context_window=context_window,
+                # The question step appends the accepted decision and its constraints.
+                reserve_tokens=500 if self._two_step else 0,
             )
         system = self._prompts.render(
             "interviewer_system",

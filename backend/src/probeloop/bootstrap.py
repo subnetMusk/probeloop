@@ -357,7 +357,7 @@ def build(
         pinned = roles["interviewer"].pinned(session.execution_profile or profiles.current)
         if settings.llm_debug_log:
             pinned = DebugLogChatModel(pinned, settings.data_dir / "logs" / "llm.jsonl")
-        return LlmInterviewer(pinned)
+        return LlmInterviewer(pinned, two_step=settings.interviewer_turn == "two_step")
 
     sessions = SessionService(
         interviewer_for=interviewer_for,

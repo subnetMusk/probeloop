@@ -2,14 +2,19 @@
 
 import json
 from collections.abc import AsyncIterator
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, estimated_tokens
 from probeloop.ai.prompts import PromptRenderer
-from probeloop.ai.structured import FieldDelta, StructuredOutputError, stream_structured
+from probeloop.ai.structured import (
+    FieldDelta,
+    StructuredOutputError,
+    complete_structured,
+    stream_structured,
+)
 from probeloop.context.application.snapshots import select_facts
 from probeloop.context.domain.model import Fact, FactOrigin, Subject
 from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
@@ -70,7 +75,21 @@ class AdaptiveMoveOutput(AdaptiveChoice):
     utterance: str = Field(min_length=1, max_length=1800)
 
 
-def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHeader:
+class AdaptiveDecision(AdaptiveChoice):
+    """First step of a two-step turn: the decision, validated before any question text exists."""
+
+    # The single thing the next question will ask, stated before the question is written.
+    focus: str = Field(min_length=5, max_length=240)
+
+
+class QuestionOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    utterance: str = Field(min_length=1, max_length=1800)
+
+
+def checked_header(
+    choice: AdaptiveChoice, request: MoveRequest, *, frame_from_objective: bool = True
+) -> AdaptiveHeader:
     topic = next((t for t in request.context.topics if t.id == choice.topic_id), None)
     if topic is None:
         raise StructuredOutputError("unknown objective")
@@ -106,7 +125,7 @@ def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHead
         MovePurpose.CLARIFICATION,
         MovePurpose.CLOSING,
     )
-    if choice.purpose is MovePurpose.NEW_TOPIC:
+    if frame_from_objective and choice.purpose is MovePurpose.NEW_TOPIC:
         # Code will actually speak this objective's evidence frame before the generated question.
         past = topic.past_example
     kind = topic.rubric_kind or "logistics"
@@ -137,10 +156,14 @@ def checked_header(choice: AdaptiveChoice, request: MoveRequest) -> AdaptiveHead
     ):
         # A declared reasoning task elicits autonomy even if the model omits its id.
         elicited.append("autonomy")
-    if past and (
-        not moves
-        or choice.purpose is MovePurpose.NEW_TOPIC
-        or (moves[-1].move.intent is not None and not moves[-1].move.intent.past_example)
+    if (
+        frame_from_objective
+        and past
+        and (
+            not moves
+            or choice.purpose is MovePurpose.NEW_TOPIC
+            or (moves[-1].move.intent is not None and not moves[-1].move.intent.past_example)
+        )
     ):
         # question_frame actually requests this evidence; it is not inferred from a goal.
         elicited.extend(
@@ -559,6 +582,134 @@ async def stream_adaptive_move(
                     model_ref=model.model_ref,
                     prompt_ref=prompt_ref,
                     intent=final.intent(),
+                )
+            )
+
+
+DECIDE = (
+    "\n[Step 1: decide] Return only the decision for the next move: its metadata and a focus "
+    "sentence naming the single thing the question will ask and whether it concerns the "
+    "candidate's actual past or a hypothetical situation. Do not write the question yet."
+)
+
+
+def decision_request(chat: ChatRequest, rejected: list[tuple[str, str]]) -> ChatRequest:
+    """The shared prompt plus a decision step; rejected decisions are returned with reasons."""
+    *history, last = chat.messages
+    messages = [*history, ChatMessage("user", last.content + DECIDE)]
+    for raw, reason in rejected:
+        messages += [
+            ChatMessage("assistant", raw),
+            ChatMessage("user", f"The application rejected this decision: {reason}. Decide again."),
+        ]
+    return replace(chat, messages=tuple(messages), max_output_tokens=450)
+
+
+def question_rules(request: MoveRequest, header: AdaptiveHeader, focus: str) -> str:
+    """Code-selected constraints that make the written question implement the decision."""
+    topic = next(t for t in request.context.topics if t.id == header.topic_id)
+    if header.purpose is MovePurpose.CLOSING:
+        frame = "Close as the time directive requires; ask for no evidence and give no hint."
+    elif header.purpose is MovePurpose.CLARIFICATION:
+        frame = "Resolve the ambiguity or answer the candidate's question; ask for no new evidence."
+    elif header.purpose is MovePurpose.HINT:
+        frame = (
+            "Give one partial cue for the task already posed, never the solution or a past "
+            "experience, then ask the candidate to continue."
+        )
+    elif header.past_example:
+        frame = (
+            "Ask only about the candidate's actual past experience. Do not presuppose an event "
+            "that neither the answers nor the cited facts contain."
+        )
+    else:
+        frame = (
+            "Ask about a hypothetical or general situation, not the candidate's past; state every "
+            "scenario detail explicitly as an assumption."
+        )
+    rules = [f"Objective: {topic.title}.", f"Focus: {focus}", frame]
+    limit = header.answer_limit
+    if limit and limit.kind != "needs_clarification":
+        rules.append(f'The candidate said: "{limit.quote}". Do not ask for that detail again.')
+    return (
+        "\n[Step 2: ask] The application accepted the decision above. Write only the spoken "
+        "question that implements it, without greeting, praise or agreement with the candidate's "
+        "claims. " + " ".join(rules)
+    )
+
+
+def opening_greeting(request: MoveRequest) -> str:
+    if any(isinstance(t, InterviewerTurn) for t in request.turns):
+        return ""
+    return "Buongiorno. " if request.config.language.value == "it" else "Hello. "
+
+
+async def stream_two_step_move(
+    model: ChatModel,
+    chat_request: ChatRequest,
+    request: MoveRequest,
+    prompt_ref: str,
+) -> AsyncIterator[MoveDelta | MoveDone]:
+    """Decide and validate first, then write the question that implements the decision."""
+    rejected: list[tuple[str, str]] = []
+    header: AdaptiveHeader | None = None
+    decision: AdaptiveDecision | None = None
+    for _ in range(2):
+        result = await complete_structured(
+            model, decision_request(chat_request, rejected), AdaptiveDecision
+        )
+        decision = result.value
+        try:
+            header = checked_header(
+                AdaptiveChoice.model_validate(decision.model_dump(exclude={"focus"})),
+                request,
+                frame_from_objective=False,
+            )
+            break
+        except StructuredOutputError as exc:
+            rejected.append((result.raw, str(exc)))
+    if header is None or decision is None:
+        raise StructuredOutputError(f"decision rejected: {rejected[-1][1]}")
+    *history, last = chat_request.messages
+    accepted = json.dumps(
+        {k: v for k, v in decision.model_dump(mode="json").items() if k != "covered_topic_ids"},
+        ensure_ascii=False,
+    )
+    question = replace(
+        chat_request,
+        messages=(
+            *history,
+            ChatMessage("user", last.content + DECIDE),
+            ChatMessage("assistant", accepted),
+            ChatMessage("user", question_rules(request, header, decision.focus)),
+        ),
+    )
+    spoken = ""
+    async for item in stream_structured(model, question, QuestionOut, stream_field="utterance"):
+        if isinstance(item, FieldDelta):
+            text = _speakable(item.text, header.action, spoken)
+            if text:
+                if not spoken:
+                    text = opening_greeting(request) + text
+                spoken += text
+                yield MoveDelta(text, MoveAction(header.action), header.topic_id, header.intent())
+        else:
+            utterance = (
+                opening_greeting(request)
+                + _speakable(item.value.utterance, header.action, "").strip()
+            )
+            action = MoveAction(header.action)
+            if not spoken:
+                yield MoveDelta(utterance, action, header.topic_id, header.intent())
+            yield MoveDone(
+                InterviewerMove(
+                    action,
+                    header.topic_id,
+                    utterance,
+                    tuple(header.covered_topic_ids),
+                    model_ref=model.model_ref,
+                    prompt_ref=prompt_ref.replace("+adaptive.v1", "+adaptive.two_step.v1"),
+                    intent=header.intent(),
                 )
             )
 

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # docs/research/evaluation-latency.md before enabling it.
     evaluation_judge_reasoning: Literal["off", "default"] = "off"
     keep_alive: str = "30m"
+    # Adaptive interviewer turns: one structured generation, or a validated decision followed by
+    # the question that implements it (two calls sharing the prompt prefix).
+    interviewer_turn: Literal["single", "two_step"] = "single"
 
     # Cloud execution profile (docs/adr/0013-cloud-execution-profile.md): the interviewer,
     # document analysis and evaluation use the signed-in user's ChatGPT plan through Sign in with
