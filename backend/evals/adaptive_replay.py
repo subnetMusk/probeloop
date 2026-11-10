@@ -218,26 +218,32 @@ async def run(args: argparse.Namespace) -> None:
                 raise ValueError("live calibration requires a real evaluator")
             for session, snapshot, digest in sessions:
                 for n in range(args.regenerations):
-                    result = await reviewer.review(
+                    judgement = await reviewer.review(
                         session, snapshot, session.config.language.value, progress
                     )
-                    values = [score.value for score in result.scores if score.value is not None]
+                    values = [s.value for s in judgement.scores if s.value is not None]
                     row = {
                         "profile": profile,
                         "model": reviewer.model.model_ref,
+                        "prompt_ref": reviewer.prompt_ref_for(session),
                         "session_id": session.id,
                         "quality": audit["sessions"][session.id].get("quality"),
                         "pair_id": audit["sessions"][session.id].get("pair_id"),
                         "fingerprint": digest,
                         "regeneration": n + 1,
                         "mean": mean(values) if values else None,
-                        "judgement": asdict(result),
+                        "judgement": asdict(judgement),
                     }
                     texts = {turn.seq: turn.text for turn in session.candidate_turns()}
+                    scored = (*judgement.scores, *judgement.unit_scores)
+                    quoted = [
+                        *(e for s in scored for e in s.evidence),
+                        *(e for o in judgement.observations for e in o.evidence),
+                    ]
                     row["unverified"] = sum(
-                        evidence.quote not in texts.get(evidence.turn_seq, "")
-                        for item in (*result.scores, *result.unit_scores, *result.observations)
-                        for evidence in item.evidence
+                        evidence.turn_seq is None
+                        or evidence.quote not in texts.get(evidence.turn_seq, "")
+                        for evidence in quoted
                     )
                     rows.append(row)
                     atomic_write(
