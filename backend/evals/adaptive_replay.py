@@ -20,6 +20,16 @@ from probeloop.interview.domain.model import InterviewSession, RevisionSource, T
 from probeloop.settings import Settings
 from probeloop.storage.session_files import atomic_write
 
+QUALITY_TRAITS = {
+    "strong": "Explain the economic distinction accurately, including assumptions and limits.",
+    "weak": "Make one substantive conceptual error in the economic explanation. "
+    "Maintain it as your belief, without announcing that it is an error.",
+    # An intermediate answer checks whether the judge separates partial from full quality.
+    "partial": "Use an appropriate method and reach an approximately correct conclusion, but "
+    "leave one relevant assumption or limitation unexamined and state one detail imprecisely. "
+    "Do not make a gross conceptual error and do not announce the omission.",
+}
+
 
 def fingerprint(session: InterviewSession, snapshot: ContextSnapshot | None) -> str:
     payload = {
@@ -148,13 +158,8 @@ async def run(args: argparse.Namespace) -> None:
             question = source.interviewer_turns()[0].move.utterance
             model = services.roles["interviewer"].pinned("cloud")
             answers = {}
-            for quality in ("strong", "weak"):
-                traits = (
-                    "Explain the economic distinction accurately, including assumptions and limits."
-                    if quality == "strong"
-                    else "Make one substantive conceptual error in the economic explanation. "
-                    "Maintain it as your belief, without announcing that it is an error."
-                )
+            for quality in args.quality or ["strong", "weak"]:
+                traits = QUALITY_TRAITS[quality]
                 result = await model.complete(
                     ChatRequest(
                         instructions=(
@@ -269,6 +274,9 @@ def main() -> None:
         help="controlled response variants to a real recorded question",
     )
     parser.add_argument("--pair-inputs", type=Path)
+    parser.add_argument(
+        "--quality", action="append", choices=sorted(QUALITY_TRAITS), help="generated variants"
+    )
     parser.add_argument("--profile", action="append", choices=["local", "cloud"], default=[])
     parser.add_argument("--regenerations", type=int, default=5)
     parser.add_argument("--describe", action="store_true")
