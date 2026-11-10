@@ -136,20 +136,20 @@ The script and raw timings are in the ignored `var/test-run/turn-timing-v1/`.
 - **Local calls.** The decision dominates, because it generates every field before the question
   can start.
 - **Voice turns.** The first interviewer audio arrived within a second of the completed move in
-  every voice turn of the three interviews. The question is usually a single sentence, and
-  synthesis starts at the end of a sentence, so in a voice interview the reply latency follows
-  the complete move rather than the first text.
+  every voice turn of the three interviews. Synthesis already starts at the first clause after 40
+  characters (`first_clause_chars`). In the cloud, however, the whole question streams in about
+  1.2 s once its first chunk arrives, so the wait lies almost entirely before the question
+  starts.
 - **Gap to the measured voice latency.** The voice interviews measured 17–19 s against the 12.7 s
   of the replayed moves. Provider time varied between runs, and the app adds recognition and
   synthesis.
 
 Levers, from cheapest:
 
-1. Reading the limits concurrently with the decision instead of before it. This would save the
-   limits time (about 3.5 s in the cloud) if the decision no longer needs the quotes; the
-   question step would still receive them. A local Laya classifier for the same reading would
-   save the same time at a much higher cost.
-2. Starting synthesis at a clause boundary of a long question, not at its end.
+1. Reading the limits without a model call, for example with a small local classifier, or
+   concurrently with the decision. Either saves the limits time, about 3.5 s in the cloud;
+   only the classifier keeps the quotes available to the decision.
+2. A shorter decision output for the local model, whose decode time dominates its turn.
 3. Single-call turns for the cloud profile, about seven seconds faster per move, once its
    fallbacks are addressed.
 
