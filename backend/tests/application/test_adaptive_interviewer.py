@@ -15,6 +15,7 @@ from probeloop.interview.application.adaptive_interviewer import (
     adaptive_request,
     checked_header,
     selected_facts,
+    two_step_reserve,
     validate_header,
 )
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
@@ -472,6 +473,45 @@ async def test_a_malformed_limits_reply_leaves_the_turn_to_the_decision() -> Non
     assert isinstance(done, MoveDone)
     assert done.move.intent is not None
     assert done.move.intent.answer_limit is None
+
+
+async def test_both_steps_fit_the_reserve_when_every_field_has_its_maximum_length() -> None:
+    quotes = [(f"I cannot recall detail {n}" + " and its value" * 22)[:300] for n in range(5)]
+    req = recalled(" ".join(f"{quote}." for quote in quotes))
+    facts = tuple(
+        Fact(f"{n:032d}", Subject.CANDIDATE, FactKind.PROJECT, "Summary", FactOrigin.DECLARED)
+        for n in range(12)
+    )
+    topic = replace(req.context.topics[0], title="T" * 200)
+    context = replace(req.context, facts=facts, topics=(topic, req.context.topics[1]))
+    req = replace(req, context=context)
+    longest = {
+        "answer_limit": {"kind": "cannot_recall", "quote": quotes[4]},
+        "purpose": "reasoning_probe",
+        "elicited_criteria": ["c" * 32] * 8,
+        "fact_ids": [f.id for f in facts],
+        "covered_topic_ids": ["t" * 32] * 32,
+        "focus": "F" * 240,
+    }
+    model = FakeChatModel(
+        [
+            json.dumps({"quotes": quotes[:4]}),
+            decision(**{**longest, "topic_id": "t9"}),
+            decision(**longest),
+            json.dumps({"utterance": "Assume a similar release: what would you check first?"}),
+        ]
+    )
+    interviewer = LlmInterviewer(model, two_step=True)
+    events = [e async for e in interviewer.next_move(req)]
+    assert isinstance(events[-1], MoveDone)
+    limits = tuple(quotes[:4])
+    shared, _ = interviewer.build_request(req, None, limits)
+    budget = estimated_tokens(shared) + two_step_reserve(limits)
+    _, first, retried, ask = model.requests
+    assert "unknown objective" in retried.messages[-1].content
+    used = [round(estimated_tokens(r) - estimated_tokens(shared)) for r in (first, retried, ask)]
+    assert max(used) <= two_step_reserve(limits), (used, two_step_reserve(limits))
+    assert all(estimated_tokens(r) <= budget for r in (first, retried, ask))
 
 
 async def test_two_step_decodes_only_legal_objectives_and_repairs_a_misnamed_topic_change() -> None:

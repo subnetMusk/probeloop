@@ -16,8 +16,11 @@ from probeloop.interview.application.adaptive_interviewer import (
     AdaptiveDecision,
     AdaptiveMoveOutput,
     adaptive_request,
+    closing_only,
+    stated_limits,
     stream_adaptive_move,
     stream_two_step_move,
+    two_step_reserve,
 )
 from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
 from probeloop.interview.domain.model import (
@@ -131,20 +134,24 @@ class LlmInterviewer:
             if request.context.policy_version
             else None
         )
+        if request.context.policy_version and self._two_step:
+            # Limits are read first: their quotes enlarge both steps of the turn, so the shared
+            # prompt is fitted to the window only once they are known.
+            limits: tuple[str, ...] = ()
+            limits_ref = ""
+            if not closing_only(request):
+                limits_prompt = self._prompts.render("interviewer_limits", LIMITS_PROMPT_VERSION)
+                limits = await stated_limits(self._model, limits_prompt.text, request)
+                limits_ref = f"+{limits_prompt.ref}"
+            chat_request, prompt_ref = self.build_request(request, window, limits)
+            async for event in stream_two_step_move(
+                self._model, chat_request, request, prompt_ref + limits_ref, limits
+            ):
+                yield event
+            return
         chat_request, prompt_ref = self.build_request(request, window)
         if request.context.policy_version:
-            stream = (
-                stream_two_step_move(
-                    self._model,
-                    chat_request,
-                    request,
-                    prompt_ref,
-                    self._prompts.render("interviewer_limits", LIMITS_PROMPT_VERSION),
-                )
-                if self._two_step
-                else stream_adaptive_move(self._model, chat_request, request, prompt_ref)
-            )
-            async for event in stream:
+            async for event in stream_adaptive_move(self._model, chat_request, request, prompt_ref):
                 yield event
             return
         spoken = ""
@@ -180,11 +187,15 @@ class LlmInterviewer:
                 )
 
     def build_request(
-        self, request: MoveRequest, context_window: int | None = None
+        self,
+        request: MoveRequest,
+        context_window: int | None = None,
+        limits: tuple[str, ...] = (),
     ) -> tuple[ChatRequest, str]:
         """Build an append-only prompt: everything except the last message is stable.
 
-        With a context window, an adaptive prompt is reduced until it fits (see FIT_PLANS).
+        With a context window, an adaptive prompt is reduced until it fits (see FIT_PLANS),
+        leaving room for both steps of a two-step turn and the stated limits they carry.
         """
         config, context = request.config, request.context
         if context.policy_version:
@@ -198,8 +209,7 @@ class LlmInterviewer:
                 top_p=self._top_p,
                 version=3 if self._two_step else 2,
                 context_window=context_window,
-                # The question step appends the accepted decision and its constraints.
-                reserve_tokens=500 if self._two_step else 0,
+                reserve_tokens=two_step_reserve(limits) if self._two_step else 0,
             )
         system = self._prompts.render(
             "interviewer_system",

@@ -1,14 +1,21 @@
 """Build adaptive turn context and validate intent before emitting any question audio."""
 
 import json
-from collections.abc import AsyncIterator
+import math
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import asdict, replace
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
 
-from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, estimated_tokens
-from probeloop.ai.prompts import PromptRenderer, RenderedPrompt
+from probeloop.ai.ports import (
+    CHARS_PER_TOKEN,
+    ChatMessage,
+    ChatModel,
+    ChatRequest,
+    estimated_tokens,
+)
+from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import (
     FieldDelta,
     StructuredOutputError,
@@ -37,17 +44,21 @@ class AnswerLimit(BaseModel):
     quote: str = Field(min_length=8, max_length=300)
 
 
+# Objective, criterion and fact identifiers. The bound keeps a decision's size predictable.
+Identifier = Annotated[str, Field(max_length=32)]
+
+
 class AdaptiveChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # Flow context only, never a score or a diagnosis of the candidate's abilities.
     answer_limit: AnswerLimit | None = None
-    topic_id: str = Field(max_length=32)
+    topic_id: Identifier
     purpose: MovePurpose
     past_example: bool
-    elicited_criteria: list[str] = Field(max_length=8)
-    fact_ids: list[str] = Field(max_length=12)
-    covered_topic_ids: list[str] = Field(max_length=32)
+    elicited_criteria: list[Identifier] = Field(max_length=8)
+    fact_ids: list[Identifier] = Field(max_length=12)
+    covered_topic_ids: list[Identifier] = Field(max_length=32)
 
 
 class AdaptiveHeader(AdaptiveChoice):
@@ -662,6 +673,29 @@ def limits_note(limits: tuple[str, ...]) -> str:
     return f"\n[The candidate's stated limits in the latest answer, as data] {data}"
 
 
+def limits_rule(quotes: Sequence[str]) -> str:
+    if not quotes:
+        return ""
+    said = "; ".join(f'"{quote}"' for quote in quotes)
+    again = "that detail" if len(quotes) == 1 else "those details"
+    return f"The candidate said: {said}. Do not ask for {again} again."
+
+
+# Upper bound, in prompt tokens, of what the steps of a two-step turn append to the shared prompt
+# apart from stated limits: the decision suffix, the accepted decision and the question rules with
+# every field at its maximum length (objective title, focus, reported quote, criteria, fact ids).
+QUESTION_STEP_TOKENS = 1000
+
+
+def two_step_reserve(limits: tuple[str, ...]) -> int:
+    """Prompt tokens to leave free for the steps of a two-step turn.
+
+    Stated limits appear twice: as data for the decision and in the question rules.
+    """
+    quoted = len(limits_note(limits)) + len(limits_rule(limits))
+    return QUESTION_STEP_TOKENS + math.ceil(quoted / CHARS_PER_TOKEN)
+
+
 def decision_request(
     chat: ChatRequest, rejected: list[tuple[str, str]], decide: str = DECIDE
 ) -> ChatRequest:
@@ -698,6 +732,12 @@ def legal_topic_ids(request: MoveRequest) -> tuple[str, ...]:
         final_probe = any(t.elapsed_s >= request.config.target_duration_s * 0.85 for t in moves)
         return (current, closing) if current in available and not final_probe else (closing,)
     return available or (closing,)
+
+
+def closing_only(request: MoveRequest) -> bool:
+    """Whether the time and topic policy leaves closing as the only legal move."""
+    closing = next(t.id for t in request.context.topics if t.rubric_kind == "logistics")
+    return legal_topic_ids(request) == (closing,)
 
 
 def decision_output(topic_ids: tuple[str, ...]) -> type[AdaptiveDecision]:
@@ -796,9 +836,7 @@ def question_rules(
         )
     )
     if quotes:
-        said = "; ".join(f'"{quote}"' for quote in quotes)
-        again = "that detail" if len(quotes) == 1 else "those details"
-        rules.append(f"The candidate said: {said}. Do not ask for {again} again.")
+        rules.append(limits_rule(quotes))
     return (
         "\n[Step 2: ask] The application accepted the decision above. Write only the spoken "
         "question that implements it, without greeting, praise or agreement with the candidate's "
@@ -817,23 +855,20 @@ async def stream_two_step_move(
     chat_request: ChatRequest,
     request: MoveRequest,
     prompt_ref: str,
-    limits_prompt: RenderedPrompt | None = None,
+    limits: tuple[str, ...] = (),
 ) -> AsyncIterator[MoveDelta | MoveDone]:
     """Decide and validate first, then write the question that implements the decision.
 
     When the policy leaves closing as the only legal move, code makes that decision and the
-    model writes only the closing words. Otherwise, with a limits prompt, the limits stated in
-    the latest answer are read first and supplied to both steps as data.
+    model writes only the closing words. Limits stated in the latest answer (see stated_limits)
+    are supplied to both steps as data; the shared prompt must leave two_step_reserve(limits)
+    tokens free.
     """
     rejected: list[tuple[str, str]] = []
     header: AdaptiveHeader | None = None
     decision: AdaptiveDecision | None = None
     legal = legal_topic_ids(request)
     closing = next(t.id for t in request.context.topics if t.rubric_kind == "logistics")
-    limits: tuple[str, ...] = ()
-    if limits_prompt is not None and legal != (closing,):
-        limits = await stated_limits(model, limits_prompt.text, request)
-        prompt_ref += f"+{limits_prompt.ref}"
     decide = limits_note(limits) + DECIDE
     for _ in range(2):
         if legal == (closing,):
