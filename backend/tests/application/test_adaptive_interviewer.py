@@ -18,6 +18,14 @@ from probeloop.interview.application.adaptive_interviewer import (
 )
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
 from probeloop.interview.application.orchestrator import SessionOrchestrator
+from probeloop.interview.application.phrases import (
+    CLOSING_FAREWELL,
+    CONTINUE,
+    FALLBACK,
+    OPENING,
+    TOPIC_CHANGE,
+    TOPIC_QUESTION,
+)
 from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
 from probeloop.interview.domain.model import (
     CandidateTurn,
@@ -521,3 +529,59 @@ def test_provider_failure_still_moves_past_an_exhausted_objective() -> None:
     assert move.action is MoveAction.NEW_TOPIC
     assert move.fallback
     assert move.intent is None
+
+
+def fallback_for(req: MoveRequest, *turns: InterviewerTurn | CandidateTurn) -> InterviewerMove:
+    context = replace(
+        req.context,
+        topics=(
+            req.context.topics[0],
+            Topic("t3", "Internal English title", rubric_kind="behavioral", past_example=True),
+            req.context.topics[1],
+        ),
+    )
+    session = InterviewSession("synthetic", req.config, context, 0)
+    orchestrator = SessionOrchestrator(
+        session,
+        interviewer=ScriptedInterviewer(),
+        store=MemoryStore(),
+        clock=FakeClock(),
+        sink=EventRecorder(),
+    )
+    return orchestrator._adaptive_fallback(replace(req, context=context, turns=turns))
+
+
+def asked(
+    topic: str, *, action: MoveAction = MoveAction.FOLLOW_UP, fallback: bool = False
+) -> InterviewerTurn:
+    return InterviewerTurn(0, 0, 0, InterviewerMove(action, topic, "Question?", fallback=fallback))
+
+
+def test_a_fallback_never_asks_the_candidate_to_repeat_a_recorded_answer() -> None:
+    language = request().config.language
+    move = fallback_for(request(), asked("t1"), answer(1))
+    assert (move.action, move.topic_id) == (MoveAction.CLARIFY, "t1")
+    assert move.utterance == CONTINUE[language]
+    assert move.utterance != FALLBACK[language]
+
+
+def test_a_second_fallback_in_a_row_moves_on_without_speaking_the_internal_title() -> None:
+    language = request().config.language
+    move = fallback_for(request(), asked("t1", fallback=True), answer(1))
+    assert (move.action, move.topic_id) == (MoveAction.NEW_TOPIC, "t3")
+    assert move.utterance == f"{TOPIC_CHANGE[language]} {TOPIC_QUESTION[(language, True)]}"
+    assert "Internal English title" not in move.utterance
+
+
+def test_a_failed_opening_starts_an_objective_with_a_greeting() -> None:
+    language = request().config.language
+    move = fallback_for(request())
+    assert move.action is MoveAction.NEW_TOPIC
+    assert move.utterance.startswith(OPENING[language])
+
+
+def test_a_fallback_never_reopens_a_started_closing() -> None:
+    language = request().config.language
+    move = fallback_for(request(), asked("t2", action=MoveAction.WRAP_UP), answer(1))
+    assert (move.action, move.topic_id) == (MoveAction.END, "t2")
+    assert move.utterance == CLOSING_FAREWELL[language]

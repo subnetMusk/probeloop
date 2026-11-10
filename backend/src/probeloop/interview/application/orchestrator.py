@@ -38,7 +38,16 @@ from probeloop.interview.application.events import (
     UtteranceDelta,
 )
 from probeloop.interview.application.metrics import TurnMetrics
-from probeloop.interview.application.phrases import FALLBACK, FAREWELL
+from probeloop.interview.application.phrases import (
+    CLOSING_FAREWELL,
+    CLOSING_QUESTION,
+    CONTINUE,
+    FALLBACK,
+    FAREWELL,
+    OPENING,
+    TOPIC_CHANGE,
+    TOPIC_QUESTION,
+)
 from probeloop.interview.application.ports import (
     Clock,
     Interviewer,
@@ -52,6 +61,7 @@ from probeloop.interview.domain.adaptive_policy import topic_windows
 from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
+    InterviewerTurn,
     InterviewSession,
     InvalidTransitionError,
     Modality,
@@ -571,7 +581,12 @@ class SessionOrchestrator:
         )
 
     def _adaptive_fallback(self, request: MoveRequest) -> InterviewerMove:
-        """Respect topic/global limits even when generated metadata cannot be trusted."""
+        """Respect topic/global limits even when generated metadata cannot be trusted.
+
+        The candidate's last answer is already recorded, so a fallback never asks for it again.
+        A closing that has started is never reopened, and the same objective never receives
+        two fallbacks in a row.
+        """
         windows = topic_windows(
             request.context.topics,
             request.coverage,
@@ -580,39 +595,30 @@ class SessionOrchestrator:
         )
         available = {w.topic_id for w in windows if w.available}
         closing = next(t for t in request.context.topics if t.rubric_kind == "logistics")
-        language = request.config.language.value
+        language = request.config.language
+        moves = [t.move for t in request.turns if isinstance(t, InterviewerTurn)]
+        last = moves[-1] if moves else None
+        if last is not None and last.topic_id == closing.id:
+            return InterviewerMove(
+                MoveAction.END, closing.id, CLOSING_FAREWELL[language], fallback=True
+            )
         if request.directive in (TimeDirective.CLOSE, TimeDirective.FORCE_CLOSE):
-            return InterviewerMove(
-                MoveAction.END, closing.id, FAREWELL[request.config.language], fallback=True
-            )
-        if not available or request.directive in (
-            TimeDirective.FINAL_QUESTION,
-            TimeDirective.BEGIN_WRAP_UP,
-        ):
-            question = (
-                "Ha domande per noi?" if language == "it" else "Do you have any questions for us?"
-            )
-            last = self.session.last_move()
-            if last and last.topic_id == closing.id:
+            return InterviewerMove(MoveAction.END, closing.id, FAREWELL[language], fallback=True)
+        if request.directive not in (TimeDirective.FINAL_QUESTION, TimeDirective.BEGIN_WRAP_UP):
+            current = last.topic_id if last is not None else None
+            if last is not None and current in available and not last.fallback:
                 return InterviewerMove(
-                    MoveAction.END, closing.id, FAREWELL[request.config.language], fallback=True
+                    MoveAction.CLARIFY, last.topic_id, CONTINUE[language], fallback=True
                 )
-            return InterviewerMove(MoveAction.WRAP_UP, closing.id, question, fallback=True)
-        current = self.session.current_topic_id()
-        if current in available:
-            return InterviewerMove(
-                MoveAction.CLARIFY, current, FALLBACK[request.config.language], fallback=True
-            )
-        topic = max(
-            (t for t in request.context.topics if t.id in available), key=lambda t: t.priority
+            others = [t for t in request.context.topics if t.id in available and t.id != current]
+            if others:
+                topic = max(others, key=lambda t: t.priority)
+                lead = TOPIC_CHANGE[language] if moves else OPENING[language]
+                question = f"{lead} {TOPIC_QUESTION[(language, topic.past_example)]}"
+                return InterviewerMove(MoveAction.NEW_TOPIC, topic.id, question, fallback=True)
+        return InterviewerMove(
+            MoveAction.WRAP_UP, closing.id, CLOSING_QUESTION[language], fallback=True
         )
-        question = (
-            f"Passiamo a un altro argomento: {topic.title}. Come lo affronterebbe in questo ruolo?"
-            if language == "it"
-            else f"Let's move to another topic: {topic.title}. "
-            "How would you approach it in this role?"
-        )
-        return InterviewerMove(MoveAction.NEW_TOPIC, topic.id, question, fallback=True)
 
     async def _say(
         self,
