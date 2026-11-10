@@ -62,4 +62,32 @@ not a rule about GDP terminology or a particular candidate answer.
 The first tool pilot stopped at role confirmation because the driver omitted required DTO
 fields. No interview was completed in that failed setup; it is not acceptance evidence.
 
+### Direct 0–100 judgement (not adopted)
+
+The owner asked whether criterion judgements could use every integer from 0 to 100. A temporary
+judge variant scored 0–100 directly against the same descriptive anchors placed at 0, 50 and 100.
+It was compared with the anchored 1–5 judge on the real economics question of session
+`01a1c1bad8c57724b7dccaf81f4e53ec`: the audited strong and weak answers of
+`adaptive-pair-v1`, plus a generated near-strong answer that uses the correct method but does not
+state the constant-rate assumption. Five regenerations per answer, judge and execution profile
+ran on the real stack (local `qwen3.5:9b`; cloud `gpt-6.1-terra`). The cloud anchored results for
+the strong and weak answers are the earlier `adaptive-pair-v1` replay with the same prompt.
+Raw rows, audits and logs are under the ignored `var/test-run/scale-direct-v1/`.
+
+| Public mean (0–100) | Strong | Near-strong | Weak | Max spread |
+|---|---|---|---|---|
+| Local, anchored | 95.8–100 | 100 | 16.7–25 | 8.3 |
+| Local, direct | 88.3–90 | 90–90.8 | 22.5–32.5 | 10.0 |
+| Cloud, anchored | 95.8–100 | 91.7–95.8 | 25–29.2 | 12.5 |
+| Cloud, direct | 91.8–94.7 | 87.8–91.7 | 33–39.2 | 6.2 |
+
+Every configuration detected the weak answer's error, ranked strong above weak, produced no
+unverified quotation and no correction of the strong answer. The direct scale added no
+discrimination: the local judge could not separate the near-strong answer under either scale, and
+the cloud judge separated it under both. The direct scale compressed both ends of the range,
+reducing the strong–weak gap from about 72 to 57 public points in the cloud, and one cloud weak
+accuracy score reached 25, exactly the detection threshold. The variant was therefore removed.
+Reports keep anchored judgements and show integers obtained by aggregating them. One question in
+one profession cannot show that a finer scale never helps; it shows no benefit in this case.
+
 Results and release disposition are recorded in the continuation handoff as checks finish.
