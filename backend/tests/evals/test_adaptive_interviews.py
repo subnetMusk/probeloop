@@ -3,9 +3,12 @@ import time
 from pathlib import Path
 
 import httpx
+import pytest
 from evals.adaptive_interviews import CARDS, Candidate, prepare, stamped
 
+from evals import adaptive_interviews
 from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.ports import ChatRequest, ChatResult, LlmError
 
 
 def test_logged_events_carry_the_client_receive_time() -> None:
@@ -37,6 +40,24 @@ async def test_answers_are_generated_from_the_actual_question_and_keep_history(
     data = json.loads(model.requests[1].messages[0].content)
     assert data["question"] == "Who would help you?"
     assert data["conversation"][0]["answer"] == "I would check the definition."
+
+
+async def test_a_transient_actor_failure_is_retried_while_the_session_is_paused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(adaptive_interviews, "ACTOR_RETRY_S", 0.0)
+    model = FakeChatModel(["I would check the definition."])
+    complete = model.complete
+    failures = [LlmError("provider hiccup")]
+
+    async def flaky(request: ChatRequest) -> ChatResult:
+        if failures:
+            raise failures.pop()
+        return await complete(request)
+
+    monkeypatch.setattr(model, "complete", flaky)
+    actor = Candidate(model, {"id": "synthetic", "language": "en"}, tmp_path, 1)
+    assert await actor.answer("Which definition?") == "I would check the definition."
 
 
 async def test_the_actor_receives_its_belief_but_never_the_audit_correction(

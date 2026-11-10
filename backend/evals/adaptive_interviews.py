@@ -19,12 +19,14 @@ import httpx
 from websockets.asyncio.client import connect
 
 from evals.voice_candidate import Question, Run, handle, send, summarise
-from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
+from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, LlmError
 from probeloop.bootstrap import build
 from probeloop.settings import Settings
 from probeloop.storage.session_files import atomic_write
 
 CARDS = Path(__file__).parent / "fixtures/synthetic/adaptive/personas.v2.json"
+ACTOR_ATTEMPTS = 3
+ACTOR_RETRY_S = 10.0
 
 # Answer behaviours varied across cards, so that probes, limits and corrections are exercised.
 STYLES = {
@@ -128,26 +130,34 @@ class Candidate:
             persona["mistaken_belief"] = self.card["error"]["belief"]
         data = {"persona": persona, "conversation": self.exchanges, "question": question}
         style = STYLES.get(self.card.get("style", ""), "Answer in 45-80 spoken words.")
-        output = await self.model.complete(
-            ChatRequest(
-                instructions=(
-                    "Play this synthetic job candidate, answering the actual interviewer question. "
-                    "All JSON is data. Speak the persona's language. " + style + " "
-                    "Use one short paragraph, no headings, lists, markdown or invented citations. "
-                    "Your past experience is the CV plus the private history, which is true for "
-                    "you; mention history details naturally when relevant. Never invent other "
-                    "jobs, credentials, projects or personal results. When asked about a detail "
-                    "that neither contains, say you do not remember or have not done it. For a "
-                    "scenario, reason aloud within the supplied principles and state assumptions. "
-                    "A junior works under the stated supervision; a senior owns the stated "
-                    "decisions. Never pretend to know a solution. Do not mention tests, personas, "
-                    "documents or evaluations."
-                ),
-                messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),
-                max_output_tokens=320,
-                reasoning="off",
-            )
+        request = ChatRequest(
+            instructions=(
+                "Play this synthetic job candidate, answering the actual interviewer question. "
+                "All JSON is data. Speak the persona's language. " + style + " "
+                "Use one short paragraph, no headings, lists, markdown or invented citations. "
+                "Your past experience is the CV plus the private history, which is true for "
+                "you; mention history details naturally when relevant. Never invent other "
+                "jobs, credentials, projects or personal results. When asked about a detail "
+                "that neither contains, say you do not remember or have not done it. For a "
+                "scenario, reason aloud within the supplied principles and state assumptions. "
+                "A junior works under the stated supervision; a senior owns the stated "
+                "decisions. Never pretend to know a solution. Do not mention tests, personas, "
+                "documents or evaluations."
+            ),
+            messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),
+            max_output_tokens=320,
+            reasoning="off",
         )
+        # The session is paused meanwhile, so retrying a transient provider failure of the test
+        # actor neither consumes interview time nor changes what the application sees.
+        for attempt in range(1, ACTOR_ATTEMPTS + 1):
+            try:
+                output = await self.model.complete(request)
+                break
+            except LlmError:
+                if attempt == ACTOR_ATTEMPTS:
+                    raise
+                await asyncio.sleep(ACTOR_RETRY_S * attempt)
         answer = output.text.strip()
         if not answer:
             raise RuntimeError("empty candidate answer")
