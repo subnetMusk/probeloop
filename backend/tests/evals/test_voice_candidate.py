@@ -124,7 +124,9 @@ async def test_inbox_hands_over_the_question_and_waits_for_the_answer(tmp_path: 
     inbox = InboxAnswers(tmp_path, poll_s=0.01)
     question = Question(turn_seq=3, text="Mi parli di lei?", elapsed_s=12.0, remaining_s=588.0)
     pending = asyncio.ensure_future(inbox.answer(question))
-    await asyncio.sleep(0.05)
+    async with asyncio.timeout(5):
+        while not (tmp_path / "turn-0003-question.json").exists():  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
     written = json.loads((tmp_path / "turn-0003-question.json").read_text("utf-8"))
     assert written["text"] == "Mi parli di lei?"
     assert not pending.done()

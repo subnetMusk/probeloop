@@ -40,6 +40,7 @@ from websockets.asyncio.client import ClientConnection, connect
 from probeloop.speech.arrays import resample
 from probeloop.speech.audio import SAMPLE_RATE, from_wav
 from probeloop.speech.filters import normalise
+from probeloop.storage.session_files import atomic_write
 
 FRAME_BYTES = 2 * SAMPLE_RATE // 10  # 100 ms of 16 kHz PCM16, like the browser
 END_CALL = "/end"
@@ -73,7 +74,7 @@ class InboxAnswers:
     async def answer(self, question: Question) -> str | None:
         stem = self.directory / f"turn-{question.turn_seq:04d}"
         handed = json.dumps(asdict(question), ensure_ascii=False, indent=2)
-        await asyncio.to_thread(Path(f"{stem}-question.json").write_text, handed, "utf-8")
+        await asyncio.to_thread(atomic_write, Path(f"{stem}-question.json"), handed.encode("utf-8"))
         reply = Path(f"{stem}-answer.txt")
         deadline = time.monotonic() + self.timeout_s
         while not await asyncio.to_thread(reply.exists):
@@ -218,6 +219,7 @@ async def create_session(api: httpx.AsyncClient, args: argparse.Namespace) -> st
             "modality": "voice",
             "duration_minutes": args.minutes,
             "snapshot_id": args.snapshot_id,
+            "execution_profile": args.execution_profile,
         },
     )
     created.raise_for_status()
@@ -369,6 +371,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--piper-url", default="http://tts-piper:5000")
     parser.add_argument("--voice", default="it_IT-riccardo-x_low", help="the candidate's voice")
     parser.add_argument("--snapshot-id", help="approved context from the document wizard")
+    parser.add_argument("--execution-profile", choices=["local", "cloud"], default=None)
     parser.add_argument(
         "--type", default="technical", choices=["hr", "behavioral", "technical", "mixed"]
     )
