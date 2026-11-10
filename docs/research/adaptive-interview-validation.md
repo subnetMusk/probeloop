@@ -230,9 +230,13 @@ about six seconds for far fewer fixed fallback questions. `PROBELOOP_INTERVIEWER
 deployment. These runs cover five and two development cards: they choose a default and are not
 acceptance evidence.
 
-After the autonomy repair, a cloud two-step check of software senior stopped after 13 moves,
-when the provider failed the simulated candidate's request three times in a row. Those moves
-had no fallback and no rejected decision. Their first words had a median of 20 s, against 15 s
-for the same case before the repair.
+After the autonomy repair, a first cloud two-step check of software senior stopped after 13
+moves, when the provider failed the simulated candidate's request three times in a row; those
+moves had no fallback and their first words had a median of 20 s. The repeated check completed
+both cases: 30 moves, one fallback, four closings without fallback, 24 of 25 recorded types in
+agreement and no question asking again for a stated limit. The fallback followed two decisions
+that gave a closing purpose to an ordinary objective while closing was not yet allowed. The
+first words had a median of 14.3 s. Across the three cloud two-step runs that median ranged
+from 11 to 20 s, so one run does not settle the cloud latency.
 
 Results and release disposition are recorded in the continuation handoff as checks finish.

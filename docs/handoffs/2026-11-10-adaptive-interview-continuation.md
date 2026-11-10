@@ -87,11 +87,14 @@ interrupted runs and are kept, since nothing is deleted from that volume:
 4. With the cloud interviewer the first words of a two-step turn came after a median of 11 to
    20 s of model time, against about 5 s for a single call, which falls back far more often.
    The voice tests should show whether that profile needs single-call turns or a faster step.
-5. Limits are read from the latest answer only, so a detail forgotten earlier in an episode can
+5. In the last cloud check one of 30 moves fell back after two decisions gave a closing purpose
+   to an ordinary objective while closing was not yet allowed. The decision schema already
+   leaves out objectives the policy does not admit; it does not yet leave out that purpose.
+6. Limits are read from the latest answer only, so a detail forgotten earlier in an episode can
    be asked for again later. About one in six answers with a stated limit is still followed by
    a question asking for it again.
-6. A question moved to a hypothetical after a stated limit can keep the decision's past flag
+7. A question moved to a hypothetical after a stated limit can keep the decision's past flag
    (3 of 62 turns in the last local run), which would enable experience criteria for it.
-7. Laya weights are kept in the ignored `var/models/laya-multilingual`. Recorded intents of both
+8. Laya weights are kept in the ignored `var/models/laya-multilingual`. Recorded intents of both
    profiles are structured labels; before any fine-tuning, labels written by the local model
    are relabelled once by the cloud classifier.
