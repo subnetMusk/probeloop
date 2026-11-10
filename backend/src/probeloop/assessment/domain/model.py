@@ -131,6 +131,13 @@ class Report:
     reference_documents: tuple[ReferenceDocument, ...] = ()
 
 
+def explored_scores(
+    scores: tuple[Score, ...], explored: frozenset[str] | None
+) -> tuple[Score, ...]:
+    """The criteria a conversation actually explored; None keeps every criterion (legacy)."""
+    return scores if explored is None else tuple(s for s in scores if s.criterion_id in explored)
+
+
 def overall_score(scores: tuple[Score, ...], *, minimum_share: float = 0.6) -> float | None:
     """Equal weights; unavailable criteria do not become zero or a midpoint."""
     available = [score.value for score in scores if score.value is not None]

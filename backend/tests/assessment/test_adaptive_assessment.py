@@ -7,7 +7,7 @@ from probeloop.assessment.application.interview_review import InterviewReviewer
 from probeloop.assessment.application.rubrics import load_rubric
 from probeloop.assessment.application.schemas import ReportData
 from probeloop.assessment.domain.comparability import assessment_profile_id
-from probeloop.assessment.domain.model import QuestionTrace
+from probeloop.assessment.domain.model import QuestionTrace, explored_scores, overall_score
 from probeloop.assessment.domain.progress import scorer_key
 from probeloop.assessment.infrastructure.fake import scripted_assessment
 from probeloop.context.domain.model import RoleProfile
@@ -162,12 +162,25 @@ async def test_a_recorded_hint_makes_autonomy_assessable_without_a_deduction_rul
     result = await InterviewReviewer(model).review(hinted_session(), None, "en", progress)
     autonomy = next(s for s in result.scores if s.criterion_id == "common.autonomy")
     assert autonomy.value is not None
+    assert result.explored == frozenset({"technical.accuracy", "common.autonomy"})
     judged = [
         json.loads(r.messages[0].content)
         for r in model.requests
         if '"unit"' in r.messages[0].content
     ]
     assert {c["id"] for c in judged[0]["rubric"]["criteria"]} == {"accuracy", "autonomy"}
+
+
+async def test_the_overall_score_counts_only_explored_criteria() -> None:
+    result = await InterviewReviewer(FakeChatModel([scripted_assessment])).review(
+        hinted_session(), None, "en", progress
+    )
+    considered = explored_scores(result.scores, result.explored)
+    assert len(result.scores) > len(considered) == 2
+    # Two supported scores out of eight rubric criteria would fall below the 60% share.
+    assert overall_score(result.scores) is None
+    assert overall_score(considered) is not None
+    assert explored_scores(result.scores, None) == result.scores
 
 
 def test_policy_context_roundtrips_and_level_changes_break_comparability() -> None:

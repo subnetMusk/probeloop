@@ -29,6 +29,7 @@ from probeloop.assessment.domain.model import (
     Report,
     ReportKind,
     TranscriptVersion,
+    explored_scores,
     overall_score,
 )
 from probeloop.assessment.domain.progress import ProgressGroup, latest_reports, progress_groups
@@ -286,6 +287,7 @@ class AssessmentService:
                 )
                 for m in snapshot.matches
             )
+        explored = explored_scores(result.scores, result.explored)
         report = Report(
             id=self._new_id(),
             kind=ReportKind.INTERVIEW,
@@ -303,9 +305,11 @@ class AssessmentService:
             scores=result.scores,
             observations=result.observations,
             checks=tuple(checks),
-            overall=overall_score(result.scores),
-            assessed=sum(s.value is not None for s in result.scores),
-            criteria=len(result.scores),
+            # The adaptive policy counts only explored criteria; unexplored ones stay visible
+            # as unavailable but neither lower nor withhold the overall score.
+            overall=overall_score(explored),
+            assessed=sum(s.value is not None for s in explored),
+            criteria=len(explored),
             dropped=result.dropped,
             duration_s=round(self._now() - started, 2),
             disclaimer=(

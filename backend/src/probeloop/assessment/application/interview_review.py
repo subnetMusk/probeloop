@@ -153,6 +153,9 @@ class InterviewJudgement:
     coverage: tuple[Check, ...]
     calls: tuple[CallTrace, ...] = ()
     disputed: int = 0
+    # Aggregate criterion ids that at least one question explored; None means every criterion
+    # counts, as in the legacy policy.
+    explored: frozenset[str] | None = None
 
 
 class InterviewReviewer:
@@ -261,6 +264,7 @@ class InterviewReviewer:
         checked_claims: dict[str, str] = {}
         dropped = sum(u.kind == "unclassified" for u in units)
         disputed = 0
+        explored: set[str] = set()
         for index, unit in enumerate(units):
             await progress(index / (max(1, len(units)) + 1), f"{index + 1}/{len(units)}")
             if unit.kind not in rubrics:
@@ -306,6 +310,7 @@ class InterviewReviewer:
                 )
             if adaptive:
                 unit_data["assessable_criteria"] = active
+                explored.update(_aggregate_id(unit.kind, c) for c in active or ())
             passes: list[tuple[Score, ...]] = []
             notes: tuple[Observation, ...] = ()
             for descending in (False, True):
@@ -405,11 +410,9 @@ class InterviewReviewer:
             unit_scores.extend(
                 replace(
                     s,
-                    criterion_id=(
-                        "common.autonomy"
-                        if adaptive and s.criterion_id == "autonomy"
-                        else f"{unit.kind}.{s.criterion_id}"
-                    ),
+                    criterion_id=_aggregate_id(unit.kind, s.criterion_id)
+                    if adaptive
+                    else f"{unit.kind}.{s.criterion_id}",
                 )
                 for s in paired
             )
@@ -440,6 +443,7 @@ class InterviewReviewer:
             ),
             tuple(calls),
             disputed,
+            frozenset(explored) if adaptive else None,
         )
 
     async def _classify(
@@ -689,6 +693,11 @@ def _without_unelicited(
         else s
         for s in scores
     )
+
+
+def _aggregate_id(kind: str, criterion: str) -> str:
+    """Autonomy is one common criterion across rubric families in the adaptive policy."""
+    return "common.autonomy" if criterion == "autonomy" else f"{kind}.{criterion}"
 
 
 def _distinct(observations: Sequence[Observation]) -> tuple[Observation, ...]:
