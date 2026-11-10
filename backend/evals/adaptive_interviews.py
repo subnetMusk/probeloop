@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,11 @@ STYLES = {
 
 def save(path: Path, data: object) -> None:
     atomic_write(path, json.dumps(data, ensure_ascii=False, indent=2).encode())
+
+
+def stamped(event: dict[str, Any], started: float) -> dict[str, Any]:
+    """Add the client receive time, so latency is measurable from the answer's submission."""
+    return {**event, "_t": round(time.monotonic() - started, 3)}
 
 
 def body(response: httpx.Response) -> dict[str, Any]:
@@ -153,6 +159,12 @@ class Candidate:
 async def text_conversation(
     api: httpx.AsyncClient, session_id: str, actor: Candidate, directory: Path
 ) -> None:
+    started = time.monotonic()
+
+    def log(event: dict[str, Any]) -> None:
+        with (directory / "events.jsonl").open("a", encoding="utf-8") as file:
+            file.write(json.dumps(stamped(event, started), ensure_ascii=False) + "\n")
+
     async with connect(f"ws://127.0.0.1:8000/ws/sessions/{session_id}", max_size=None) as ws:
 
         async def send(kind: str, **fields: object) -> None:
@@ -165,8 +177,7 @@ async def text_conversation(
                 if not isinstance(raw, str):
                     continue
                 event = json.loads(raw)
-                with (directory / "events.jsonl").open("a", encoding="utf-8") as log:
-                    log.write(json.dumps(event, ensure_ascii=False) + "\n")
+                log(event)
                 if event["type"] == "error" and not event.get("recoverable"):
                     raise RuntimeError(f"runtime error: {event['code']}")
                 # A recoverable error is followed by the application's fallback move, which is
@@ -187,6 +198,7 @@ async def text_conversation(
                         # engagement time. Reproduce a plausible spoken response duration.
                         await asyncio.sleep(max(8.0, len(answer.split()) / 2.4))
                         await send("turn.end", text=answer)
+                        log({"type": "client.turn.end"})
                 if event["type"] == "session.ended":
                     break
     save(directory / "session.json", body(await api.get(f"/api/sessions/{session_id}")))

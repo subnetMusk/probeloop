@@ -1,10 +1,18 @@
 import json
+import time
 from pathlib import Path
 
 import httpx
-from evals.adaptive_interviews import CARDS, Candidate, prepare
+from evals.adaptive_interviews import CARDS, Candidate, prepare, stamped
 
 from probeloop.ai.fake import FakeChatModel
+
+
+def test_logged_events_carry_the_client_receive_time() -> None:
+    record = stamped({"type": "interviewer.text.delta", "text": "Hello"}, time.monotonic() - 2)
+    assert record["type"] == "interviewer.text.delta"
+    assert record["text"] == "Hello"
+    assert 2 <= record["_t"] < 10
 
 
 def test_matrix_separates_development_and_independent_professions() -> None:
