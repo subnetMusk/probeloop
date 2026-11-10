@@ -209,6 +209,18 @@ def test_explicit_recall_limit_requires_a_grounded_quote_and_a_change_of_approac
             ),
             req,
         )
+    # Asking again for the missing detail is not a clarification.
+    with pytest.raises(StructuredOutputError, match="change the evidence approach"):
+        validate_header(
+            header(
+                action="clarify",
+                purpose="clarification",
+                answer_seq=1,
+                answer_limit=limit,
+                elicited_criteria=[],
+            ),
+            req,
+        )
     validate_header(
         header(action="follow_up", purpose="reasoning_probe", answer_seq=1, answer_limit=limit), req
     )

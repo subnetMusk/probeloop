@@ -409,7 +409,11 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         elif (
             moves
             and header.topic_id == moves[-1].move.topic_id
-            and (header.past_example or header.purpose is MovePurpose.EVIDENCE_PROBE)
+            and (
+                header.past_example
+                # Asking again for what the candidate cannot recall is not a clarification.
+                or header.purpose in (MovePurpose.EVIDENCE_PROBE, MovePurpose.CLARIFICATION)
+            )
         ):
             raise StructuredOutputError("accept the stated limit and change the evidence approach")
     if header.answer_seq is not None and (
