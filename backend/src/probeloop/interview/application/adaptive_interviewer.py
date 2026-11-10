@@ -4,7 +4,7 @@ import json
 import math
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import asdict, replace
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
 
@@ -739,12 +739,25 @@ def closing_only(request: MoveRequest) -> bool:
     return legal_topic_ids(request) == (closing,)
 
 
-def decision_output(topic_ids: tuple[str, ...]) -> type[AdaptiveDecision]:
-    """Constrain decoding to the legal objectives; validation still checks every choice."""
+def decision_output(topic_ids: tuple[str, ...], closing: str) -> type[AdaptiveDecision]:
+    """Constrain decoding to the legal objectives and purposes; validation still checks them.
+
+    The closing purpose is offered only while the closing objective is legal.
+    """
+    purposes = [
+        p.value for p in MovePurpose if p is not MovePurpose.CLOSING or closing in topic_ids
+    ]
+
+    def legal_purposes(schema: dict[str, Any]) -> None:
+        # Inline, not beside the enum's `$ref`: grammar converters may ignore `$ref` siblings.
+        schema.clear()
+        schema.update({"type": "string", "enum": purposes})
+
     return create_model(
         "AdaptiveDecision",
         __base__=AdaptiveDecision,
         topic_id=(str, Field(max_length=32, json_schema_extra={"enum": list(topic_ids)})),
+        purpose=(MovePurpose, Field(json_schema_extra=legal_purposes)),
     )
 
 
@@ -874,7 +887,9 @@ async def stream_two_step_move(
             decision, raw = closing_decision(request, closing), ""
         else:
             result = await complete_structured(
-                model, decision_request(chat_request, rejected, decide), decision_output(legal)
+                model,
+                decision_request(chat_request, rejected, decide),
+                decision_output(legal, closing),
             )
             decision, raw = coerced(result.value, request), result.raw
         try:

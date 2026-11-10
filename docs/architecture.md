@@ -903,7 +903,8 @@ shares the prompt prefix:
 1. A narrow call quotes the statements in the latest answer where the candidate says they do not
    remember something or lack the experience. Quotes absent from the answer are dropped.
 2. The decision names objective, purpose, question type, elicited criteria, fact ids and a
-   one-sentence focus. Decoding admits only the objectives the time and topic policy allows.
+   one-sentence focus. Decoding admits only the objectives the time and topic policy allows,
+   and the closing purpose only while closing is one of them.
    Code repairs contradictions that have a single reading and returns a rejected decision once
    with its reason. When closing is the only legal move, code makes the decision itself.
 3. The question step streams the spoken question for the accepted decision under code-selected

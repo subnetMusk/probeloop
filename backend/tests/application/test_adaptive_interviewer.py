@@ -535,7 +535,7 @@ async def test_both_steps_fit_the_reserve_when_every_field_has_its_maximum_lengt
     assert all(estimated_tokens(r) <= budget for r in (first, retried, ask))
 
 
-async def test_two_step_decodes_only_legal_objectives_and_repairs_a_misnamed_topic_change() -> None:
+async def test_two_step_decodes_only_legal_choices_and_repairs_a_misnamed_topic_change() -> None:
     req = request()
     extra = Topic("t3", "Evidence checks", rubric_kind="technical", criteria=("reasoning",))
     context = replace(req.context, topics=(req.context.topics[0], extra, req.context.topics[1]))
@@ -550,10 +550,31 @@ async def test_two_step_decodes_only_legal_objectives_and_repairs_a_misnamed_top
     schema = model.requests[0].response_schema
     assert schema is not None
     assert schema["properties"]["topic_id"]["enum"] == ["t3"]
+    # Closing is not legal yet, so neither its objective nor its purpose can be decoded.
+    assert "closing" not in schema["properties"]["purpose"]["enum"]
     assert list(schema["properties"]) == list(AdaptiveDecision.model_fields)
     done = events[-1]
     assert isinstance(done, MoveDone)
     assert (done.move.action, done.move.topic_id) == (MoveAction.NEW_TOPIC, "t3")
+
+
+async def test_the_closing_purpose_is_offered_once_closing_is_legal() -> None:
+    req = replace(request(), directive=TimeDirective.BEGIN_WRAP_UP, turns=(asked("t1"), answer(1)))
+    model = FakeChatModel(
+        [
+            json.dumps({"quotes": []}),
+            decision(topic_id="t2", purpose="closing", elicited_criteria=[]),
+            json.dumps({"utterance": "Do you have any questions for us?"}),
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, two_step=True).next_move(req)]
+    schema = model.requests[1].response_schema
+    assert schema is not None
+    assert schema["properties"]["topic_id"]["enum"] == ["t1", "t2"]
+    assert schema["properties"]["purpose"]["enum"][-1] == "closing"
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert (done.move.action, done.move.topic_id) == (MoveAction.WRAP_UP, "t2")
 
 
 async def test_code_decides_a_closing_that_is_the_only_legal_move() -> None:
