@@ -9,7 +9,7 @@ you can track your progress across sessions.
 > CV reviews and the M6 interface redesign are implemented. M7 now includes confirmed target
 > roles, source-linked objectives, adaptive turns and evidence-scoped reports on a 0–100 scale.
 > Cross-profession model-quality acceptance remains a separate gate. See the
-> [continuation notes](docs/handoffs/2026-11-09-adaptive-interview-continuation.md),
+> [continuation notes](docs/handoffs/2026-11-10-adaptive-interview-continuation.md),
 > [validation protocol](docs/research/adaptive-interview-validation.md) and [roadmap](docs/roadmap.md).
 
 ## Goals

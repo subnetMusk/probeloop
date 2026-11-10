@@ -412,7 +412,10 @@ ownership is not detected. The two voice acceptance interviews ran with the Chat
 answer and the technical report caught the planted error without false corrections; topic
 planning, transcription of English terms and report readability have open issues. The ownership
 decision, a calibration rerun and a local-profile rerun remain open, see the
-[continuation notes](handoffs/2026-11-08-assessment-continuation.md).
+[continuation notes](handoffs/2026-11-08-assessment-continuation.md). Adaptive role-based
+interviews ([ADR 0016](adr/0016-adaptive-role-based-interviews.md)) are implemented and in
+development validation; their acceptance gates are open, see the
+[adaptive continuation notes](handoffs/2026-11-10-adaptive-interview-continuation.md).
 
 - **Deliverables**
   - Rubrics v1 (HR, behavioral, technical, mixed) in YAML.
