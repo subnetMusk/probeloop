@@ -896,6 +896,25 @@ linked to that answer, never retroactively attributed to the CV. Persisted engag
 excludes pauses and model/STT/TTS delays. Topic windows share remaining time by priority within
 45–240 seconds and yield to global closing.
 
+`PROBELOOP_INTERVIEWER_TURN` selects how a turn is generated. `single` writes the choice and the
+question in one structured generation. `two_step`, the default, separates them, and every call
+shares the prompt prefix:
+
+1. A narrow call quotes the statements in the latest answer where the candidate says they do not
+   remember something or lack the experience. Quotes absent from the answer are dropped.
+2. The decision names objective, purpose, question type, elicited criteria, fact ids and a
+   one-sentence focus. Decoding admits only the objectives the time and topic policy allows.
+   Code repairs contradictions that have a single reading and returns a rejected decision once
+   with its reason. When closing is the only legal move, code makes the decision itself.
+3. The question step streams the spoken question for the accepted decision under code-selected
+   rules: the question type, and the stated limits not to ask about again.
+
+The shared prompt is fitted to the context window with room reserved for both steps and the
+quoted limits. Recorded intent keeps the generated focus and marks a stated limit; both are
+conversation context, never scores. The
+[validation note](research/adaptive-interview-validation.md#single-call-and-two-step-turns)
+compares the two modes.
+
 Recorded question intent governs new-policy assessment; the profession-neutral classifier is
 diagnostic. The new rubrics are `technical.v3`, `hr.v2`, `behavioral.v2` and `hypothetical.v2`.
 They share autonomy anchors and aggregate it once as `common.autonomy`. Both numeric scores and

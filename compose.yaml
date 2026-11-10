@@ -28,6 +28,7 @@ services:
     environment:
       PROBELOOP_OLLAMA_BASE_URL: ${PROBELOOP_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       PROBELOOP_INTERVIEWER_MODEL: ${PROBELOOP_INTERVIEWER_MODEL:-ministral-3:8b}
+      PROBELOOP_INTERVIEWER_TURN: ${PROBELOOP_INTERVIEWER_TURN:-two_step}
       PROBELOOP_LLM_DEBUG_LOG: ${PROBELOOP_LLM_DEBUG_LOG:-false}
       PROBELOOP_DATA_DIR: /data
       # Empty: SQLite in the data volume. With the `postgres` profile, for example

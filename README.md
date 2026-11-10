@@ -308,7 +308,8 @@ downloaded candidate voice. [Voice credits and licences](docs/voices.md).
 (see [settings.py](backend/src/probeloop/settings.py)). For example,
 `PROBELOOP_INTERVIEWER_MODEL=qwen3.5:9b` switches the model, and `PROBELOOP_TTS_VOICE` the
 interviewer's voice (`it_IT-serena-medium` by default; download others with the `tts-voices`
-service). `PROBELOOP_LLM_DEBUG_LOG=true` writes prompts and outputs to `/data/logs/llm.jsonl`.
+service). `PROBELOOP_INTERVIEWER_TURN=single` writes each adaptive turn in one model call
+instead of deciding it first ([measurements](docs/research/adaptive-interview-validation.md#single-call-and-two-step-turns)). `PROBELOOP_LLM_DEBUG_LOG=true` writes prompts and outputs to `/data/logs/llm.jsonl`.
 That log contains personal data, so it is off by default.
 
 ## Documentation
