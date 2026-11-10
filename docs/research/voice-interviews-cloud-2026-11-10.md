@@ -117,6 +117,42 @@ truth and `voice-analysis.json`.
 8. **Requirement matrix.** A marks pressure transients as demonstrated in the documents. The CV
    says they were done with a specialist's support.
 
+## Where the reply latency goes
+
+Seventeen recorded turns of the three sessions were replayed outside the app, once as a two-step
+turn and once as a single call, alternating the order, with every model call timed. The requests
+used the recorded conversation up to each answer, no coverage and the normal time directive.
+The script and raw timings are in the ignored `var/test-run/turn-timing-v1/`.
+
+| Median | Limits read | Decision | Question: first chunk / end | First text | Move complete |
+|---|---|---|---|---|---|
+| Cloud, two-step | 3.5 s | 5.4 s | 2.9 s / 4.1 s | 11.4 s | 12.7 s |
+| Cloud, single call | – | – | – | 4.3 s | 5.8 s |
+| Local, two-step | 0.8 s | 7.6 s | 0.4 s / 3.6 s | 9.2 s | 12.3 s |
+| Local, single call | – | – | – | 8.4 s | 8.4 s |
+
+- **Cloud calls.** Every cloud call pays about three seconds before its first output. The limits
+  read takes 3.5 s for an empty list.
+- **Local calls.** The decision dominates, because it generates every field before the question
+  can start.
+- **Voice turns.** The first interviewer audio arrived within a second of the completed move in
+  every voice turn of the three interviews. The question is usually a single sentence, and
+  synthesis starts at the end of a sentence, so in a voice interview the reply latency follows
+  the complete move rather than the first text.
+- **Gap to the measured voice latency.** The voice interviews measured 17–19 s against the 12.7 s
+  of the replayed moves. Provider time varied between runs, and the app adds recognition and
+  synthesis.
+
+Levers, from cheapest:
+
+1. Reading the limits concurrently with the decision instead of before it. This would save the
+   limits time (about 3.5 s in the cloud) if the decision no longer needs the quotes; the
+   question step would still receive them. A local Laya classifier for the same reading would
+   save the same time at a much higher cost.
+2. Starting synthesis at a clause boundary of a long question, not at its end.
+3. Single-call turns for the cloud profile, about seven seconds faster per move, once its
+   fallbacks are addressed.
+
 ## Not observed
 
 There were no invented personal references, no lost answers after refinement and no unverified
