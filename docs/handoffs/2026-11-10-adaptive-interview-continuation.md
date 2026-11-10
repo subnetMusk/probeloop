@@ -16,8 +16,9 @@ generated in one structured call or in two steps; see
 [the adaptive policy](../architecture.md#adaptive-policy-and-public-score-scale). The two-step
 turn was developed against five development conversations at a time:
 
-1. Decisions are constrained to the objectives the policy admits, and code makes the closing
-   decision when it is the only legal move.
+1. Decisions are constrained to the objectives the policy admits, and to the closing purpose
+   only while closing is admitted. Code makes the closing decision when it is the only legal
+   move.
 2. A started closing always ends, and fallback moves no longer ask for a recorded answer again.
 3. A narrow call reads the limits stated in the latest answer before the decision. Their quotes
    reach both steps.
@@ -38,10 +39,11 @@ a stated limit, is in the
 [validation note](../research/adaptive-interview-validation.md#single-call-and-two-step-turns).
 Raw sessions, summaries and label checks are under the ignored `var/test-run/turn-compare-v1/`.
 
-Checks on the final tree: 587 backend tests passed (37 skipped, 22 live deselected), with ruff,
-mypy and the nine import contracts. With the rebuilt runtime image and the scripted backend of
-`compose.test.yaml`, 15 browser tests passed and the two live ones were skipped. The real
-backend runs that image with two-step turns on `probeloop_data`.
+Checks on the final tree: 588 backend tests passed (37 skipped, 22 live deselected), with ruff,
+mypy and the nine import contracts. With the runtime image built before the closing-purpose
+change and the scripted backend of `compose.test.yaml`, 15 browser tests passed and the two
+live ones were skipped; CI ran the same suite on the last pushed commit. The real backend runs the
+image rebuilt after that change, with two-step turns on `probeloop_data`.
 
 ## Development data in `probeloop_data`
 
@@ -85,11 +87,12 @@ interrupted runs and are kept, since nothing is deleted from that volume:
 3. The local five-repeat calibration of `adaptive-pair-v1` and the four voice tests are still
    to run.
 4. With the cloud interviewer the first words of a two-step turn came after a median of 11 to
-   20 s of model time, against about 5 s for a single call, which falls back far more often.
+   21 s of model time, against about 5 s for a single call, which falls back far more often.
    The voice tests should show whether that profile needs single-call turns or a faster step.
 5. In the last cloud check one of 30 moves fell back after two decisions gave a closing purpose
-   to an ordinary objective while closing was not yet allowed. The decision schema already
-   leaves out objectives the policy does not admit; it does not yet leave out that purpose.
+   to an ordinary objective while closing was not yet allowed. The schema now leaves that
+   purpose out, and one cloud conversation with it had no fallback; a single conversation
+   does not show that the cause is gone.
 6. Limits are read from the latest answer only, so a detail forgotten earlier in an episode can
    be asked for again later. About one in six answers with a stated limit is still followed by
    a question asking for it again.

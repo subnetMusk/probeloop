@@ -239,4 +239,11 @@ that gave a closing purpose to an ordinary objective while closing was not yet a
 first words had a median of 14.3 s. Across the three cloud two-step runs that median ranged
 from 11 to 20 s, so one run does not settle the cloud latency.
 
+The decision schema now offers the closing purpose only while the closing objective is legal,
+as it already did for objectives. Asked for a decision by a prompt that invited closing before
+it was legal, the local and the cloud model each returned three decisions within the narrowed
+schema. A cloud conversation of software senior with it had 16 moves, no fallback and no
+rejected decision; its first words had a median of 20.7 s, so across the four cloud two-step
+runs the median ranged from 11 to 21 s.
+
 Results and release disposition are recorded in the continuation handoff as checks finish.
