@@ -139,6 +139,11 @@ class Fact:
     def included(self) -> bool:
         return self.review is not Review.EXCLUDED
 
+    @property
+    def asserted(self) -> bool:
+        """Has documentary/user provenance, rather than only an uncorrected model inference."""
+        return self.origin is not FactOrigin.INFERRED or self.review is Review.CORRECTED
+
 
 class MatchStatus(StrEnum):
     MET = "met"

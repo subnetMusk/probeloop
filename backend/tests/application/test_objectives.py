@@ -66,3 +66,27 @@ async def test_provider_failure_without_a_cv_does_not_invent_personal_experience
     )
     assert all(not t.past_example for t in topics)
     assert all(not t.fact_ids for t in topics)
+
+
+async def test_documentary_links_alone_do_not_replace_exploring_actual_experience() -> None:
+    profile = RoleProfile("Economics", "Economist", "junior", confirmed=True)
+    goal = {
+        "title": "Future professional reasoning",
+        "objective": "Explore a hypothetical task.",
+        "rubric_kind": "technical",
+        "priority": 2,
+        "fact_ids": [ROLE.id],
+        "criteria": ["reasoning"],
+        "past_example": False,
+        "solvable": True,
+    }
+    topics = await TopicPlanner(FakeChatModel([json.dumps({"objectives": [goal, goal]})])).plan(
+        config(),
+        "",
+        "",
+        role_profile=profile,
+        facts=(ROLE,),
+    )
+    assert topics[0].past_example
+    assert topics[0].fact_ids == (ROLE.id,)
+    assert "ownership" in topics[0].criteria

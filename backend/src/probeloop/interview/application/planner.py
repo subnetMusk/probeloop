@@ -17,7 +17,7 @@ from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest, LlmError
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import complete_structured
 from probeloop.context.application.snapshots import select_facts
-from probeloop.context.domain.model import Fact, FactOrigin, RoleProfile, Subject
+from probeloop.context.domain.model import Fact, FactKind, FactOrigin, RoleProfile, Subject
 from probeloop.interview.application.catalog import default_topics
 from probeloop.interview.application.llm_interviewer import (
     LANGUAGE_NAMES,
@@ -126,9 +126,8 @@ class TopicPlanner:
         facts: tuple[Fact, ...],
         suggestions: tuple[str, ...],
     ) -> tuple[Topic, ...]:
-        # Model interpretations remain available to the interviewer as such, but cannot
-        # substantiate an objective's personal/documentary reference.
-        verified = {f.id: f for f in facts if f.origin is not FactOrigin.INFERRED}
+        # Keep inferred facts persisted, but do not turn them into candidate history.
+        verified = {f.id: f for f in facts if f.asserted}
         query = " ".join((profile.target_role, *profile.competencies))
         selected = tuple(
             f
@@ -163,7 +162,11 @@ class TopicPlanner:
                                     "id": f.id,
                                     "subject": f.subject.value,
                                     "kind": f.kind.value,
-                                    "text": f.text,
+                                    "text": f.quote
+                                    if f.origin is FactOrigin.DECLARED
+                                    and f.quote
+                                    and not f.corrected
+                                    else f.text,
                                     "origin": f.origin.value,
                                 }
                                 for f in selected
@@ -207,8 +210,23 @@ class TopicPlanner:
                     )
                 )
             candidate = [f for f in verified.values() if f.subject is Subject.CANDIDATE]
-            if candidate and not any(set(t.fact_ids) & {f.id for f in candidate} for t in topics):
-                topics[0] = experience_objective(candidate[0], config)
+            history = [
+                f
+                for kind in (
+                    FactKind.PROJECT,
+                    FactKind.ACHIEVEMENT,
+                    FactKind.ROLE,
+                    FactKind.EDUCATION,
+                )
+                for f in candidate
+                if f.kind is kind
+            ]
+            linked = any(set(t.fact_ids) & {f.id for f in candidate} for t in topics)
+            explored_past = any(
+                t.past_example and set(t.fact_ids) & {f.id for f in history} for t in topics
+            )
+            if candidate and (not linked or (history and not explored_past)):
+                topics[0] = experience_objective((history or candidate)[0], config)
         except (LlmError, ValueError) as exc:
             logger.warning(
                 "objective planning failed; using role-grounded objectives",

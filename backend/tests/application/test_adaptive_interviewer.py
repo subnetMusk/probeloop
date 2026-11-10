@@ -4,12 +4,15 @@ from dataclasses import replace
 import pytest
 
 from probeloop.ai.fake import FakeChatModel
+from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import StructuredOutputError
-from probeloop.context.domain.model import RoleProfile
+from probeloop.context.domain.model import Fact, FactKind, FactOrigin, Review, RoleProfile, Subject
 from probeloop.interview.application.adaptive_interviewer import (
     AdaptiveChoice,
     AdaptiveHeader,
+    adaptive_request,
     checked_header,
+    selected_facts,
     validate_header,
 )
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
@@ -53,6 +56,53 @@ def request() -> MoveRequest:
         policy_version="adaptive.v1",
     )
     return MoveRequest(session.config, context, (), session.coverage, TimeDirective.NORMAL, 300)
+
+
+def test_prompt_uses_source_words_and_omits_unasserted_personal_inferences() -> None:
+    req = request()
+    facts = (
+        Fact(
+            "declared",
+            Subject.CANDIDATE,
+            FactKind.PROJECT,
+            "A sweeping summary",
+            FactOrigin.DECLARED,
+            "doc",
+            "Built a small analysis under supervision.",
+        ),
+        Fact(
+            "inferred",
+            Subject.CANDIDATE,
+            FactKind.SKILL,
+            "Model-only personal inference",
+            FactOrigin.INFERRED,
+        ),
+        Fact(
+            "corrected",
+            Subject.CANDIDATE,
+            FactKind.PROJECT,
+            "Unverified interpretation",
+            FactOrigin.INFERRED,
+            review=Review.CORRECTED,
+            corrected="I reviewed the observations myself.",
+        ),
+    )
+    req = replace(req, context=replace(req.context, facts=facts))
+    assert {f.id for f in selected_facts(req)} == {"declared", "corrected"}
+    payload, _ = adaptive_request(
+        PromptRenderer("probeloop.interview"),
+        req,
+        language_name="English",
+        type_guidance="professional",
+        difficulty_guidance="medium",
+        temperature=0.2,
+        top_p=0.9,
+    )
+    text = payload.messages[0].content
+    assert "Built a small analysis under supervision." in text
+    assert "A sweeping summary" not in text
+    assert "Model-only personal inference" not in text
+    assert "I reviewed the observations myself." in text
 
 
 def header(**changes: object) -> AdaptiveHeader:

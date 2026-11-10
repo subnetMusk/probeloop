@@ -163,7 +163,7 @@ def selected_facts(request: MoveRequest) -> tuple[Fact, ...]:
         f
         for subject in Subject
         for f in select_facts(
-            tuple(f for f in request.context.facts if f.subject is subject),
+            tuple(f for f in request.context.facts if f.subject is subject and f.asserted),
             query=query,
             preferred_ids=topic.fact_ids,
             max_chars=3000,
@@ -239,7 +239,10 @@ def adaptive_request(
                     "origin": f.origin.value,
                     "document_id": f.document_id,
                     "document_kind": dict(request.context.document_kinds).get(f.document_id or ""),
-                    "text": f.text,
+                    "text": f.quote
+                    if f.origin is FactOrigin.DECLARED and f.quote and not f.corrected
+                    else f.text,
+                    "review": f.review.value,
                 }
                 for f in facts
             ],
@@ -307,7 +310,7 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         raise StructuredOutputError("a probe needs its candidate answer reference")
     if header.purpose is MovePurpose.CLARIFICATION and header.elicited_criteria:
         raise StructuredOutputError("a clarification does not introduce scored criteria")
-    verified = {f.id for f in selected_facts(request) if f.origin is not FactOrigin.INFERRED}
+    verified = {f.id for f in selected_facts(request) if f.asserted}
     if not set(header.fact_ids) <= verified:
         raise StructuredOutputError("unavailable documentary reference")
     answered_topics: set[str] = set()
