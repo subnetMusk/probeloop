@@ -167,8 +167,10 @@ async def text_conversation(
                 event = json.loads(raw)
                 with (directory / "events.jsonl").open("a", encoding="utf-8") as log:
                     log.write(json.dumps(event, ensure_ascii=False) + "\n")
-                if event["type"] == "error":
+                if event["type"] == "error" and not event.get("recoverable"):
                     raise RuntimeError(f"runtime error: {event['code']}")
+                # A recoverable error is followed by the application's fallback move, which is
+                # part of the conversation under test; the event stays in events.jsonl.
                 if event["type"] == "interviewer.move.completed":
                     await send("playback.finished")
                     if event["action"] == "end":
