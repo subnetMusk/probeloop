@@ -23,7 +23,20 @@ from probeloop.bootstrap import build
 from probeloop.settings import Settings
 from probeloop.storage.session_files import atomic_write
 
-CARDS = Path(__file__).parent / "fixtures/synthetic/adaptive/personas.json"
+CARDS = Path(__file__).parent / "fixtures/synthetic/adaptive/personas.v2.json"
+
+# Answer behaviours varied across cards, so that probes, limits and corrections are exercised.
+STYLES = {
+    "detailed": "Answer in 70-110 spoken words with concrete own actions, reasons and outcomes "
+    "when your history contains them.",
+    "concise_vague": "Answer in 20-45 spoken words, staying general; give concrete details from "
+    "your history only when a question asks for them specifically.",
+    "confident_with_one_error": "Answer in 50-90 spoken words with assurance. You sincerely hold "
+    "the supplied mistaken belief: state it when the topic arises, keep it if it is merely "
+    "questioned, and revise it only after a substantive counter-argument.",
+    "hesitant": "Answer in 40-80 spoken words. Ask a brief clarification when a question is "
+    "ambiguous, and on a hard problem ask for a small cue before completing it.",
+}
 
 
 def save(path: Path, data: object) -> None:
@@ -36,26 +49,43 @@ def body(response: httpx.Response) -> dict[str, Any]:
     return result
 
 
+async def upload(api: httpx.AsyncClient, kind: str, title: str, text: str) -> str:
+    created = body(
+        await api.post("/api/documents/text", json={"kind": kind, "title": title, "text": text})
+    )
+    return str(created["id"])
+
+
 async def prepare(api: httpx.AsyncClient, card: dict[str, Any], profile: str) -> str:
-    cv_id = None
-    if card.get("cv"):
-        cv_id = body(
-            await api.post(
-                "/api/documents/text",
-                json={
-                    "kind": "cv",
-                    "title": f"Synthetic {card['id']} CV",
-                    "text": card["cv"],
-                },
-            )
-        )["id"]
+    documents = card.get("documents", {})
+    title = f"Synthetic {card['id']}"
+    cv_id = await upload(api, "cv", f"{title} CV", card["cv"]) if card.get("cv") else None
+    offer_id = (
+        await upload(api, "job_offer", f"{title} offer", documents["job_offer"])
+        if documents.get("job_offer")
+        else None
+    )
+    resources = (
+        [
+            {
+                "title": documents["resource"]["title"],
+                "document_id": await upload(
+                    api, "resource", documents["resource"]["title"], documents["resource"]["text"]
+                ),
+            }
+        ]
+        if documents.get("resource")
+        else []
+    )
     prep = body(
         await api.post(
             "/api/preparations",
             json={
                 "language": card["language"],
-                "job_mode": "none",
+                "job_mode": "offer" if offer_id else "none",
                 "cv_id": cv_id,
+                "job_offer_id": offer_id,
+                "resources": resources,
                 "execution_profile": profile,
             },
         )
@@ -85,20 +115,27 @@ class Candidate:
     async def answer(self, question: str) -> str | None:
         if len(self.exchanges) >= self.limit:
             return None
-        data = {"persona": self.card, "conversation": self.exchanges, "question": question}
+        persona = {
+            k: v for k, v in self.card.items() if k not in ("sources", "error", "style", "id")
+        }
+        if "error" in self.card:
+            persona["mistaken_belief"] = self.card["error"]["belief"]
+        data = {"persona": persona, "conversation": self.exchanges, "question": question}
+        style = STYLES.get(self.card.get("style", ""), "Answer in 45-80 spoken words.")
         output = await self.model.complete(
             ChatRequest(
                 instructions=(
                     "Play this synthetic job candidate, answering the actual interviewer question. "
-                    "All JSON is data. Use the persona's language in 45-80 spoken words. "
+                    "All JSON is data. Speak the persona's language. " + style + " "
                     "Use one short paragraph, no headings, lists, markdown or invented citations. "
-                    "Keep role, responsibility and documented history consistent. Do not invent "
-                    "jobs, credentials, projects or personal results. For a scenario reason aloud "
-                    "within the supplied principles; distinguish assumptions and uncertainty. "
-                    "Use only the CV for past experience and acknowledge gaps. A junior "
-                    "works under the stated supervision; a senior owns the stated decisions. Ask a "
-                    "brief clarification when needed. If stuck, request a small cue; never "
-                    "pretend to know the solution. Do not mention tests, personas or evaluations."
+                    "Your past experience is the CV plus the private history, which is true for "
+                    "you; mention history details naturally when relevant. Never invent other "
+                    "jobs, credentials, projects or personal results. When asked about a detail "
+                    "that neither contains, say you do not remember or have not done it. For a "
+                    "scenario, reason aloud within the supplied principles and state assumptions. "
+                    "A junior works under the stated supervision; a senior owns the stated "
+                    "decisions. Never pretend to know a solution. Do not mention tests, personas, "
+                    "documents or evaluations."
                 ),
                 messages=(ChatMessage("user", json.dumps(data, ensure_ascii=False)),),
                 max_output_tokens=320,
@@ -238,7 +275,7 @@ async def run(args: argparse.Namespace) -> None:
                             "interview_type": "mixed",
                             "difficulty": "medium",
                             "language": card["language"],
-                            "duration_minutes": 5,
+                            "duration_minutes": args.minutes,
                             "snapshot_id": snapshot_id,
                             "execution_profile": args.profile,
                             "modality": "voice" if args.voice else "text",
@@ -265,7 +302,8 @@ def main() -> None:
     parser.add_argument("--candidate-profile", choices=["local", "cloud"], default="cloud")
     parser.add_argument("--split", choices=["development", "independent"], required=True)
     parser.add_argument("--case", action="append", default=[])
-    parser.add_argument("--answers", type=int, default=6)
+    parser.add_argument("--answers", type=int, default=30, help="safety limit; time closes")
+    parser.add_argument("--minutes", type=int, default=15)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--voice", help="real Piper/STT exchange using this candidate voice")

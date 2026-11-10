@@ -1,0 +1,422 @@
+{
+  "protocol": {
+    "version": 2,
+    "notes": "Synthetic personas only. The private history is known to the candidate actor and never uploaded. Styles vary the answer behaviour; an error card states one checkable belief that the audit compares with its source. Development and independent cards must stay separate."
+  },
+  "development": [
+    {
+      "id": "software-junior",
+      "language": "en",
+      "style": "detailed",
+      "role": {
+        "profession": "Software engineering",
+        "target_role": "Backend developer",
+        "seniority": "Junior",
+        "responsibilities": [
+          "Implement small changes with review",
+          "Investigate failures under supervision"
+        ],
+        "competencies": [
+          "HTTP behavior",
+          "Testing",
+          "Reasoning about failures"
+        ]
+      },
+      "cv": "Synthetic candidate. Backend intern, small travel-booking start-up, 6 months. Added request validation to the booking API and wrote tests for missing and malformed fields. Reviewed failing tests with a mentor. Deployment decisions belonged to the mentor. BSc Computer Science, final project on rate limiting.",
+      "history": [
+        "During the internship a test for a missing date returned 500 instead of 400; you traced it to the date being parsed before the presence check, moved the check earlier and added a test for an invalid date. Your mentor reviewed the change.",
+        "You wrote about twenty validation tests; you do not remember the exact count or every field.",
+        "In the final project you compared a fixed-window and a token-bucket rate limiter in a small simulation; you remember that the token bucket handled short bursts better but not the exact numbers.",
+        "You never deployed to production, never handled an incident and never designed a public API alone."
+      ],
+      "documents": {
+        "job_offer": "Junior Backend Developer. Implement and test small API changes under code review. Investigate failing tests and logs with senior colleagues. Required: Python or similar, HTTP basics, automated testing. Nice to have: SQL."
+      },
+      "principles": "HTTP idempotence concerns the intended server effect of repeating a request. Tests should cover relevant failure cases. Ask for missing assumptions and acknowledge limited deployment experience.",
+      "sources": [
+        "https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods"
+      ]
+    },
+    {
+      "id": "software-senior",
+      "language": "it",
+      "style": "confident_with_one_error",
+      "error": {
+        "belief": "Con una chiave di idempotenza salvata in una cache con scadenza, le prenotazioni duplicate diventano impossibili anche durante un failover.",
+        "correct": "Una cache con scadenza non garantisce l'unicità: dopo la scadenza, una perdita della cache o un failover la stessa richiesta può essere rieseguita; servono limiti espliciti e una deduplicazione persistente e atomica rispetto all'effetto.",
+        "topic": "idempotency and failover"
+      },
+      "role": {
+        "profession": "Software engineering",
+        "target_role": "Backend technical lead",
+        "seniority": "Senior",
+        "responsibilities": [
+          "Own service reliability and review trade-offs",
+          "Guide incident response"
+        ],
+        "competencies": [
+          "Failure recovery",
+          "API design",
+          "Evidence from incidents"
+        ]
+      },
+      "cv": "Candidato sintetico. Tech lead backend in una società di prenotazioni, 4 anni. Ho coordinato la revisione di una API di prenotazione dopo richieste duplicate e scelto una chiave di idempotenza persistita. Ho guidato le revisioni post-incidente del servizio pagamenti. La decisione finale sul prodotto spettava al responsabile prodotto.",
+      "history": [
+        "Revisione API: i duplicati nascevano da retry dei client dopo timeout. Hai proposto la chiave di idempotenza persistita nel database delle prenotazioni, legata a cliente e operazione, con conservazione di 24 ore concordata con il prodotto. Hai misurato un aumento di latenza p95 di circa 15 ms; non ricordi il valore esatto prima e dopo.",
+        "Incidente pagamenti: un failover del database ha causato circa 40 minuti di errori parziali. Hai coordinato la risposta come incident lead, scelto di bloccare le scritture e riprendere gradualmente, poi guidato la revisione post-incidente senza colpe. Non ricordi tutti i passaggi della timeline.",
+        "Hai fatto da mentore a due sviluppatori junior sulle revisioni del codice.",
+        "Non hai mai gestito un incidente di sicurezza e non hai progettato da solo l'architettura multi-regione."
+      ],
+      "documents": {
+        "resource": {
+          "title": "Linee guida interne sulle API (sintesi)",
+          "text": "Le API di scrittura devono dichiarare il comportamento in caso di richieste ripetute. Le chiavi di idempotenza devono essere conservate almeno per la finestra di retry concordata. Ogni incidente con impatto sui clienti richiede una revisione post-incidente entro cinque giorni lavorativi."
+        }
+      },
+      "principles": "Distinguish intended effects from response identity. Retry and concurrent duplicate handling require explicit assumptions; avoid exactly-once guarantees without boundaries.",
+      "sources": [
+        "https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods"
+      ]
+    },
+    {
+      "id": "economics-junior",
+      "language": "it",
+      "style": "hesitant",
+      "role": {
+        "profession": "Economia",
+        "target_role": "Analista economico",
+        "seniority": "Junior",
+        "responsibilities": [
+          "Prepare descriptive analysis under review",
+          "Explain limitations of indicators"
+        ],
+        "competencies": [
+          "Real and nominal measures",
+          "Data comparability",
+          "Uncertainty"
+        ]
+      },
+      "cv": null,
+      "history": [
+        "Tesi magistrale: hai confrontato l'andamento dei salari nominali e reali in tre regioni italiane dal 2015 al 2022, deflazionando con l'indice dei prezzi al consumo nazionale. Il relatore ti ha fatto notare che un indice regionale sarebbe stato più adatto; non lo hai rifatto per mancanza di tempo.",
+        "Durante un corso hai preparato in gruppo una breve nota sulla disoccupazione giovanile; tu hai curato i grafici e la descrizione delle fonti.",
+        "Non hai esperienza lavorativa retribuita come economista e non hai mai stimato modelli causali in un contesto professionale.",
+        "Non ricordi i valori numerici precisi della tesi."
+      ],
+      "documents": {},
+      "principles": "Distinguish nominal changes from price-adjusted changes. Check the period, population and price index. Do not claim causality from correlation or invent research experience.",
+      "sources": [
+        "https://www.bea.gov/data/prices-inflation/gdp-price-index",
+        "https://www.bls.gov/cpi/questions-and-answers.htm"
+      ]
+    },
+    {
+      "id": "economics-senior",
+      "language": "en",
+      "style": "concise_vague",
+      "role": {
+        "profession": "Economics",
+        "target_role": "Senior economic analyst",
+        "seniority": "Senior",
+        "responsibilities": [
+          "Own methodological choices",
+          "Communicate uncertainty to decision makers"
+        ],
+        "competencies": [
+          "Identification",
+          "Real and nominal measures",
+          "Sensitivity analysis"
+        ]
+      },
+      "cv": "Synthetic candidate. Senior analyst, regional development agency, 7 years. Led a regional-price briefing for the board, selecting comparable periods and documenting missing observations. Presented uncertainty and alternative deflators. The briefing was descriptive and did not identify a causal policy effect.",
+      "history": [
+        "For the regional-price briefing you chose 2016-2023 because earlier regional data used a different classification; two regions had missing quarters, which you reported rather than imputed.",
+        "You presented results with both the national CPI and a regional price index, and the ranking of two regions changed between them; you explained to the board that the ranking was not robust.",
+        "You reviewed a junior colleague's difference-in-differences draft and asked for a pre-trend check; the project was later dropped for unrelated budget reasons.",
+        "You never published academic research and do not remember the exact size of the regional differences."
+      ],
+      "documents": {
+        "job_offer": "Senior Economic Analyst. Own methodological choices for regional economic analysis and explain uncertainty to non-specialist decision makers. Required: price indices, comparability of statistical series, sensitivity analysis. Nice to have: causal inference methods."
+      },
+      "principles": "Price indices measure different baskets and concepts. State identification assumptions before causal claims. Present sensitivity and uncertainty.",
+      "sources": [
+        "https://www.bea.gov/data/prices-inflation/gdp-price-index",
+        "https://www.bls.gov/cpi/questions-and-answers.htm"
+      ]
+    },
+    {
+      "id": "healthcare-junior",
+      "language": "en",
+      "style": "detailed",
+      "role": {
+        "profession": "Medicine",
+        "target_role": "Supervised internal medicine trainee",
+        "seniority": "Junior trainee",
+        "responsibilities": [
+          "Recognise deterioration and seek senior help",
+          "Communicate and hand over safely"
+        ],
+        "competencies": [
+          "Prioritisation",
+          "Uncertainty",
+          "Patient safety"
+        ]
+      },
+      "cv": "Synthetic candidate. Foundation doctor, 18 months on general medicine and surgery rotations. Completed supervised simulation training on the deteriorating adult. Escalated concerns to registrars using a structured handover.",
+      "history": [
+        "On a night shift a post-operative patient became tachycardic and newly confused; you repeated the observations, calculated the early warning score, informed the registrar with SBAR and stayed until review. The patient was treated for sepsis. You do not remember the exact values.",
+        "In simulation you initially forgot to state the patient's baseline during handover; the debrief taught you to state baseline and trend first.",
+        "You have not led a cardiac arrest team and have never made independent decisions about escalation to intensive care.",
+        "You remember the local escalation protocol in general terms, not every threshold."
+      ],
+      "documents": {},
+      "principles": "Recognise own limits, assess urgency, gather observations and escalate promptly. Do not invent clinical history or claim autonomy beyond supervision.",
+      "sources": [
+        "https://www.gmc-uk.org/professional-standards/the-professional-standards/good-medical-practice"
+      ]
+    },
+    {
+      "id": "healthcare-senior",
+      "language": "it",
+      "style": "confident_with_one_error",
+      "error": {
+        "belief": "In un paziente con BPCO e saturazione al 90% darei subito ossigeno ad alti flussi fino a superare il 98%, perché più ossigeno è sempre più sicuro.",
+        "correct": "Nei pazienti con BPCO a rischio di insufficienza respiratoria ipercapnica le linee guida indicano un obiettivo di saturazione intorno all'88-92% con ossigeno titolato, controllando l'emogasanalisi; l'eccesso di ossigeno può peggiorare l'ipercapnia.",
+        "topic": "oxygen in COPD"
+      },
+      "role": {
+        "profession": "Medicina",
+        "target_role": "Medico internista responsabile di équipe",
+        "seniority": "Senior",
+        "responsibilities": [
+          "Coordinate safe assessment and escalation",
+          "Supervise trainees and explain uncertainty"
+        ],
+        "competencies": [
+          "Clinical prioritisation",
+          "Team communication",
+          "Limits and escalation"
+        ]
+      },
+      "cv": "Candidato sintetico. Dirigente medico di medicina interna, 9 anni. Ho guidato con specializzandi una simulazione di consegna clinica, assegnando raccolta dei parametri e comunicazione delle priorità. Dopo la simulazione abbiamo discusso omissioni e limiti. Referente del reparto per la formazione sulla sicurezza del paziente.",
+      "history": [
+        "Hai introdotto nel reparto una consegna serale strutturata di dieci minuti con gli specializzandi; dopo tre mesi le chiamate notturne per informazioni mancanti si sono ridotte, ma non ricordi la percentuale.",
+        "Hai gestito un paziente con polmonite che si è aggravato rapidamente; hai chiamato la rianimazione e distribuito i compiti agli specializzandi. Non ricordi tutti i parametri.",
+        "Hai supervisionato specializzandi in reparto per sei anni.",
+        "Non hai mai diretto una terapia intensiva e non hai responsabilità organizzative di dipartimento."
+      ],
+      "documents": {},
+      "principles": "Coordinate assessment and resources, keep uncertainty explicit, delegate within competence and escalate when limits are reached.",
+      "sources": [
+        "https://www.gmc-uk.org/professional-standards/the-professional-standards/good-medical-practice",
+        "https://www.brit-thoracic.org.uk/quality-improvement/guidelines/emergency-oxygen"
+      ]
+    },
+    {
+      "id": "operations-junior",
+      "language": "it",
+      "style": "concise_vague",
+      "role": {
+        "profession": "Operations",
+        "target_role": "Coordinatore ordini",
+        "seniority": "Junior",
+        "responsibilities": [
+          "Track orders and escalate exceptions",
+          "Maintain accurate customer updates"
+        ],
+        "competencies": [
+          "Prioritisation",
+          "Checking information",
+          "Customer communication"
+        ]
+      },
+      "cv": "Candidato sintetico. Tirocinio di 6 mesi nell'ufficio ordini di un distributore di ricambi. Ho aggiornato un registro ordini e segnalato ritardi al supervisore. Ho confrontato conferme e date promesse prima di preparare gli aggiornamenti per i clienti. Non decidevo sconti o compensazioni.",
+      "history": [
+        "Una volta hai notato che un ordine urgente risultava confermato ma il fornitore aveva cambiato la data; hai avvisato il supervisore prima di scrivere al cliente, e il cliente è stato informato con la nuova data.",
+        "Gestivi circa trenta ordini al giorno; non ricordi i numeri esatti.",
+        "Hai proposto di aggiungere al registro una colonna con la data di ultima verifica; il supervisore l'ha adottata.",
+        "Non hai mai negoziato con fornitori né gestito reclami formali."
+      ],
+      "documents": {
+        "job_offer": "Coordinatore ordini junior. Monitorare gli ordini, verificare date e conferme, segnalare le eccezioni al responsabile e aggiornare i clienti con informazioni accurate. Richiesti: precisione, comunicazione scritta, uso di fogli di calcolo."
+      },
+      "principles": "Check facts and commitments, distinguish urgency from impact, escalate decisions outside authority and do not promise unconfirmed dates.",
+      "sources": [
+        "https://www.gov.uk/government/publications/success-profiles/success-profiles-civil-service-behaviours"
+      ]
+    },
+    {
+      "id": "operations-senior",
+      "language": "en",
+      "style": "detailed",
+      "role": {
+        "profession": "Commercial operations",
+        "target_role": "Operations manager",
+        "seniority": "Senior",
+        "responsibilities": [
+          "Own exception priorities and customer commitments",
+          "Coordinate teams and review process outcomes"
+        ],
+        "competencies": [
+          "Trade-offs",
+          "Stakeholder communication",
+          "Process improvement"
+        ]
+      },
+      "cv": "Synthetic candidate. Operations manager, industrial supplies distributor, 6 years. Coordinated a backlog review across sales and fulfilment, introduced a shared exception log, assigned owners for customer updates and compared unresolved cases weekly.",
+      "history": [
+        "The backlog review followed complaints about unanswered delivery exceptions; you set a rule that every exception had a named owner and an update date, and after two months the open backlog roughly halved. You do not remember the exact numbers.",
+        "Sales once pushed to prioritise a large customer over older cases; you agreed only after checking the contractual commitment and informed the delayed customers yourself.",
+        "You led the quarterly process review with sales and fulfilment leads.",
+        "You never managed procurement contracts or set pricing policy."
+      ],
+      "documents": {
+        "resource": {
+          "title": "Exception handling policy (summary)",
+          "text": "Every delivery exception needs a named owner and a next update date. Customer commitments may only be changed after the fulfilment lead confirms capacity. Escalate to the operations manager when two customers compete for the same capacity."
+        }
+      },
+      "principles": "Make constraints and authority explicit. Balance impact, urgency and fairness. Verify commitments and review outcomes.",
+      "sources": [
+        "https://www.gov.uk/government/publications/success-profiles/success-profiles-civil-service-behaviours"
+      ]
+    }
+  ],
+  "independent": [
+    {
+      "id": "teaching-junior",
+      "language": "en",
+      "style": "hesitant",
+      "role": {
+        "profession": "Education",
+        "target_role": "Classroom teacher",
+        "seniority": "Early career",
+        "responsibilities": [
+          "Plan lessons with mentor support",
+          "Check learning and adapt feedback"
+        ],
+        "competencies": [
+          "Formative assessment",
+          "Feedback",
+          "Reflective practice"
+        ]
+      },
+      "cv": "Synthetic candidate. Trainee teacher, two school placements (ages 9-11). During mentored practice I used short exit questions to identify a misconception in fractions and adapted the next explanation with my mentor. I have not led whole-school curriculum decisions.",
+      "history": [
+        "Several pupils thought one half was smaller than one third because three is larger than two; with your mentor you planned a lesson using fraction strips and checked understanding with two new exit questions.",
+        "You gave written comments on a set of maths homework and noticed few pupils acted on them; next time you left five minutes in class to respond.",
+        "You have not managed a class alone for a full term and have no experience with formal exam moderation.",
+        "You do not remember how many pupils had the misconception."
+      ],
+      "documents": {},
+      "principles": "Assess the gap in understanding before deciding feedback. Give actionable feedback and time for pupils to use it. A preferred written or verbal format does not itself guarantee learning.",
+      "sources": [
+        "https://educationendowmentfoundation.org.uk/education-evidence/guidance-reports/feedback"
+      ]
+    },
+    {
+      "id": "teaching-senior",
+      "language": "it",
+      "style": "confident_with_one_error",
+      "error": {
+        "belief": "Il feedback scritto dettagliato è sempre più efficace di quello orale, quindi chiederei ai colleghi di usare solo commenti scritti.",
+        "correct": "Le evidenze indicano che conta soprattutto la qualità del feedback, cioè se affronta il divario di apprendimento ed è utilizzabile dagli alunni, più del formato scritto o orale; imporre un solo formato non garantisce l'apprendimento e può aumentare il carico di lavoro.",
+        "topic": "feedback format"
+      },
+      "role": {
+        "profession": "Istruzione",
+        "target_role": "Docente coordinatore",
+        "seniority": "Senior",
+        "responsibilities": [
+          "Coordinate evidence-informed teaching",
+          "Support colleagues and evaluate implementation"
+        ],
+        "competencies": [
+          "Assessment design",
+          "Feedback",
+          "Implementation trade-offs"
+        ]
+      },
+      "cv": "Candidato sintetico. Docente di matematica nella scuola secondaria di primo grado, 12 anni; coordinatore di dipartimento da 3. Ho coordinato con colleghi una revisione delle domande di verifica sulle frazioni e organizzato un confronto sulle strategie di feedback. Non abbiamo isolato un effetto causale sui risultati della scuola.",
+      "history": [
+        "La revisione ha riguardato quattro classi; avete riscritto le domande in modo da distinguere gli errori di procedura da quelli concettuali. Non ricordi quante domande avete cambiato.",
+        "Un collega era contrario perché temeva più lavoro; hai proposto di provare la nuova verifica in una sola classe prima di estenderla.",
+        "Non hai condotto ricerche formali e non hai dati sugli apprendimenti oltre ai voti delle verifiche.",
+        "Non hai mai coordinato la valutazione dell'intero istituto."
+      ],
+      "documents": {
+        "job_offer": "Docente coordinatore di dipartimento. Coordinare pratiche didattiche basate sulle evidenze, sostenere i colleghi nella progettazione delle verifiche e del feedback, valutare l'attuazione considerando il carico di lavoro."
+      },
+      "principles": "Feedback should address a diagnosed learning gap and be usable by pupils. Consider workload, implementation and evidence quality rather than mandating one format. Do not invent measured attainment gains.",
+      "sources": [
+        "https://educationendowmentfoundation.org.uk/education-evidence/guidance-reports/feedback"
+      ]
+    },
+    {
+      "id": "quality-junior",
+      "language": "it",
+      "style": "concise_vague",
+      "role": {
+        "profession": "Qualità industriale",
+        "target_role": "Tecnico qualità",
+        "seniority": "Junior",
+        "responsibilities": [
+          "Record nonconformities and preserve traceability",
+          "Assist supervised investigations"
+        ],
+        "competencies": [
+          "Evidence collection",
+          "Containment",
+          "Root-cause reasoning"
+        ]
+      },
+      "cv": "Candidato sintetico. Durante un tirocinio ho registrato difetti di un lotto dimostrativo e raccolto misure con il supervisore. Ho mantenuto la tracciabilità dei campioni. Le decisioni di contenimento spettavano al responsabile qualità.",
+      "history": [
+        "Nel lotto alcune boccole avevano il diametro interno fuori tolleranza; hai misurato con il calibro i pezzi indicati dal supervisore e annotato numero di lotto e macchina. Non ricordi quanti pezzi erano difettosi.",
+        "Hai notato che i pezzi difettosi venivano tutti dallo stesso turno e lo hai segnalato; l'indagine successiva l'ha condotta il responsabile.",
+        "Non hai mai condotto un'analisi delle cause in autonomia né scritto un'azione correttiva."
+      ],
+      "documents": {
+        "resource": {
+          "title": "Procedura non conformità (sintesi)",
+          "text": "Ogni non conformità va registrata con lotto, macchina, turno e misure. Il contenimento è deciso dal responsabile qualità. L'analisi delle cause distingue le ipotesi dalle cause verificate."
+        }
+      },
+      "principles": "Separate containment from explaining and eliminating causes. A plausible cause is a hypothesis until evidence verifies it.",
+      "sources": [
+        "https://asq.org/quality-resources/root-cause-analysis"
+      ]
+    },
+    {
+      "id": "quality-senior",
+      "language": "en",
+      "style": "detailed",
+      "role": {
+        "profession": "Industrial quality",
+        "target_role": "Quality engineer",
+        "seniority": "Senior",
+        "responsibilities": [
+          "Lead nonconformity investigations",
+          "Verify corrective-action effectiveness"
+        ],
+        "competencies": [
+          "Containment",
+          "Root-cause analysis",
+          "Effectiveness checks"
+        ]
+      },
+      "cv": "Synthetic candidate. Quality engineer, automotive components supplier, 8 years. Led investigations into recurring dimensional defects, coordinated containment with production and verified corrective actions with follow-up audits.",
+      "history": [
+        "A recurring burr defect led to a customer complaint; you organised containment with 100% inspection, used a fishbone session with production and confirmed tool wear as the cause by measuring parts before and after a tool change. You do not remember the exact defect rate.",
+        "You required three months of data before closing the corrective action and found one relapse after a maintenance delay.",
+        "You have not been responsible for supplier audits outside your plant.",
+        "You trained two junior technicians in measurement traceability."
+      ],
+      "documents": {},
+      "principles": "Distinguish immediate containment, cause investigation and corrective-action effectiveness. Verify causes with evidence and check that actions work over time.",
+      "sources": [
+        "https://asq.org/quality-resources/root-cause-analysis"
+      ]
+    }
+  ]
+}
