@@ -452,6 +452,9 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         and not closing
     ):
         raise StructuredOutputError("global closing takes precedence")
+    windows = topic_windows(
+        request.context.topics, request.coverage, request.topic_engagement_s, request.remaining_s
+    )
     if closing:
         if (
             header.purpose is not MovePurpose.CLOSING
@@ -459,13 +462,19 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
             or header.hint_level
         ):
             raise StructuredOutputError("closing is not an assessment or a hint")
+        # A closing already started, including a fixed fallback one, can only end.
+        started = bool(moves) and moves[-1].move.topic_id == topic.id
+        if (
+            request.directive is TimeDirective.NORMAL
+            and not started
+            and any(w.available for w in windows)
+        ):
+            raise StructuredOutputError("objectives with time left precede the closing")
         expected = (
             "end"
-            if request.directive in (TimeDirective.CLOSE, TimeDirective.FORCE_CLOSE)
+            if started or request.directive in (TimeDirective.CLOSE, TimeDirective.FORCE_CLOSE)
             else "wrap_up"
         )
-        if moves and moves[-1].move.intent and moves[-1].move.intent.purpose is MovePurpose.CLOSING:
-            expected = "end"
         if header.action != expected:
             raise StructuredOutputError("invalid closing action")
         return
@@ -477,9 +486,6 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         or any(t.elapsed_s >= request.config.target_duration_s * 0.85 for t in moves)
     ):
         raise StructuredOutputError("wrap-up permits at most one final current-topic probe")
-    windows = topic_windows(
-        request.context.topics, request.coverage, request.topic_engagement_s, request.remaining_s
-    )
     if not next(w.available for w in windows if w.topic_id == topic.id):
         raise StructuredOutputError("move on from an exhausted or covered objective")
     if header.action == "new_topic" and header.purpose is not MovePurpose.NEW_TOPIC:

@@ -387,6 +387,18 @@ async def test_two_step_keeps_the_decided_frame_and_states_limits_for_the_questi
     assert "Do not ask for that detail again" in model.requests[1].messages[-1].content
 
 
+def test_a_started_closing_ends_and_an_early_one_waits_for_the_objectives() -> None:
+    closing = {"topic_id": "t2", "purpose": "closing", "elicited_criteria": []}
+    started = (asked("t1"), answer(1), asked("t2", action=MoveAction.WRAP_UP, fallback=True))
+    validate_header(
+        header(action="end", **closing), replace(request(), turns=(*started, answer(3)))
+    )
+    with pytest.raises(StructuredOutputError, match="time left precede the closing"):
+        validate_header(
+            header(action="wrap_up", **closing), replace(request(), turns=(asked("t1"), answer(1)))
+        )
+
+
 def test_open_reasoning_can_elicit_autonomy_without_admitting_solution_hints() -> None:
     req = request()
     topics = (replace(req.context.topics[0], solvable=False), req.context.topics[1])
