@@ -35,6 +35,6 @@ for (const [relative, entry] of Object.entries(lock.packages).sort(([a], [b]) =>
 if (missing.length)
   throw new Error(`Production packages without licence files: ${missing.join(', ')}`)
 writeFileSync(
-  path.join(root, 'dist/THIRD_PARTY_LICENSES.txt'),
+  path.join(root, 'dist/assets/THIRD_PARTY_LICENSES.txt'),
   `Third-party production dependencies\n\n${sections.join('\n\n' + '='.repeat(72) + '\n\n')}\n`,
 )

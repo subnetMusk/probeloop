@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
 
+test('bundled dependency notices are served as text', async ({ request }) => {
+  const response = await request.get('/assets/THIRD_PARTY_LICENSES.txt')
+  expect(response.ok()).toBe(true)
+  expect(response.headers()['content-type']).toContain('text/plain')
+  expect(await response.text()).toContain('react-remove-scroll-bar@2.3.8')
+})
+
 for (const width of [1280, 1440]) {
   for (const theme of ['light', 'dark']) {
     test(`dashboard cards align at ${String(width)}px in ${theme}`, async ({ page }) => {
