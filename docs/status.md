@@ -3,6 +3,9 @@
 Updated for the guided-installation release, 2026-11-11. This page describes current behaviour;
 dated research and handoffs retain the measurements available at their original checkpoints.
 
+The [alpha.2 installation validation](research/installation-validation-2026-11-11.md) records
+published-artifact checks, the empty-volume Windows run and the limits of ARM64 evidence.
+
 ## Implemented
 
 - Reviewed document context, source-linked facts and confirmed profession, role and seniority.

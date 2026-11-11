@@ -3,6 +3,9 @@
 Project copyright and dependency/model attributions are in [NOTICE](../NOTICE) and
 [third-party notices](../THIRD_PARTY_NOTICES.md).
 
+The latest [installer validation](research/installation-validation-2026-11-11.md) distinguishes
+published-artifact checks from physical Mac and interview-quality acceptance.
+
 These guides describe the current implementation. The roadmap records milestone scope; ADRs
 record decisions and their amendments. Research, proposals and handoffs retain their original
 dates and evidence and must not be treated as current installation instructions.
