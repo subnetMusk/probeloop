@@ -1,7 +1,7 @@
 # Current implementation and acceptance status
 
-Updated for the interview and interface source checkpoint, 2026-11-11. This page describes
-current behaviour; dated research and handoffs retain the measurements available at their
+Updated for the interview, interface and model-setup source checkpoint, 2026-11-12. This page
+describes current behaviour; dated research and handoffs retain the measurements available at their
 original checkpoints.
 
 The [alpha.2 installation validation](research/installation-validation-2026-11-11.md) records
@@ -19,6 +19,9 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
 - Optional answer reconstruction by the ChatGPT interviewer, flagged answers and a confirmation
   before reports built on live transcripts.
 - Guided first run, model provisioning with hashes and progress, optional Ollama model pulls.
+- Cached-file verification progress and distinct settings locks for live interviews and jobs.
+- Full-width transcription switches and section navigation aligned with the visible content,
+  including short trailing sections and keyboard return to the top.
 - Local Parakeet recognition and Piper synthesis; optional Whisper second transcription.
 - Correctable transcripts with revision history, report exports, history and portable backups.
 - First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
@@ -34,6 +37,12 @@ suite passed 665 tests, with 39 skipped and 23 live tests deselected; a separate
 run passed all 39 storage contracts. The frontend passed 90 unit tests and 30 browser tests
 against the rebuilt runtime, including the scripted voice interview. Two opt-in live browser
 tests remained skipped. These checks do not close the real-model quality gates below.
+
+The 2026-11-12 follow-up passed 670 backend tests (39 skipped, 23 live tests deselected),
+96 frontend unit tests and 34 browser tests against a rebuilt runtime (two live tests skipped).
+Container-based lint, formatting, strict type checks, import contracts, production builds and
+API schema/type regeneration also passed. The earlier PostgreSQL result was not rerun because
+this follow-up changes no persistence contracts.
 
 ## Remaining quality gates
 

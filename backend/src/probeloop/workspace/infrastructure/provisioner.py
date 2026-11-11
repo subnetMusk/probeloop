@@ -12,7 +12,7 @@ import platform
 import shutil
 import socket
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -32,9 +32,16 @@ def catalog() -> dict[str, Any]:
     return value
 
 
-def checksum(path: Path) -> str:
+def checksum(path: Path, progress: Callable[[int], None] | None = None) -> str:
+    digest = hashlib.sha256()
+    checked = 0
     with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+            checked += len(chunk)
+            if progress is not None:
+                progress(checked)
+    return digest.hexdigest()
 
 
 def validate_download_url(url: str) -> None:
@@ -123,12 +130,17 @@ class Provisioner:
             "architecture": platform.machine(),
         }
 
-    async def valid(self, path: Path, asset: dict[str, Any]) -> bool:
+    async def valid(
+        self,
+        path: Path,
+        asset: dict[str, Any],
+        progress: Callable[[int], None] | None = None,
+    ) -> bool:
         def check() -> bool:
             return (
                 path.is_file()
                 and path.stat().st_size == asset["size"]
-                and checksum(path) == asset["sha256"]
+                and checksum(path, progress) == asset["sha256"]
             )
 
         return await asyncio.to_thread(check)
@@ -153,19 +165,38 @@ class Provisioner:
     async def install(self, identity: str, limits_url: str) -> AsyncIterator[dict[str, Any]]:
         model = self.models[identity]
         async with self.lock:
+            total = sum(a["size"] for a in model["files"])
+            inspected = 0
             pending = []
+            yield {"progress": 0.0, "message": "Checking installed model files"}
             for asset in model["files"]:
-                checking = asyncio.create_task(self.valid(self.path(asset["path"]), asset))
+                checked = 0
+
+                def checking_progress(value: int) -> None:
+                    nonlocal checked
+                    checked = value
+
+                checking = asyncio.create_task(
+                    self.valid(self.path(asset["path"]), asset, checking_progress)
+                )
                 try:
                     while not checking.done():
-                        await asyncio.wait({checking}, timeout=5)
-                        yield {"progress": 0.0, "message": "Checking installed model files"}
+                        await asyncio.wait({checking}, timeout=0.3)
+                        yield {
+                            "progress": 0.25 * (inspected + checked) / total,
+                            "message": "Checking installed model files",
+                        }
                     valid = await checking
                 finally:
                     if not checking.done():
                         checking.cancel()
                 if not valid:
                     pending.append(asset)
+                inspected += asset["size"]
+                yield {
+                    "progress": 0.25 * inspected / total,
+                    "message": "Checking installed model files",
+                }
             required = sum(a["size"] for a in pending)
             staging = self.path(f".installation/partial/{identity}")
             staging.mkdir(parents=True, exist_ok=True)
@@ -176,7 +207,6 @@ class Provisioner:
             )
             if shutil.disk_usage(self.root).free < required - existing + 20_000_000:
                 raise ValueError("not enough space in Docker's model volume")
-            total = sum(a["size"] for a in model["files"])
             completed = total - required
             async with httpx.AsyncClient(transport=self.transport, timeout=120) as client:
                 for index, asset in enumerate(model["files"]):
@@ -215,12 +245,17 @@ class Provisioner:
                                     stream.write(chunk)
                                     if time.monotonic() - reported > 0.3:
                                         yield {
-                                            "progress": (completed + received) / total,
+                                            "progress": 0.25
+                                            + 0.65 * (completed + received) / total,
                                             "message": "Downloading verified model files",
                                         }
                                         reported = time.monotonic()
                         finally:
                             await response.aclose()
+                        yield {
+                            "progress": 0.25 + 0.65 * (completed + received) / total,
+                            "message": "Verifying model files",
+                        }
                         if not await self.valid(partial, asset):
                             if partial.exists() and partial.stat().st_size == asset["size"]:
                                 partial.unlink()
@@ -228,7 +263,10 @@ class Provisioner:
                                 "model checksum or size mismatch; try the download again"
                             )
                     completed += asset["size"]
-                    yield {"progress": completed / total, "message": "Verifying model files"}
+                    yield {
+                        "progress": 0.25 + 0.65 * completed / total,
+                        "message": "Verifying model files",
+                    }
             # Publish only after every pending file passed its size and checksum checks.
             for index, asset in enumerate(model["files"]):
                 if asset in pending:

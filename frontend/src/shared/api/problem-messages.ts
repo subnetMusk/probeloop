@@ -6,6 +6,13 @@ import type { Language } from '@/shared/lib/preferences'
  * shown as sent.
  */
 export const PROBLEMS_IT: Readonly<Record<string, string>> = {
+  'Checking installed model files': 'Verifica dei file già presenti',
+  'Downloading verified model files': 'Download dei file del modello',
+  'Verifying model files': 'Verifica dell’integrità dei file scaricati',
+  'Model installed and verified': 'Modello installato e verificato',
+  'close the live interview first': 'Chiudi il colloquio attivo prima di continuare',
+  'wait for background jobs to finish first':
+    'Attendi il completamento dei lavori in background prima di continuare',
   "not enough space in Docker's model volume":
     'Spazio insufficiente per i modelli in Docker Desktop',
   'model checksum or size mismatch; try the download again':
@@ -117,4 +124,21 @@ export const PROBLEMS_IT: Readonly<Record<string, string>> = {
 
 export function localizeProblem(detail: string, language: Language): string {
   return language === 'it' ? (PROBLEMS_IT[detail.trim()] ?? detail) : detail
+}
+
+export function settingsLockMessage(
+  reason: 'interview' | 'background_job' | null | undefined,
+  language: Language,
+): string {
+  if (reason === 'interview')
+    return language === 'it'
+      ? 'Impostazioni bloccate: chiudi il colloquio attivo per modificarle.'
+      : 'Settings locked: close the active interview to change them.'
+  if (reason === 'background_job')
+    return language === 'it'
+      ? 'Impostazioni bloccate: attendi il completamento dei lavori in background, inclusa la verifica dei modelli.'
+      : 'Settings locked: wait for background work, including model verification, to finish.'
+  return language === 'it'
+    ? 'Attendi il completamento dell’operazione prima di modificare le impostazioni.'
+    : 'Wait for the operation to finish before changing settings.'
 }

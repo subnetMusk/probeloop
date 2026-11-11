@@ -16,7 +16,7 @@ from probeloop.speech.audio import to_wav
 from probeloop.speech.ports import SpeechError
 from probeloop.workspace.execution import execution_tools
 from probeloop.workspace.installation import INSTALL_MODEL_JOB, PULL_MODEL_JOB
-from probeloop.workspace.service import DataBusyError
+from probeloop.workspace.service import BusyReason, DataBusyError
 
 
 class InstallationConfigView(BaseModel):
@@ -50,6 +50,7 @@ class ProvisioningView(BaseModel):
 class InstallationView(BaseModel):
     managed: bool
     locked: bool
+    lock_reason: BusyReason | None = None
     config: InstallationConfigView
     provisioning: ProvisioningView
     local_models: dict[str, str]
@@ -110,11 +111,13 @@ def installation_router(container: Container) -> APIRouter:
             raise HTTPException(409, str(exc)) from exc
 
     async def view() -> InstallationView:
+        lock_reason = None
         try:
             await container.data.ensure_idle()
             locked = False
-        except DataBusyError:
+        except DataBusyError as exc:
             locked = True
+            lock_reason = exc.reason
         jobs = []
         if service.managed:
             for subject in ("parakeet", "piper-it", "laya", "whisper", *service.local_models):
@@ -125,7 +128,9 @@ def installation_router(container: Container) -> APIRouter:
                 ]
                 if history:
                     jobs.append(JobView.of(max(history, key=lambda job: job.created_at)))
-        return InstallationView(**(await service.status()), locked=locked, jobs=jobs)
+        return InstallationView(
+            **(await service.status()), locked=locked, lock_reason=lock_reason, jobs=jobs
+        )
 
     @router.get("")
     async def status() -> InstallationView:

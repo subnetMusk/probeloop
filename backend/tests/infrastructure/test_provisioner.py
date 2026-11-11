@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import threading
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -14,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from probeloop.workspace.infrastructure.provisioner import (
     Provisioner,
+    checksum,
     create_provisioner_app,
     validate_download_url,
 )
@@ -48,6 +52,60 @@ def manifest() -> dict[str, Any]:
 
 async def consume(worker: Provisioner) -> list[dict[str, Any]]:
     return [item async for item in worker.install("synthetic", "")]
+
+
+def test_checksum_reports_bytes_without_changing_the_digest(tmp_path: Path) -> None:
+    content = DATA * (2 * 1024 * 1024 // len(DATA) + 1)
+    path = tmp_path / "model.txt"
+    path.write_bytes(content)
+    checked: list[int] = []
+    assert checksum(path, checked.append) == hashlib.sha256(content).hexdigest()
+    assert len(checked) > 1
+    assert checked == sorted(checked)
+    assert checked[-1] == len(content)
+
+
+async def test_existing_weights_report_progress_before_verification_finishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "synthetic/model.txt"
+    path.parent.mkdir()
+    path.write_bytes(DATA)
+    original_mtime = path.stat().st_mtime_ns
+    halfway = threading.Event()
+    release = threading.Event()
+
+    def slow_checksum(path: Path, progress: Callable[[int], None] | None = None) -> str:
+        assert progress is not None
+        progress(len(DATA) // 2)
+        halfway.set()
+        assert release.wait(timeout=10)
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def unexpected_download(request: httpx.Request) -> httpx.Response:
+        pytest.fail("valid installed weights must not be downloaded again")
+
+    monkeypatch.setattr("probeloop.workspace.infrastructure.provisioner.checksum", slow_checksum)
+    worker = Provisioner(
+        tmp_path,
+        manifest=manifest(),
+        transport=httpx.MockTransport(unexpected_download),
+        validate_urls=False,
+    )
+    events = worker.install("synthetic", "")
+    assert (await anext(events))["progress"] == 0
+    update = asyncio.create_task(anext(events))
+    try:
+        assert await asyncio.to_thread(halfway.wait, 5)
+        checking = await asyncio.wait_for(update, timeout=3)
+        assert 0 < checking["progress"] < 1
+        assert checking["message"] == "Checking installed model files"
+    finally:
+        release.set()
+    remaining = [event async for event in events]
+    assert remaining[-1]["done"]
+    assert worker.status()["models"][0]["state"] == "ready"
+    assert path.stat().st_mtime_ns == original_mtime
 
 
 async def test_install_verified_idempotent_and_detect_modified_file(tmp_path: Path) -> None:

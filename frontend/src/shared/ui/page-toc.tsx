@@ -8,8 +8,6 @@ export interface TocItem {
   label: string
 }
 
-const ACTIVE_OFFSET = 96 // pixels below the top of the scroll area where a section becomes current
-
 function scrollParent(element: HTMLElement | null): HTMLElement | Window {
   for (let node = element?.parentElement; node; node = node.parentElement) {
     const { overflowY } = getComputedStyle(node)
@@ -18,11 +16,26 @@ function scrollParent(element: HTMLElement | null): HTMLElement | Window {
   return window
 }
 
+function readingTop(root: HTMLElement | Window): number {
+  const top = root instanceof Window ? 0 : root.getBoundingClientRect().top
+  const header = document.querySelector('[data-app-header]')
+  return Math.max(0, top, header?.getBoundingClientRect().bottom ?? 0)
+}
+
+function sectionMargin(element: HTMLElement): number {
+  return Number.parseFloat(getComputedStyle(element).scrollMarginTop) || 0
+}
+
 function goTo(id: string) {
   const target = document.getElementById(id)
   if (!target) return
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  const root = scrollParent(target)
+  const scrollTop = root instanceof Window ? window.scrollY : root.scrollTop
+  root.scrollTo({
+    top: scrollTop + target.getBoundingClientRect().top - readingTop(root) - sectionMargin(target),
+    behavior: reduce ? 'auto' : 'smooth',
+  })
   history.replaceState(null, '', `#${id}`)
   // Keyboard and screen-reader users continue from the section they chose.
   if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
@@ -32,34 +45,117 @@ function goTo(id: string) {
 /** The section currently read: the last one whose top has passed the top of the scroll area. */
 function useCurrentSection(ids: string[], anchor: React.RefObject<HTMLElement | null>) {
   const [current, setCurrent] = useState(ids[0])
+  const chosen = useRef<string | null>(null)
   const key = ids.join(' ')
   useEffect(() => {
     const root = scrollParent(anchor.current)
+    chosen.current = null
     const update = () => {
-      const top = root instanceof Window ? 0 : root.getBoundingClientRect().top
-      const atEnd =
-        root instanceof Window
-          ? window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2
-          : root.scrollTop + root.clientHeight >= root.scrollHeight - 2
-      let found = ids[0]
-      for (const id of ids) {
+      // A chosen short section may not reach the reading line at the end of the page.
+      // Keep that choice through smooth scrolling until the reader scrolls again.
+      if (chosen.current) return
+      const top = readingTop(root)
+      const scrollTop = root instanceof Window ? window.scrollY : root.scrollTop
+      const height = root instanceof Window ? window.innerHeight : root.clientHeight
+      const scrollHeight =
+        root instanceof Window ? document.documentElement.scrollHeight : root.scrollHeight
+      const maximum = scrollHeight - height
+      const sections = ids.flatMap((id) => {
         const element = document.getElementById(id)
-        if (element && element.getBoundingClientRect().top - top <= ACTIVE_OFFSET) found = id
+        return element
+          ? [
+              {
+                id,
+                start:
+                  scrollTop + element.getBoundingClientRect().top - top - sectionMargin(element),
+              },
+            ]
+          : []
+      })
+      const last = sections.at(-1)?.start ?? 0
+      // Short trailing sections cannot all reach the top. Spread their activation points
+      // over the final half viewport instead of jumping straight to the last at the end.
+      const compressFrom = Math.max(0, maximum - height / 2)
+      let found = ids[0]
+      for (const section of sections) {
+        const start =
+          maximum > 0 && last > maximum && section.start > compressFrom
+            ? compressFrom +
+              ((section.start - compressFrom) * (maximum - compressFrom)) / (last - compressFrom)
+            : section.start
+        if (start <= scrollTop + 1) found = section.id
       }
-      // A last section too short to reach the top is current once the page ends.
-      setCurrent(atEnd ? ids.at(-1) : found)
+      setCurrent(found)
+    }
+    const resume = () => {
+      chosen.current = null
+    }
+    const finishScroll = () => {
+      const section = chosen.current ? document.getElementById(chosen.current) : null
+      if (!section) return
+      const scrollTop = root instanceof Window ? window.scrollY : root.scrollTop
+      const maximum =
+        root instanceof Window
+          ? document.documentElement.scrollHeight - window.innerHeight
+          : root.scrollHeight - root.clientHeight
+      const destination = Math.max(
+        0,
+        Math.min(
+          maximum,
+          scrollTop +
+            section.getBoundingClientRect().top -
+            readingTop(root) -
+            sectionMargin(section),
+        ),
+      )
+      // Another control can scroll the page too, including keyboard activation of Back to top.
+      if (Math.abs(scrollTop - destination) > 2) {
+        resume()
+        update()
+      }
+    }
+    const keyboard = (event: Event) => {
+      if (
+        event instanceof KeyboardEvent &&
+        ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)
+      )
+        resume()
     }
     update()
     root.addEventListener('scroll', update, { passive: true })
+    root.addEventListener('scrollend', finishScroll)
+    root.addEventListener('wheel', resume, { passive: true })
+    root.addEventListener('touchstart', resume, { passive: true })
+    root.addEventListener('pointerdown', resume, { passive: true })
+    root.addEventListener('keydown', keyboard)
     window.addEventListener('resize', update)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    if (root instanceof HTMLElement) observer?.observe(root)
+    for (const id of ids) {
+      const section = document.getElementById(id)
+      if (section) observer?.observe(section)
+    }
     return () => {
       root.removeEventListener('scroll', update)
+      root.removeEventListener('scrollend', finishScroll)
+      root.removeEventListener('wheel', resume)
+      root.removeEventListener('touchstart', resume)
+      root.removeEventListener('pointerdown', resume)
+      root.removeEventListener('keydown', keyboard)
       window.removeEventListener('resize', update)
+      observer?.disconnect()
     }
     // `key` stands for the ids.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, anchor])
-  return current
+  return {
+    current,
+    navigate: (id: string) => {
+      chosen.current = id
+      setCurrent(id)
+      goTo(id)
+    },
+  }
 }
 
 function headingOf(section: HTMLElement): string {
@@ -114,7 +210,7 @@ export function TocLayout({
   const content = useRef<HTMLDivElement>(null)
   const discovered = useDiscoveredSections(content, given === undefined)
   const items = given ?? discovered
-  const current = useCurrentSection(
+  const { current, navigate } = useCurrentSection(
     items.map((item) => item.id),
     anchor,
   )
@@ -126,10 +222,10 @@ export function TocLayout({
           <li key={item.id}>
             <a
               href={`#${item.id}`}
-              aria-current={active && !compact ? 'location' : undefined}
+              aria-current={active ? 'location' : undefined}
               onClick={(event) => {
                 event.preventDefault()
-                goTo(item.id)
+                navigate(item.id)
               }}
               className={cn(
                 'block text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50',
@@ -137,6 +233,7 @@ export function TocLayout({
                   ? 'rounded-sm py-1 text-brand-text underline-offset-4 hover:underline'
                   : // A straight marker on the rail's line, never a rounded bracket.
                     '-ml-px rounded-none border-l-2 py-1.5 pl-3',
+                compact && active && 'font-semibold',
                 !compact &&
                   (active
                     ? 'border-brand font-medium text-foreground'

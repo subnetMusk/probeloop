@@ -725,6 +725,21 @@
           "jev": {
             "$ref": "#/components/schemas/JevView"
           },
+          "lock_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "interview",
+                  "background_job"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lock Reason"
+          },
           "locked": {
             "title": "Locked",
             "type": "boolean"
@@ -941,6 +956,21 @@
             },
             "title": "Local Models",
             "type": "object"
+          },
+          "lock_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "interview",
+                  "background_job"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lock Reason"
           },
           "locked": {
             "title": "Locked",

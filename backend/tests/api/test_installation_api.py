@@ -81,6 +81,32 @@ def test_installation_changes_are_locked_while_interview_active(
         )
 
 
+@pytest.mark.parametrize("reason", ["interview", "background_job", None])
+def test_settings_explain_the_actual_lock_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: str | None
+) -> None:
+    container = build(Settings(data_dir=tmp_path, llm_fake=True))
+
+    async def pending() -> bool:
+        return reason == "background_job"
+
+    monkeypatch.setattr(container.data, "_connected", lambda: reason == "interview")
+    monkeypatch.setattr(container.data, "_pending", pending)
+    with TestClient(create_app(container), base_url="http://localhost") as client:
+        for endpoint in ("/api/installation", "/api/settings/execution"):
+            view = client.get(endpoint).json()
+            assert view["locked"] is (reason is not None)
+            assert view["lock_reason"] == reason
+        if reason is not None:
+            refused = client.post("/api/installation/models/laya", json={})
+            assert refused.status_code == 409
+            assert refused.json()["detail"] == (
+                "close the live interview first"
+                if reason == "interview"
+                else "wait for background jobs to finish first"
+            )
+
+
 def test_base_installation_leaves_laya_optional(tmp_path: Path) -> None:
     container = build(Settings(data_dir=tmp_path, llm_fake=True))
     with TestClient(create_app(container), base_url="http://localhost") as client:

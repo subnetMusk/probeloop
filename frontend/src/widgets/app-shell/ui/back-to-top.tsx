@@ -66,7 +66,7 @@ export function BackToTop({ target }: { target: RefObject<HTMLElement | null> })
             }
           }}
           className={cn(
-            'absolute right-4 bottom-3 flex size-10 shrink-0 items-center justify-center rounded-full border bg-card text-foreground shadow-md outline-none transition-[opacity,transform] duration-200 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none sm:right-6 2xl:right-auto 2xl:left-[calc(100%+1rem)]',
+            'absolute right-4 bottom-3 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border bg-card text-foreground shadow-md outline-none transition-[opacity,transform] duration-200 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none sm:right-6 2xl:right-auto 2xl:left-[calc(100%+1rem)]',
             visible
               ? 'pointer-events-auto translate-y-0 opacity-100'
               : 'pointer-events-none translate-y-1 opacity-0',

@@ -1,6 +1,54 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
+for (const path of ['/guide', '/settings', '/accessibility']) {
+  test(`the contents track every chosen section below the header at ${path}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto(path)
+    const toc = page.getByTestId('toc-layout').locator('nav:visible').first()
+    const links = toc.getByRole('link')
+    await expect(links.first()).toBeVisible()
+    const count = await links.count()
+    for (let index = 0; index < count; index++) {
+      const link = links.nth(index)
+      const href = await link.getAttribute('href')
+      expect(href).toBeTruthy()
+      const id = href?.slice(1) ?? ''
+      await link.click()
+      await expect(link).toHaveAttribute('aria-current', 'location')
+      await expect(page.locator(`[id="${id}"]`)).toBeFocused()
+      const alignment = await page.evaluate((id) => {
+        const section = document.getElementById(id)
+        const content = document.querySelector('[data-testid="content"]')
+        const header = document.querySelector('[data-app-header]')
+        if (!section || !content || !header) throw new Error('Missing section or app shell')
+        return {
+          section: section.getBoundingClientRect().top,
+          visibleTop: Math.max(
+            content.getBoundingClientRect().top,
+            header.getBoundingClientRect().bottom,
+          ),
+          headerTop: header.getBoundingClientRect().top,
+        }
+      }, id)
+      expect(alignment.section).toBeGreaterThanOrEqual(alignment.visibleTop - 1)
+      expect(alignment.headerTop).toBe(0)
+    }
+    if (path === '/guide') {
+      const back = page.getByTestId('back-to-top')
+      await expect(back).toBeVisible()
+      await back.focus()
+      await back.press('Enter')
+      await expect(links.first()).toHaveAttribute('aria-current', 'location')
+    }
+    if (path === '/settings') {
+      await page.locator('#tools').scrollIntoViewIfNeeded()
+      await page.screenshot({ path: 'test-results/settings-switches-desktop.png' })
+    }
+  })
+}
+
 test('page names are localised in tabs and breadcrumbs while URLs keep their slugs', async ({
   page,
 }) => {

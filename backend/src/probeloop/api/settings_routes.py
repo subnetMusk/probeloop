@@ -29,7 +29,7 @@ from probeloop.workspace.execution import (
     ToolOption,
     execution_tools,
 )
-from probeloop.workspace.service import DataBusyError, DataService
+from probeloop.workspace.service import BusyReason, DataBusyError, DataService
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,7 @@ class ExecutionView(BaseModel):
     tools: list[ToolRoleView]
     answer_reconstruction: ReconstructionView
     locked: bool
+    lock_reason: BusyReason | None = None
 
 
 class JevKeyIn(BaseModel):
@@ -144,13 +145,16 @@ def settings_router(
         status = account.status()
         options = await tool_options()
         selected = execution_tools(profiles.current)
+        lock_reason = None
         try:
             await data.ensure_idle()
             locked = False
-        except DataBusyError:
+        except DataBusyError as exc:
             locked = True
+            lock_reason = exc.reason
         return ExecutionView(
             locked=locked,
+            lock_reason=lock_reason,
             profile=profiles.current,
             profiles=[
                 ExecutionProfileView(

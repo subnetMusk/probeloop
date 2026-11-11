@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-import { api, type ExecutionView } from '@/shared/api'
+import { api, settingsLockMessage, type ExecutionView } from '@/shared/api'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import { Switch } from '@/shared/ui/switch'
 
 type ToolRole = ExecutionView['tools'][number]
 type Tool = ToolRole['selected']
@@ -104,6 +105,7 @@ function useExecution() {
     queryKey: QUERY_KEY,
     queryFn: api.executionProfile,
     refetchInterval: (query) =>
+      query.state.data?.locked ||
       query.state.data?.tools.some((role) => role.options.some((o) => o.reason === 'loading'))
         ? 3000
         : 30000,
@@ -286,38 +288,6 @@ export function ExecutionProfileSettings() {
                   >
                     {DESCRIPTIONS[role.id][it ? 0 : 1]}
                   </p>
-                  {role.id === 'interviewer' && (
-                    <label className="mt-3 flex max-w-md items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm">
-                      <input
-                        type="checkbox"
-                        data-testid="answer-reconstruction"
-                        className="mt-0.5 accent-brand"
-                        checked={execution.data.answer_reconstruction.enabled}
-                        disabled={busy || execution.data.locked || role.selected !== 'cloud'}
-                        onChange={(event) => {
-                          reconstruct.mutate(event.target.checked)
-                        }}
-                      />
-                      <span>
-                        <span className="font-medium">
-                          {it ? 'Trascrizione ricostruita' : 'Reconstructed transcript'}
-                        </span>
-                        {role.selected === 'cloud' && <RecommendedBadge it={it} />}
-                        <span className="mt-1 block text-muted-foreground">
-                          {it
-                            ? 'Dopo ogni risposta, ChatGPT ne riscrive il testo correggendo gli errori di riconoscimento. Il testo live e l’audio restano scaricabili, e prima del report puoi correggere tutto a mano.'
-                            : 'After each answer, ChatGPT rewrites its text, fixing recognition errors. The live text and the audio stay downloadable, and you can edit everything before the report.'}
-                        </span>
-                        {role.selected !== 'cloud' && (
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            {it
-                              ? 'Disponibile con ChatGPT come intervistatore: nei test i modelli locali riformulavano le risposte e inventavano numeri.'
-                              : 'Available with ChatGPT as the interviewer: in tests, local models rephrased answers and invented figures.'}
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  )}
                   {role.id === 'limits' &&
                     (role.selected === 'laya' || role.selected === 'jev') && (
                       <p className="mt-2 text-xs text-muted-foreground">
@@ -380,6 +350,45 @@ export function ExecutionProfileSettings() {
                     </p>
                   )}
                 </div>
+                {role.id === 'interviewer' && (
+                  <label
+                    htmlFor="answer-reconstruction"
+                    className="flex w-full items-start justify-between gap-4 rounded-xl border bg-muted/20 p-4 text-sm sm:col-span-2"
+                  >
+                    <span className="min-w-0">
+                      <span className="font-medium">
+                        {it ? 'Trascrizione ricostruita' : 'Reconstructed transcript'}
+                      </span>
+                      {role.selected === 'cloud' && <RecommendedBadge it={it} />}
+                      <span
+                        id="answer-reconstruction-description"
+                        className="mt-1 block text-muted-foreground"
+                      >
+                        {it
+                          ? 'Dopo ogni risposta, ChatGPT ne riscrive il testo correggendo gli errori di riconoscimento. Il testo live e l’audio restano scaricabili, e prima del report puoi correggere tutto a mano.'
+                          : 'After each answer, ChatGPT rewrites its text, fixing recognition errors. The live text and the audio stay downloadable, and you can edit everything before the report.'}
+                      </span>
+                      {role.selected !== 'cloud' && (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {it
+                            ? 'Disponibile con ChatGPT come intervistatore: nei test i modelli locali riformulavano le risposte e inventavano numeri.'
+                            : 'Available with ChatGPT as the interviewer: in tests, local models rephrased answers and invented figures.'}
+                        </span>
+                      )}
+                    </span>
+                    <Switch
+                      id="answer-reconstruction"
+                      data-testid="answer-reconstruction"
+                      aria-label={it ? 'Trascrizione ricostruita' : 'Reconstructed transcript'}
+                      aria-describedby="answer-reconstruction-description"
+                      checked={execution.data.answer_reconstruction.enabled}
+                      disabled={busy || execution.data.locked || role.selected !== 'cloud'}
+                      onCheckedChange={(checked) => {
+                        reconstruct.mutate(checked)
+                      }}
+                    />
+                  </label>
+                )}
               </div>
             )
           })}
@@ -542,9 +551,7 @@ export function ExecutionProfileSettings() {
         </p>
         {execution.data?.locked && (
           <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
-            {it
-              ? 'Le scelte sono bloccate mentre un colloquio è aperto o un’elaborazione è in corso. Chiudi il colloquio e attendi la fine dei lavori per modificarle.'
-              : 'Tool choices are locked while an interview is open or processing is in progress. Close the interview and wait for work to finish before changing them.'}
+            {settingsLockMessage(execution.data.lock_reason, it ? 'it' : 'en')}
           </p>
         )}
         {select.isSuccess && !busy && (

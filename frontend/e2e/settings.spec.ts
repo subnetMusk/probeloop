@@ -180,7 +180,7 @@ test('tool menus are locked while an interview is open', async ({ page }) => {
   await page.route('**/api/settings/execution', async (route) => {
     const response = await route.fetch()
     const view = (await response.json()) as ExecutionView
-    await route.fulfill({ json: { ...view, locked: true } })
+    await route.fulfill({ json: { ...view, locked: true, lock_reason: 'interview' } })
   })
   await page.goto('/settings')
   for (const role of [
@@ -191,7 +191,9 @@ test('tool menus are locked while an interview is open', async ({ page }) => {
   ]) {
     await expect(page.getByRole('combobox', { name: role, exact: true })).toBeDisabled()
   }
-  await expect(page.getByRole('status')).toContainText('Tool choices are locked')
+  await expect(page.getByRole('status')).toHaveText(
+    'Settings locked: close the active interview to change them.',
+  )
 })
 
 test('the Italian preparation page has no serious accessibility violations', async ({ page }) => {

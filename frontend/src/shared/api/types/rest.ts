@@ -1216,6 +1216,8 @@ export interface components {
             answer_reconstruction: components["schemas"]["ReconstructionView"];
             chatgpt: components["schemas"]["ChatGptView"];
             jev: components["schemas"]["JevView"];
+            /** Lock Reason */
+            lock_reason?: ("interview" | "background_job") | null;
             /** Locked */
             locked: boolean;
             /** Profile */
@@ -1290,6 +1292,8 @@ export interface components {
             local_models: {
                 [key: string]: string;
             };
+            /** Lock Reason */
+            lock_reason?: ("interview" | "background_job") | null;
             /** Locked */
             locked: boolean;
             /** Managed */

@@ -44,7 +44,7 @@ function Logo({ onNavigate }: { onNavigate?: () => void }) {
 export function Header() {
   const t = useMessages(shellMessages)
   return (
-    <header className="z-20 shrink-0 border-b bg-background">
+    <header data-app-header className="z-20 shrink-0 border-b bg-background">
       <div className={ROW}>
         <MobileMenu />
         <Logo />

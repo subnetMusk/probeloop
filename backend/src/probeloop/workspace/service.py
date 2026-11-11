@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from probeloop.ids import new_id
 
@@ -19,8 +19,17 @@ class DataStore(Protocol):
     async def restore(self, archive: Path) -> None: ...
 
 
+BusyReason = Literal["interview", "background_job"]
+
+
 class DataBusyError(RuntimeError):
-    pass
+    def __init__(self, reason: BusyReason) -> None:
+        self.reason = reason
+        super().__init__(
+            "close the live interview first"
+            if reason == "interview"
+            else "wait for background jobs to finish first"
+        )
 
 
 class DataService:
@@ -46,8 +55,10 @@ class DataService:
         Callers hold `write_lock`, as the API does for every mutating request, so that no new
         work starts between the check and their change.
         """
-        if self._connected() or await self._pending():
-            raise DataBusyError("close live interviews and wait for background jobs first")
+        if self._connected():
+            raise DataBusyError("interview")
+        if await self._pending():
+            raise DataBusyError("background_job")
 
     @asynccontextmanager
     async def operation(self) -> AsyncIterator[None]:

@@ -3,13 +3,14 @@ import { useInstallation } from '../model/use-installation'
 import { CheckCircle2, Download, HardDrive, LoaderCircle, Monitor, Volume2 } from 'lucide-react'
 import { useState } from 'react'
 
-import { api, isRunning, localizeProblem } from '@/shared/api'
+import { api, isRunning, localizeProblem, settingsLockMessage } from '@/shared/api'
 import { usePreferences } from '@/shared/lib/preferences'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Progress } from '@/shared/ui/progress'
+import { Switch } from '@/shared/ui/switch'
 
 function text(data: FormData, name: string) {
   const value = data.get(name)
@@ -194,6 +195,13 @@ export function InstallationSettings() {
                           ? 'Da installare'
                           : 'Not installed'}
                 </p>
+                {model.state === 'unverified' && (
+                  <p className="max-w-md text-xs text-muted-foreground">
+                    {it
+                      ? 'File già presenti. La verifica riutilizza quelli validi senza riscaricarli.'
+                      : 'Files already present. Verification reuses valid files without downloading them again.'}
+                  </p>
+                )}
                 {model.id === 'laya' && model.state !== 'ready' && (
                   <p className="max-w-md text-xs text-muted-foreground">
                     {it
@@ -260,14 +268,20 @@ export function InstallationSettings() {
                       ? 'In attesa'
                       : 'Queued'
                     : it
-                      ? 'Installazione in corso…'
-                      : 'Installing…'}
+                      ? 'Preparazione del modello…'
+                      : 'Preparing model…'}
             </p>
             {isRunning(job) && (
-              <Progress
-                value={job.progress * 100}
-                aria-label={it ? 'Download del modello' : 'Model download'}
-              />
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {job.message && `${localizeProblem(job.message, it ? 'it' : 'en')} · `}
+                  {Math.round(job.progress * 100)}%
+                </p>
+                <Progress
+                  value={job.progress * 100}
+                  aria-label={it ? 'Avanzamento del modello' : 'Model progress'}
+                />
+              </>
             )}
             {job.error && (
               <p role="alert" className="text-destructive">
@@ -290,24 +304,31 @@ export function InstallationSettings() {
           }}
         >
           <div className="rounded-xl border p-4">
-            <label className="flex items-start gap-3 text-sm">
-              <input
-                name="refinement"
-                type="checkbox"
-                defaultChecked={config.refinement}
-                disabled={locked}
-                className="mt-1 accent-brand"
-              />
-              <span>
-                <span className="font-medium">
+            <label
+              htmlFor="whisper-refinement"
+              className="flex w-full items-start justify-between gap-4 text-sm"
+            >
+              <span className="min-w-0">
+                <span id="whisper-refinement-label" className="font-medium">
                   {it ? 'Seconda trascrizione con Whisper' : 'Second transcription with Whisper'}
                 </span>
-                <span className="mt-1 block text-muted-foreground">
+                <span
+                  id="whisper-refinement-description"
+                  className="mt-1 block text-muted-foreground"
+                >
                   {it
                     ? 'Facoltativa. Se la attivi, scarichiamo Whisper e riascoltiamo le risposte dopo il colloquio. Consigliata con l’intervistatore locale; con ChatGPT e la trascrizione ricostruita di solito non serve. Puoi sempre ascoltare e correggere il testo a mano.'
                     : 'Optional. Enabling it downloads Whisper and transcribes answers again after the interview. Recommended with the local interviewer; with ChatGPT and the reconstructed transcript it is usually unnecessary. Listening and manual edits always remain available.'}
                 </span>
               </span>
+              <Switch
+                id="whisper-refinement"
+                name="refinement"
+                aria-labelledby="whisper-refinement-label"
+                aria-describedby="whisper-refinement-description"
+                defaultChecked={config.refinement}
+                disabled={locked}
+              />
             </label>
           </div>
           <details className="rounded-xl border p-4">
@@ -421,9 +442,7 @@ export function InstallationSettings() {
         </form>
         {locked && (
           <p role="status" className="text-sm text-muted-foreground">
-            {it
-              ? 'Attendi il completamento delle operazioni e chiudi i colloqui attivi prima di modificare l’installazione.'
-              : 'Wait for background work and close active interviews before changing the installation.'}
+            {settingsLockMessage(state.lock_reason, it ? 'it' : 'en')}
           </p>
         )}
         {error && (
