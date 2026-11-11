@@ -21,7 +21,6 @@ def test_new_installation_prefers_cloud_and_disables_whisper(tmp_path: Path) -> 
             provisioner_url="http://127.0.0.1:1",
             ollama_base_url="http://127.0.0.1:1",
         ),
-        model=FakeChatModel([]),
     )
     assert container.installation.config.refinement is False
     assert container.profiles.current == "cloud"
