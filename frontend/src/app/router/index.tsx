@@ -31,6 +31,7 @@ import { NotFoundPage } from '@/pages/not-found'
 import { ProfileDetailPage } from '@/pages/profile-detail'
 import { ProfilesPage } from '@/pages/profiles'
 import { SettingsPage } from '@/pages/settings'
+import { SetupPage } from '@/pages/setup'
 import { api } from '@/shared/api'
 import { Root } from './root'
 
@@ -50,7 +51,11 @@ const rootRoute = createRootRoute({ component: Root, notFoundComponent: NotFound
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => {
+  beforeLoad: async () => {
+    const installation = await api.installation()
+    if (installation.managed && !installation.config.completed) {
+      throw redirect({ to: '/setup', replace: true })
+    }
     throw redirect({ to: '/dashboard', replace: true })
   },
 })
@@ -60,6 +65,13 @@ const dashboardRoute = createRoute({
   path: 'dashboard',
   staticData: { slug: 'dashboard' },
   component: DashboardPage,
+})
+
+const setupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'setup',
+  staticData: { slug: 'setup' },
+  component: SetupPage,
 })
 
 // The preparation of a new interview, one route per step (ADR 0014). A step opens only when the
@@ -237,6 +249,7 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
     dashboardRoute,
+    setupRoute,
     newInterviewRoute.addChildren([newInterviewIndexRoute, ...stepRoutes]),
     liveInterviewRoute,
     interviewsRoute.addChildren([

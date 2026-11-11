@@ -90,7 +90,7 @@ class DocumentTextView(BaseModel):
 class DraftRequest(Strict):
     description: str = Field(min_length=10, max_length=3000)
     language: Literal["it", "en"] = "it"
-    execution_profile: Literal["local", "cloud"] | None = None
+    execution_profile: str | None = Field(default=None, max_length=1024)
 
 
 class DraftView(BaseModel):
@@ -149,7 +149,7 @@ class PrepareIn(Strict):
     job_offer_id: str | None = Field(default=None, max_length=32)
     resources: list[ResourceIn] = Field(default=[], max_length=MAX_RESOURCES)
     profile_id: str | None = Field(default=None, max_length=32)
-    execution_profile: Literal["local", "cloud"] | None = None
+    execution_profile: str | None = Field(default=None, max_length=1024)
 
 
 class FactView(BaseModel):

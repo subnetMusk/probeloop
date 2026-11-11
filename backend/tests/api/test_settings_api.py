@@ -13,6 +13,7 @@ from probeloop.api.app import create_app
 from probeloop.bootstrap import build
 from probeloop.logging_setup import RedactSignInCallback
 from probeloop.settings import Settings
+from probeloop.workspace.execution import ToolOption, execution_tools
 from tests.assessment.support import synthetic_session
 
 ORIGIN = {"Origin": "http://localhost:8000"}
@@ -58,13 +59,15 @@ def test_signing_in_selecting_and_signing_out(
         assert client.get("/api/settings/execution").json()["chatgpt"]["plan_usage"] is True
 
         assert client.put("/api/settings/execution", content="cloud").status_code == 415
-        # The default applies to new work only, so it can change while an interview is open;
-        # signing out cannot, as it would stop a cloud interview or job.
+        # An open interview locks tool choices and sign-out until it is closed.
         monkeypatch.setattr(container.data, "_connected", lambda: True)
+        assert client.get("/api/settings/execution").json()["locked"] is True
         selected = client.put("/api/settings/execution", json={"profile": "cloud"})
-        assert selected.json()["profile"] == "cloud"
+        assert selected.status_code == 409
         assert client.post("/api/settings/chatgpt/sign-out", json={}).status_code == 409
         monkeypatch.undo()
+
+        assert client.put("/api/settings/execution", json={"profile": "cloud"}).status_code == 200
 
         signed_out = client.post("/api/settings/chatgpt/sign-out", json={}).json()
         assert signed_out["profile"] == "local"
@@ -144,3 +147,57 @@ def test_cloud_work_needs_a_chatgpt_sign_in(tmp_path: Path) -> None:
             409,
             "sign in with ChatGPT first",
         )
+
+
+def test_per_role_choices_are_checked_and_frozen_with_new_work(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path, llm_fake=True, allowed_hosts=["testserver"])
+    container = build(settings)
+    with TestClient(create_app(container)) as client:
+        roles = {r["id"]: r for r in client.get("/api/settings/execution").json()["tools"]}
+        assert set(roles) == {"interviewer", "analysis", "evaluation", "limits"}
+        assert [o["id"] for o in roles["analysis"]["options"]] == ["local", "cloud"]
+        laya = next(o for o in roles["limits"]["options"] if o["id"] == "laya")
+        assert not laya["available"]
+        assert laya["reason"] == "model_missing"
+        for change, status in [({"limits": "laya"}, 409), ({"interviewer": "laya"}, 422)]:
+            assert (
+                client.put("/api/settings/execution", json={"tools": change}).status_code == status
+            )
+        selected = client.put("/api/settings/execution", json={"tools": {"analysis": "cloud"}})
+        assert selected.status_code == 200
+        frozen = selected.json()["profile"]
+        assert execution_tools(frozen) == {
+            "interviewer": "local",
+            "analysis": "cloud",
+            "evaluation": "local",
+            "limits": "local",
+        }
+        session = client.post("/api/sessions", json={"interview_type": "hr"}).json()
+        assert session["execution_profile"] == frozen
+        client.put("/api/settings/execution", json={"tools": {"analysis": "local"}})
+        assert client.get(f"/api/sessions/{session['id']}").json()["execution_profile"] == frozen
+        assert client.post("/api/sessions", json={"execution_profile": "{bad"}).status_code == 422
+
+
+def test_an_uninstalled_local_model_cannot_be_selected(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path, llm_fake=True, allowed_hosts=["testserver"])
+    container = build(settings)
+    original = container.tool_options
+
+    async def unavailable():
+        options = dict(await original())
+        options["analysis"] = (
+            ToolOption("local", False, "ollama:missing", "model_missing"),
+            options["analysis"][1],
+        )
+        return options
+
+    object.__setattr__(container, "tool_options", unavailable)
+    with TestClient(create_app(container)) as client:
+        assert (
+            client.put("/api/settings/execution", json={"tools": {"analysis": "cloud"}}).status_code
+            == 200
+        )
+        refused = client.put("/api/settings/execution", json={"tools": {"analysis": "local"}})
+        assert refused.status_code == 409
+        assert "model_missing" in refused.json()["detail"]

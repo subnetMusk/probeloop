@@ -210,10 +210,7 @@
           "execution_profile": {
             "anyOf": [
               {
-                "enum": [
-                  "local",
-                  "cloud"
-                ],
+                "maxLength": 1024,
                 "type": "string"
               },
               {
@@ -542,10 +539,7 @@
           "execution_profile": {
             "anyOf": [
               {
-                "enum": [
-                  "local",
-                  "cloud"
-                ],
+                "maxLength": 1024,
                 "type": "string"
               },
               {
@@ -635,12 +629,38 @@
         "additionalProperties": false,
         "properties": {
           "profile": {
-            "$ref": "#/components/schemas/Profile"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Profile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Tool"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "interviewer",
+                    "analysis",
+                    "evaluation",
+                    "limits"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
           }
         },
-        "required": [
-          "profile"
-        ],
         "title": "ExecutionChoice",
         "type": "object"
       },
@@ -688,8 +708,13 @@
           "chatgpt": {
             "$ref": "#/components/schemas/ChatGptView"
           },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
           "profile": {
-            "$ref": "#/components/schemas/Profile"
+            "title": "Profile",
+            "type": "string"
           },
           "profiles": {
             "items": {
@@ -697,12 +722,21 @@
             },
             "title": "Profiles",
             "type": "array"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolRoleView"
+            },
+            "title": "Tools",
+            "type": "array"
           }
         },
         "required": [
           "profile",
           "profiles",
-          "chatgpt"
+          "chatgpt",
+          "tools",
+          "locked"
         ],
         "title": "ExecutionView",
         "type": "object"
@@ -815,6 +849,149 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InstallationChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "limits_url": {
+            "title": "Limits Url",
+            "type": "string"
+          },
+          "ollama_url": {
+            "title": "Ollama Url",
+            "type": "string"
+          },
+          "refinement": {
+            "title": "Refinement",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "refinement",
+          "ollama_url",
+          "limits_url"
+        ],
+        "title": "InstallationChoice",
+        "type": "object"
+      },
+      "InstallationConfigView": {
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "limits_url": {
+            "title": "Limits Url",
+            "type": "string"
+          },
+          "ollama_url": {
+            "title": "Ollama Url",
+            "type": "string"
+          },
+          "refinement": {
+            "title": "Refinement",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "completed",
+          "refinement",
+          "ollama_url",
+          "limits_url"
+        ],
+        "title": "InstallationConfigView",
+        "type": "object"
+      },
+      "InstallationView": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/InstallationConfigView"
+          },
+          "jobs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/JobView"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "local_models": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Local Models",
+            "type": "object"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "managed": {
+            "title": "Managed",
+            "type": "boolean"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningView"
+          }
+        },
+        "required": [
+          "managed",
+          "locked",
+          "config",
+          "provisioning",
+          "local_models"
+        ],
+        "title": "InstallationView",
+        "type": "object"
+      },
+      "InstalledModelView": {
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "download_available": {
+            "title": "Download Available",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "license": {
+            "title": "License",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "missing",
+              "partial",
+              "unverified",
+              "ready"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "license",
+          "source",
+          "bytes",
+          "state",
+          "download_available"
+        ],
+        "title": "InstalledModelView",
         "type": "object"
       },
       "InterviewHistoryView": {
@@ -1396,10 +1573,7 @@
           "execution_profile": {
             "anyOf": [
               {
-                "enum": [
-                  "local",
-                  "cloud"
-                ],
+                "maxLength": 1024,
                 "type": "string"
               },
               {
@@ -1769,6 +1943,93 @@
           "interview_type"
         ],
         "title": "ProgressPointView",
+        "type": "object"
+      },
+      "ProvisioningView": {
+        "properties": {
+          "architecture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Architecture"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "catalog_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Version"
+          },
+          "cpus": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpus"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "free_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Bytes"
+          },
+          "memory_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Bytes"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledModelView"
+            },
+            "title": "Models",
+            "type": "array"
+          }
+        },
+        "required": [
+          "available",
+          "models"
+        ],
+        "title": "ProvisioningView",
         "type": "object"
       },
       "QuestionTrace": {
@@ -2186,10 +2447,7 @@
           "execution_profile": {
             "anyOf": [
               {
-                "enum": [
-                  "local",
-                  "cloud"
-                ],
+                "maxLength": 1024,
                 "type": "string"
               },
               {
@@ -2851,6 +3109,72 @@
         ],
         "title": "Subject",
         "type": "string"
+      },
+      "Tool": {
+        "enum": [
+          "local",
+          "cloud",
+          "laya"
+        ],
+        "type": "string"
+      },
+      "ToolOptionView": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/components/schemas/Tool"
+          },
+          "model_ref": {
+            "title": "Model Ref",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "available",
+          "model_ref",
+          "reason"
+        ],
+        "title": "ToolOptionView",
+        "type": "object"
+      },
+      "ToolRoleView": {
+        "properties": {
+          "id": {
+            "enum": [
+              "interviewer",
+              "analysis",
+              "evaluation",
+              "limits"
+            ],
+            "title": "Id",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ToolOptionView"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "selected": {
+            "$ref": "#/components/schemas/Tool"
+          }
+        },
+        "required": [
+          "id",
+          "selected",
+          "options"
+        ],
+        "title": "ToolRoleView",
+        "type": "object"
       },
       "Topic": {
         "additionalProperties": false,
@@ -3714,6 +4038,214 @@
           }
         },
         "summary": "Interviews"
+      }
+    },
+    "/api/installation": {
+      "get": {
+        "operationId": "status_api_installation_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status"
+      },
+      "put": {
+        "operationId": "configure_api_installation_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallationChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configure"
+      }
+    },
+    "/api/installation/base": {
+      "post": {
+        "operationId": "install_base_api_installation_base_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobView"
+                  },
+                  "title": "Response Install Base Api Installation Base Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Install Base"
+      }
+    },
+    "/api/installation/complete": {
+      "post": {
+        "operationId": "complete_api_installation_complete_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Complete"
+      }
+    },
+    "/api/installation/models/{identity}": {
+      "post": {
+        "operationId": "install_api_installation_models__identity__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identity",
+            "required": true,
+            "schema": {
+              "title": "Identity",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Install"
+      }
+    },
+    "/api/installation/ollama": {
+      "get": {
+        "operationId": "ollama_status_api_installation_ollama_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ollama Status Api Installation Ollama Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ollama Status"
+      }
+    },
+    "/api/installation/ollama/{role}": {
+      "post": {
+        "operationId": "pull_api_installation_ollama__role__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "title": "Role",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pull"
+      }
+    },
+    "/api/installation/voice-preview": {
+      "get": {
+        "operationId": "voice_preview_api_installation_voice_preview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Voice Preview"
       }
     },
     "/api/job-offers/draft": {

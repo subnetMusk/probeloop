@@ -17,16 +17,22 @@ from probeloop.interview.application.adaptive_interviewer import (
     AdaptiveMoveOutput,
     adaptive_request,
     closing_only,
-    stated_limits,
     stream_adaptive_move,
     stream_two_step_move,
     two_step_reserve,
 )
-from probeloop.interview.application.ports import MoveDelta, MoveDone, MoveRequest
+from probeloop.interview.application.limits import LlmStatedLimitReader, grounded_quotes
+from probeloop.interview.application.ports import (
+    MoveDelta,
+    MoveDone,
+    MoveRequest,
+    StatedLimitReader,
+)
 from probeloop.interview.domain.model import (
     CandidateTurn,
     Difficulty,
     InterviewerMove,
+    InterviewerTurn,
     InterviewType,
     Language,
     MoveAction,
@@ -88,10 +94,12 @@ class LlmInterviewer:
         top_p: float = 0.9,
         max_output_tokens: int = 320,
         two_step: bool = False,
+        limit_reader: StatedLimitReader | None = None,
     ) -> None:
         self._model = model
         # Adaptive sessions only: decide and validate, then write the question (two calls).
         self._two_step = two_step
+        self._limit_reader = limit_reader or LlmStatedLimitReader(model)
         self._prompts = PromptRenderer("probeloop.interview")
         self._temperature = temperature
         self._top_p = top_p
@@ -99,6 +107,8 @@ class LlmInterviewer:
 
     async def check(self) -> None:
         await self._model.capabilities()
+        if self._two_step:
+            await self._limit_reader.check()
 
     async def prepare(self, request: MoveRequest) -> None:
         """Send the opening prompt for a single token: loads the model and fills its KV cache.
@@ -106,6 +116,8 @@ class LlmInterviewer:
         A hosted model gains nothing from this; asking for its capabilities still checks that it
         can be used (for example that the user is signed in).
         """
+        if request.context.policy_version and self._two_step:
+            await self._limit_reader.check()
         capabilities = await self._model.capabilities()
         if not capabilities.preload:
             return
@@ -139,10 +151,24 @@ class LlmInterviewer:
             # prompt is fitted to the window only once they are known.
             limits: tuple[str, ...] = ()
             limits_ref = ""
-            if not closing_only(request):
-                limits_prompt = self._prompts.render("interviewer_limits", LIMITS_PROMPT_VERSION)
-                limits = await stated_limits(self._model, limits_prompt.text, request)
-                limits_ref = f"+{limits_prompt.ref}"
+            if (
+                not closing_only(request)
+                and request.turns
+                and isinstance(request.turns[-1], CandidateTurn)
+                and request.turns[-1].text.strip()
+            ):
+                answer = request.turns[-1].text
+                question = next(
+                    (
+                        t.move.utterance
+                        for t in reversed(request.turns)
+                        if isinstance(t, InterviewerTurn)
+                    ),
+                    "",
+                )
+                reading = await self._limit_reader.read(question, answer)
+                limits = grounded_quotes(answer, reading.quotes)
+                limits_ref = f"+{reading.source_ref}"
             chat_request, prompt_ref = self.build_request(request, window, limits)
             async for event in stream_two_step_move(
                 self._model, chat_request, request, prompt_ref + limits_ref, limits

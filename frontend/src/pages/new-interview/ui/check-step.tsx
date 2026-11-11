@@ -24,15 +24,23 @@ function Summary() {
       : profile?.kind === 'saved' || profile?.kind === 'new'
         ? profile.name
         : t.summary.once
-  const rows: [string, string, 'interview-settings' | 'resource-profile' | 'fact-review'][] = [
+  const rows: [
+    string,
+    string,
+    'interview-settings' | 'resource-profile' | 'fact-review' | 'settings',
+  ][] = [
     [t.summary.type, t.summary.types[settings.interviewType], 'interview-settings'],
     [t.summary.difficulty, t.summary.difficulties[settings.difficulty], 'interview-settings'],
     [t.summary.language, t.summary.languages[settings.language], 'interview-settings'],
     [t.summary.duration, `${String(settings.minutes)} min`, 'interview-settings'],
     [
       t.summary.processing,
-      settings.execution === 'cloud' ? t.summary.cloud : t.summary.local,
-      'interview-settings',
+      settings.execution?.startsWith('{')
+        ? t.summary.mixed
+        : settings.execution === 'cloud'
+          ? t.summary.cloud
+          : t.summary.local,
+      'settings',
     ],
     [t.summary.profile, documents, 'resource-profile'],
   ]
@@ -56,7 +64,7 @@ function Summary() {
               <dd className="font-medium">{value}</dd>
               <dd>
                 <Link
-                  to={stepPath(step)}
+                  to={step === 'settings' ? '/settings' : stepPath(step)}
                   aria-label={`${t.summary.edit}: ${label}`}
                   className="text-brand-text underline"
                 >

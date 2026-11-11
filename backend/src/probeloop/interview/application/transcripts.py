@@ -47,16 +47,18 @@ class TranscriptService:
         clock: Clock,
         refiner: SpeechToText | None = None,
         vocabulary: Callable[[InterviewSession], str | None] = lambda _: None,
+        refinement_enabled: Callable[[], bool] = lambda: True,
     ) -> None:
         self._store = store
         self._clock = clock
         self._refiner = refiner
         self._vocabulary = vocabulary
+        self._refinement_enabled = refinement_enabled
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     @property
     def can_refine(self) -> bool:
-        return self._refiner is not None
+        return self._refiner is not None and self._refinement_enabled()
 
     async def edit(self, session_id: str, turn_seq: int, text: str) -> CandidateTurn:
         """A correction typed by the user becomes a new revision of the answer."""
@@ -73,7 +75,7 @@ class TranscriptService:
 
     async def refine(self, job: Job, progress: Progress) -> Mapping[str, Any]:
         """Job handler: re-transcribe every stored answer of the session."""
-        if self._refiner is None:
+        if self._refiner is None or not self._refinement_enabled():
             raise JobError("speech recognition is not configured")
         session = await self._load(job.subject_id)
         answers = session.candidate_turns()

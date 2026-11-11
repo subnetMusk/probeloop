@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from probeloop.ai.ports import ChatChunk, ChatModel, ChatRequest, ChatResult, ModelCapabilities
+from probeloop.workspace.execution import tool_for
 
 _scope: ContextVar[str | None] = ContextVar("execution_profile", default=None)
 
@@ -32,9 +33,16 @@ class ProfiledChatModel:
     `current` names the selected profile; it must be a key of `models`.
     """
 
-    def __init__(self, models: Mapping[str, ChatModel], current: Callable[[], str]) -> None:
+    def __init__(
+        self,
+        models: Mapping[str, ChatModel],
+        current: Callable[[], str],
+        *,
+        role: str = "interviewer",
+    ) -> None:
         self._models = dict(models)
         self._current = current
+        self._role = role
 
     @property
     def model_ref(self) -> str:
@@ -45,7 +53,7 @@ class ProfiledChatModel:
 
     def pinned(self, profile: str) -> ChatModel:
         """The model of `profile`, regardless of later changes to the selection."""
-        return self._models[profile]
+        return self._models[tool_for(profile, self._role)]
 
     async def capabilities(self) -> ModelCapabilities:
         return await self._model().capabilities()
@@ -58,4 +66,4 @@ class ProfiledChatModel:
             yield chunk
 
     def _model(self) -> ChatModel:
-        return self._models[_scope.get() or self._current()]
+        return self.pinned(_scope.get() or self._current())

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
@@ -41,12 +42,29 @@ class OllamaChatModel:
         self._model = model
         self._context_window = context_window
         self._keep_alive = keep_alive
+        self._timeout_s = timeout_s
         self._client = client or ollama.AsyncClient(host=base_url, timeout=timeout_s)
         self._capabilities: ModelCapabilities | None = None
 
     @property
     def model_ref(self) -> str:
         return f"ollama:{self._model}@ctx{self._context_window}"
+
+    async def reconfigure(self, base_url: str) -> None:
+        """Replace the connection while the composition root holds the idle guard."""
+        previous = self._client
+        self._client = ollama.AsyncClient(host=base_url, timeout=self._timeout_s)
+        self._capabilities = None
+        await previous._client.aclose()
+
+    async def available(self) -> bool:
+        """Fresh, bounded installation check; neither loads nor generates with the model."""
+        try:
+            async with asyncio.timeout(2.0):
+                info = await self._client.show(self._model)
+            return not info.capabilities or "completion" in info.capabilities
+        except (ollama.ResponseError, httpx.HTTPError, TimeoutError):
+            return False
 
     async def capabilities(self) -> ModelCapabilities:
         if self._capabilities is None:

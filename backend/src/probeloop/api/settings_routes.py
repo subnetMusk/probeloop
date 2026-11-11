@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import asdict
+from typing import Literal
 from urllib.parse import parse_qs, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from probeloop.ai.chatgpt_auth import CALLBACK_PATH, ChatGptAccount, SignInError
 from probeloop.ai.profiles import ProfiledChatModel
@@ -17,6 +19,9 @@ from probeloop.workspace.execution import (
     ExecutionProfiles,
     Profile,
     ProfileUnavailableError,
+    Tool,
+    ToolOption,
+    execution_tools,
 )
 from probeloop.workspace.service import DataBusyError, DataService
 
@@ -41,14 +46,36 @@ class ChatGptView(BaseModel):
 
 
 class ExecutionView(BaseModel):
-    profile: Profile
+    profile: str
     profiles: list[ExecutionProfileView]
     chatgpt: ChatGptView
+    tools: list[ToolRoleView]
+    locked: bool
+
+
+class ToolOptionView(BaseModel):
+    id: Tool
+    available: bool
+    model_ref: str
+    reason: str
+
+
+class ToolRoleView(BaseModel):
+    id: Literal["interviewer", "analysis", "evaluation", "limits"]
+    selected: Tool
+    options: list[ToolOptionView]
 
 
 class ExecutionChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    profile: Profile
+    profile: Profile | None = None
+    tools: dict[Literal["interviewer", "analysis", "evaluation", "limits"], Tool] | None = None
+
+    @model_validator(mode="after")
+    def one_choice(self) -> ExecutionChoice:
+        if (self.profile is None) == (self.tools is None) or self.tools == {}:
+            raise ValueError("choose a profile or tool selections")
+        return self
 
 
 class SignInStart(BaseModel):
@@ -66,26 +93,48 @@ def settings_router(
     data: DataService,
     account: ChatGptAccount,
     allowed_origins: Sequence[str],
+    tool_options: Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]],
 ) -> APIRouter:
     router = APIRouter()
     refs = {role: model.model_refs() for role, model in roles.items()}
     # The page to return to after each pending sign-in, by OAuth state.
     returns: dict[str, str] = {}
 
-    def view() -> ExecutionView:
+    async def view() -> ExecutionView:
         status = account.status()
+        options = await tool_options()
+        selected = execution_tools(profiles.current)
+        try:
+            await data.ensure_idle()
+            locked = False
+        except DataBusyError:
+            locked = True
         return ExecutionView(
+            locked=locked,
             profile=profiles.current,
             profiles=[
                 ExecutionProfileView(
                     id=profile,
-                    models=ExecutionModels(**{role: refs[role][profile] for role in refs}),
+                    models=ExecutionModels(
+                        **{
+                            role: refs[role][profile]
+                            for role in ("interviewer", "analysis", "evaluation")
+                        }
+                    ),
                 )
                 for profile in PROFILES
             ],
             chatgpt=ChatGptView(
                 signed_in=status.signed_in, email=status.email, plan_usage=status.plan_usage
             ),
+            tools=[
+                ToolRoleView(
+                    id=role,
+                    selected=selected[role],
+                    options=[ToolOptionView(**asdict(option)) for option in choices],
+                )
+                for role, choices in options.items()
+            ],
         )
 
     async def ensure_idle() -> None:
@@ -98,21 +147,36 @@ def settings_router(
 
     @router.get("/api/settings/execution")
     async def execution() -> ExecutionView:
-        return view()
+        return await view()
 
     @router.put("/api/settings/execution", dependencies=[Depends(_require_json)])
     async def select_execution(choice: ExecutionChoice) -> ExecutionView:
-        if choice.profile == profiles.current:
-            return view()
-        if choice.profile == "cloud" and not account.status().plan_usage:
-            raise HTTPException(409, "sign in with ChatGPT first")
+        await ensure_idle()
+        tools = execution_tools(profiles.current)
+        changes = execution_tools(choice.profile) if choice.profile else choice.tools or {}
+        options = await tool_options()
+        for role, tool in changes.items():
+            if tool == tools[role]:
+                continue
+            option = next((o for o in options[role] if o.id == tool), None)
+            if option is None:
+                raise HTTPException(422, "unsupported tool for this role")
+            if not option.available:
+                detail = (
+                    "sign in with ChatGPT first"
+                    if tool == "cloud"
+                    else f"{tool} is unavailable for {role}: {option.reason}"
+                )
+                raise HTTPException(409, detail)
+        for role, tool in changes.items():
+            tools[role] = tool
         # The default applies to new work only: preparations and interviews keep their own
         # profile (ADR 0015), so changing it needs no idle guard.
         try:
-            await profiles.select(choice.profile)
+            await profiles.select_tools(tools)
         except ProfileUnavailableError as exc:
             raise HTTPException(409, str(exc)) from exc
-        return view()
+        return await view()
 
     @router.post("/api/settings/chatgpt/sign-in", dependencies=[Depends(_require_json)])
     async def sign_in(request: Request) -> SignInStart:
@@ -128,11 +192,14 @@ def settings_router(
 
     @router.post("/api/settings/chatgpt/sign-out", dependencies=[Depends(_require_json)])
     async def sign_out() -> ExecutionView:
-        if profiles.current == "cloud":
-            await ensure_idle()
-            await profiles.select("local")
+        await ensure_idle()
+        tools = execution_tools(profiles.current)
+        if "cloud" in tools.values():
+            await profiles.select_tools(
+                {role: "local" if tool == "cloud" else tool for role, tool in tools.items()}
+            )
         await account.sign_out()
-        return view()
+        return await view()
 
     @router.get(CALLBACK_PATH, include_in_schema=False)
     async def callback(request: Request) -> RedirectResponse:

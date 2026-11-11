@@ -458,6 +458,45 @@ async def test_two_step_reads_stated_limits_before_deciding_and_keeps_only_quote
     assert "interviewer_limits@v1" in done.move.prompt_ref
 
 
+async def test_a_classifier_replaces_the_limits_call_and_only_grounded_quotes_reach_the_steps() -> (
+    None
+):
+    from probeloop.interview.application.ports import LimitReading
+
+    req = recalled("I cannot recall the exact error rates. I planned two waves.")
+
+    class Reader:
+        async def check(self) -> None:
+            pass
+
+        async def read(self, question: str, answer: str) -> LimitReading:
+            assert question == "Describe a release you planned."
+            assert answer == req.turns[-1].text
+            return LimitReading(
+                ("I cannot recall the exact error rates.", "Invented experience."), "laya-test@v1"
+            )
+
+    model = FakeChatModel(
+        [
+            decision(purpose="evidence_probe", past_example=True, elicited_criteria=[]),
+            json.dumps({"utterance": "Who decided when the second wave started?"}),
+        ]
+    )
+    events = [
+        event
+        async for event in LlmInterviewer(model, two_step=True, limit_reader=Reader()).next_move(
+            req
+        )
+    ]
+    assert len(model.requests) == 2
+    assert "exact error rates" in model.requests[0].messages[-1].content
+    assert "Invented experience" not in str(model.requests)
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert "laya-test@v1" in done.move.prompt_ref
+    assert done.move.intent.answer_limit == "stated_limit"
+
+
 async def test_the_scripted_model_of_the_browser_tests_answers_every_two_step_call() -> None:
     # compose.test.yaml runs the default turn with this model; the browser tests read its text.
     opening_model = FakeChatModel([scripted_moves()])

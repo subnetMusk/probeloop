@@ -8,7 +8,7 @@ from dataclasses import asdict
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.api.schemas import JobView
 from probeloop.assessment.application.outline import ExportSources
@@ -24,7 +24,7 @@ class ReviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     language: Literal["it", "en"] = "it"
     # CV checks only: interview reports always use the interview's profile (ADR 0015).
-    execution_profile: Literal["local", "cloud"] | None = None
+    execution_profile: str | None = Field(default=None, max_length=1024)
 
 
 class ProgressPointView(BaseModel):

@@ -27,7 +27,7 @@ export const interviewLabels = defineMessages({
       failed: 'Failed',
     },
     difficulties: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
-    execution: { local: 'On this computer', cloud: 'ChatGPT plan' },
+    execution: { local: 'On this computer', cloud: 'ChatGPT plan', mixed: 'Tools by role' },
   },
   it: {
     types: {
@@ -44,7 +44,11 @@ export const interviewLabels = defineMessages({
       failed: 'Non riuscito',
     },
     difficulties: { easy: 'Facile', medium: 'Media', hard: 'Difficile' },
-    execution: { local: 'Su questo computer', cloud: 'Piano ChatGPT' },
+    execution: {
+      local: 'Su questo computer',
+      cloud: 'Piano ChatGPT',
+      mixed: 'Strumenti per ambito',
+    },
   },
 })
 
@@ -57,6 +61,7 @@ export function labelOf(
   key: string,
 ): string {
   const table = labels[group] as Readonly<Record<string, string>>
+  if (group === 'execution' && key.startsWith('{')) return labels.execution.mixed
   return table[key] ?? key
 }
 

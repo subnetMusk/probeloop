@@ -92,7 +92,7 @@ class CreateSession(Strict):
     # the vocabulary come from it instead of the sample brief.
     snapshot_id: str | None = Field(default=None, max_length=32)
     # Where the interviewer and the reports run (ADR 0015); None uses the default.
-    execution_profile: Literal["local", "cloud"] | None = None
+    execution_profile: str | None = Field(default=None, max_length=1024)
     profile_id: str | None = Field(default=None, max_length=32)
 
 

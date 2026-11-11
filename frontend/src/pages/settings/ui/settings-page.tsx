@@ -5,6 +5,8 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { setLanguage, setTheme, setVolume, usePreferences } from '@/shared/lib/preferences'
 import { DataControls } from '@/features/data-controls'
 import { ExecutionProfileSettings } from '@/features/execution-profile'
+import { InstallationSettings } from '@/features/installation'
+import { Link } from '@tanstack/react-router'
 
 export function SettingsPage() {
   const preferences = usePreferences()
@@ -12,6 +14,11 @@ export function SettingsPage() {
   return (
     <Page narrow>
       <PageHeader title={it ? 'Impostazioni' : 'Settings'} />
+      <ExecutionProfileSettings />
+      <Link to="/setup" className="text-sm text-brand-text underline underline-offset-4">
+        {it ? 'Apri la configurazione guidata' : 'Open guided setup'}
+      </Link>
+      <InstallationSettings />
       <Card>
         <CardHeader>
           <CardTitle>{it ? 'Preferenze dell’app' : 'Application preferences'}</CardTitle>
@@ -77,7 +84,6 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
-      <ExecutionProfileSettings />
       <DataControls />
     </Page>
   )

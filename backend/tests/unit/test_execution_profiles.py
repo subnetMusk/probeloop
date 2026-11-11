@@ -11,7 +11,12 @@ from probeloop.ai.ports import ChatMessage, ChatRequest
 from probeloop.ai.profiles import ProfiledChatModel, using_profile
 from probeloop.bootstrap import with_job_profile
 from probeloop.platform.jobs import Job, JobStatus, Progress
-from probeloop.workspace.execution import ExecutionProfiles, ProfileUnavailableError
+from probeloop.workspace.execution import (
+    ExecutionProfiles,
+    ProfileUnavailableError,
+    execution_plan,
+    execution_tools,
+)
 
 REQUEST = ChatRequest(instructions="x", messages=(ChatMessage("user", "y"),))
 
@@ -82,3 +87,29 @@ async def test_jobs_run_on_the_profile_of_their_payload(tmp_path: Path) -> None:
     assert await run(job, quiet) == {"text": "cloud"}
     legacy = Job("j2", "k", "s", running, created_at=0, payload={})
     assert await run(legacy, quiet) == {"text": "local"}
+
+
+async def test_a_mixed_plan_is_self_contained_persistent_and_pins_each_role(tmp_path: Path) -> None:
+    path = tmp_path / "profile.json"
+    profiles = ExecutionProfiles(path, ("local", "cloud"))
+    tools = {**execution_tools("local"), "analysis": "cloud", "limits": "laya"}
+    await profiles.select_tools(tools)
+    frozen = profiles.current
+    assert ExecutionProfiles(path, ("local", "cloud")).current == frozen
+    local, cloud = FakeChatModel(["local"]), FakeChatModel(["cloud"])
+    models = {"local": local, "cloud": cloud}
+    analysis = ProfiledChatModel(models, lambda: profiles.current, role="analysis")
+    interviewer = ProfiledChatModel(models, lambda: profiles.current)
+    await profiles.select("cloud")
+    with using_profile(frozen):
+        assert (await analysis.complete(REQUEST)).text == "cloud"
+        assert (await interviewer.complete(REQUEST)).text == "local"
+    assert execution_tools(frozen) == tools
+
+
+@pytest.mark.parametrize(
+    "tools", [{"interviewer": "local"}, {**execution_tools("local"), "evaluation": "laya"}]
+)
+def test_an_incomplete_or_unsupported_execution_plan_is_rejected(tools: dict[str, str]) -> None:
+    with pytest.raises(ValueError, match=r"invalid execution tools|unsupported tool"):
+        execution_plan(tools)

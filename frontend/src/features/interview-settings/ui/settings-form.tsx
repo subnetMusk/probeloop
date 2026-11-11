@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
-import { Controller, useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 
 import {
   DIFFICULTIES,
@@ -22,20 +21,18 @@ const LEGEND = 'mb-3 flex items-center gap-1 font-heading text-base font-semibol
 
 /**
  * The settings of one interview. Every field has a value, so the form is valid from the start,
- * unless the ChatGPT plan is chosen without a sign-in. Changes are reported as they happen, so
- * that the draft keeps them when the user moves to another step.
+ * subject to voice availability. Processing tools come from Settings, outside this form.
+ * Changes are reported as they happen so the draft keeps them between steps.
  */
 export function SettingsForm({
   id,
   values,
-  cloudAvailable,
   voices,
   onChange,
   onSubmit,
 }: {
   id: string
   values: InterviewSettings
-  cloudAvailable: boolean
   /** Languages with an interviewer voice; undefined while the speech services are unknown. */
   voices: Partial<Record<string, string | null>> | undefined
   onChange: (values: InterviewSettings) => void
@@ -44,18 +41,13 @@ export function SettingsForm({
   const t = useMessages(settingsMessages)
   const schema = useMemo(
     () =>
-      settingsSchema
-        .refine((s) => s.execution === 'local' || cloudAvailable, {
-          path: ['execution'],
-          message: 'cloud unavailable',
-        })
-        .refine((s) => voices === undefined || Boolean(voices[s.language]), {
-          path: ['language'],
-          message: 'no voice',
-        }),
-    [cloudAvailable, voices],
+      settingsSchema.refine((s) => voices === undefined || Boolean(voices[s.language]), {
+        path: ['language'],
+        message: 'no voice',
+      }),
+    [voices],
   )
-  const { control, handleSubmit, subscribe, formState } = useForm<InterviewSettings>({
+  const { control, handleSubmit, subscribe } = useForm<InterviewSettings>({
     resolver: zodResolver(schema),
     defaultValues: values,
     mode: 'onChange',
@@ -70,7 +62,6 @@ export function SettingsForm({
       }),
     [subscribe, onChange],
   )
-  const execution = useWatch({ control, name: 'execution' })
 
   return (
     <form
@@ -197,60 +188,6 @@ export function SettingsForm({
           />
         </div>
       </div>
-
-      <fieldset>
-        <legend className={LEGEND}>
-          {t.execution.label} <RequiredMark />
-        </legend>
-        <Controller
-          control={control}
-          name="execution"
-          render={({ field }) => (
-            <RadioGroup
-              aria-required
-              value={field.value}
-              onValueChange={field.onChange}
-              className="grid-cols-1 sm:grid-cols-2"
-            >
-              <ChoiceCard
-                id={`${id}-execution-local`}
-                value="local"
-                title={t.execution.local.title}
-                description={t.execution.local.description}
-              />
-              <ChoiceCard
-                id={`${id}-execution-cloud`}
-                value="cloud"
-                title={t.execution.cloud.title}
-                description={t.execution.cloud.description}
-                disabled={!cloudAvailable && field.value !== 'cloud'}
-              >
-                {!cloudAvailable && (
-                  <p className="text-sm">
-                    {t.execution.signIn}{' '}
-                    <Link to="/settings" className="text-brand-text underline">
-                      {t.execution.settings}
-                    </Link>
-                  </p>
-                )}
-              </ChoiceCard>
-            </RadioGroup>
-          )}
-        />
-        {execution === 'cloud' && (
-          <p
-            role="note"
-            className="mt-3 rounded-lg border-l-4 border-highlight bg-muted/50 p-3 text-sm"
-          >
-            {t.execution.cloudNotice}
-          </p>
-        )}
-        {formState.errors.execution && (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {t.execution.signIn}
-          </p>
-        )}
-      </fieldset>
     </form>
   )
 }

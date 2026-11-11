@@ -218,6 +218,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/installation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["status_api_installation_get"];
+        /** Configure */
+        put: operations["configure_api_installation_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/installation/base": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Install Base */
+        post: operations["install_base_api_installation_base_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/installation/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete */
+        post: operations["complete_api_installation_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/installation/models/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Install */
+        post: operations["install_api_installation_models__identity__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/installation/ollama": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ollama Status */
+        get: operations["ollama_status_api_installation_ollama_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/installation/ollama/{role}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pull */
+        post: operations["pull_api_installation_ollama__role__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/installation/voice-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Voice Preview */
+        get: operations["voice_preview_api_installation_voice_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/job-offers/draft": {
         parameters: {
             query?: never;
@@ -901,7 +1021,7 @@ export interface components {
              */
             duration_minutes?: number;
             /** Execution Profile */
-            execution_profile?: ("local" | "cloud") | null;
+            execution_profile?: string | null;
             interview_type: components["schemas"]["InterviewType"];
             /** Job Brief */
             job_brief?: string | null;
@@ -1003,7 +1123,7 @@ export interface components {
             /** Description */
             description: string;
             /** Execution Profile */
-            execution_profile?: ("local" | "cloud") | null;
+            execution_profile?: string | null;
             /**
              * Language
              * @default it
@@ -1032,7 +1152,11 @@ export interface components {
         };
         /** ExecutionChoice */
         ExecutionChoice: {
-            profile: components["schemas"]["Profile"];
+            profile?: components["schemas"]["Profile"] | null;
+            /** Tools */
+            tools?: {
+                [key: string]: components["schemas"]["Tool"];
+            } | null;
         };
         /** ExecutionModels */
         ExecutionModels: {
@@ -1051,9 +1175,14 @@ export interface components {
         /** ExecutionView */
         ExecutionView: {
             chatgpt: components["schemas"]["ChatGptView"];
-            profile: components["schemas"]["Profile"];
+            /** Locked */
+            locked: boolean;
+            /** Profile */
+            profile: string;
             /** Profiles */
             profiles: components["schemas"]["ExecutionProfileView"][];
+            /** Tools */
+            tools: components["schemas"]["ToolRoleView"][];
         };
         /**
          * FactKind
@@ -1087,6 +1216,64 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InstallationChoice */
+        InstallationChoice: {
+            /** Limits Url */
+            limits_url: string;
+            /** Ollama Url */
+            ollama_url: string;
+            /** Refinement */
+            refinement: boolean;
+        };
+        /** InstallationConfigView */
+        InstallationConfigView: {
+            /** Completed */
+            completed: boolean;
+            /** Limits Url */
+            limits_url: string;
+            /** Ollama Url */
+            ollama_url: string;
+            /** Refinement */
+            refinement: boolean;
+        };
+        /** InstallationView */
+        InstallationView: {
+            config: components["schemas"]["InstallationConfigView"];
+            /**
+             * Jobs
+             * @default []
+             */
+            jobs?: components["schemas"]["JobView"][];
+            /** Local Models */
+            local_models: {
+                [key: string]: string;
+            };
+            /** Locked */
+            locked: boolean;
+            /** Managed */
+            managed: boolean;
+            provisioning: components["schemas"]["ProvisioningView"];
+        };
+        /** InstalledModelView */
+        InstalledModelView: {
+            /** Bytes */
+            bytes: number;
+            /** Download Available */
+            download_available: boolean;
+            /** Id */
+            id: string;
+            /** License */
+            license: string;
+            /** Source */
+            source: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "missing" | "partial" | "unverified" | "ready";
+            /** Title */
+            title: string;
         };
         /** InterviewHistoryView */
         InterviewHistoryView: {
@@ -1262,7 +1449,7 @@ export interface components {
             /** Cv Id */
             cv_id?: string | null;
             /** Execution Profile */
-            execution_profile?: ("local" | "cloud") | null;
+            execution_profile?: string | null;
             job_mode: components["schemas"]["JobMode"];
             /** Job Offer Id */
             job_offer_id?: string | null;
@@ -1374,6 +1561,25 @@ export interface components {
             };
             /** Version */
             version: number;
+        };
+        /** ProvisioningView */
+        ProvisioningView: {
+            /** Architecture */
+            architecture?: string | null;
+            /** Available */
+            available: boolean;
+            /** Catalog Version */
+            catalog_version?: number | null;
+            /** Cpus */
+            cpus?: number | null;
+            /** Error */
+            error?: string | null;
+            /** Free Bytes */
+            free_bytes?: number | null;
+            /** Memory Bytes */
+            memory_bytes?: number | null;
+            /** Models */
+            models: components["schemas"]["InstalledModelView"][];
         };
         /** QuestionTrace */
         QuestionTrace: {
@@ -1515,7 +1721,7 @@ export interface components {
         /** ReviewRequest */
         ReviewRequest: {
             /** Execution Profile */
-            execution_profile?: ("local" | "cloud") | null;
+            execution_profile?: string | null;
             /**
              * Language
              * @default it
@@ -1738,6 +1944,29 @@ export interface components {
          * @enum {string}
          */
         Subject: "candidate" | "job";
+        /** @enum {string} */
+        Tool: "local" | "cloud" | "laya";
+        /** ToolOptionView */
+        ToolOptionView: {
+            /** Available */
+            available: boolean;
+            id: components["schemas"]["Tool"];
+            /** Model Ref */
+            model_ref: string;
+            /** Reason */
+            reason: string;
+        };
+        /** ToolRoleView */
+        ToolRoleView: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "interviewer" | "analysis" | "evaluation" | "limits";
+            /** Options */
+            options: components["schemas"]["ToolOptionView"][];
+            selected: components["schemas"]["Tool"];
+        };
         /** Topic */
         Topic: {
             /**
@@ -2267,6 +2496,203 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InterviewHistoryView"][];
+                };
+            };
+        };
+    };
+    status_api_installation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationView"];
+                };
+            };
+        };
+    };
+    configure_api_installation_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallationChoice"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    install_base_api_installation_base_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"][];
+                };
+            };
+        };
+    };
+    complete_api_installation_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationView"];
+                };
+            };
+        };
+    };
+    install_api_installation_models__identity__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ollama_status_api_installation_ollama_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    pull_api_installation_ollama__role__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    voice_preview_api_installation_voice_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

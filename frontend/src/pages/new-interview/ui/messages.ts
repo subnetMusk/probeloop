@@ -68,6 +68,7 @@ export const newInterviewMessages = defineMessages({
       quick: 'No documents',
       once: 'This interview only',
       local: 'On this computer',
+      mixed: 'Tools selected in Settings',
       cloud: 'ChatGPT plan',
       edit: 'Change',
       types: {
@@ -151,6 +152,7 @@ export const newInterviewMessages = defineMessages({
       quick: 'Nessun documento',
       once: 'Solo per questo colloquio',
       local: 'Su questo computer',
+      mixed: 'Strumenti selezionati nelle Impostazioni',
       cloud: 'Piano ChatGPT',
       edit: 'Modifica',
       types: {

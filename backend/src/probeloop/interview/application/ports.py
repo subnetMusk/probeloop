@@ -49,6 +49,22 @@ class MoveDone:
     move: InterviewerMove
 
 
+@dataclass(frozen=True, slots=True)
+class LimitReading:
+    quotes: tuple[str, ...]
+    source_ref: str
+
+
+class LimitReaderUnavailable(Exception):
+    """A selected reader cannot run; its configured fallback may be used."""
+
+
+class StatedLimitReader(Protocol):
+    async def check(self) -> None: ...
+
+    async def read(self, question: str, answer: str) -> LimitReading: ...
+
+
 class Interviewer(Protocol):
     async def prepare(self, request: MoveRequest) -> None:
         """Load the model and warm its prompt cache before the interview starts."""

@@ -90,6 +90,7 @@ def create_worker_app(
         "status": "loading" if preload else "ready"
     }
     lock = asyncio.Lock()
+    reload_requested = asyncio.Event()
     last_used: dict[Engine, float] = {}
     unload_after = {k: v for k, v in (idle_unload_s or {}).items() if v > 0}
 
@@ -100,7 +101,10 @@ def create_worker_app(
                 async with lock:
                     await engines[name].transcribe(WARM_UP, TranscribeOptions(language="it"))
             except SpeechError:
-                logger.exception("speech engine failed to load", extra={"engine": name})
+                if state["status"] != "failed":
+                    logger.warning(
+                        "speech engine is waiting for model installation", extra={"engine": name}
+                    )
                 state["status"] = "failed"
                 return
             logger.info(
@@ -126,11 +130,22 @@ def create_worker_app(
                         await asyncio.to_thread(engine.unload)
                     logger.info("idle speech engine unloaded", extra={"engine": name})
 
+    async def wait_for_models() -> None:
+        # The browser and provisioner can start on an empty models volume. Retry only loading,
+        # never download from this offline, read-only worker.
+        while True:
+            await warm_up()
+            if state["status"] == "ready":
+                return
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(reload_requested.wait(), timeout=5)
+            reload_requested.clear()
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         tasks = []
         if preload:
-            tasks.append(asyncio.create_task(warm_up()))
+            tasks.append(asyncio.create_task(wait_for_models()))
         if unload_after:
             tasks.append(asyncio.create_task(unload_idle()))
         yield
@@ -190,6 +205,12 @@ def create_worker_app(
             },
         )
         return TranscriptionBody.of(result, elapsed)
+
+    @app.post("/reload")
+    async def reload_models() -> dict[str, str]:
+        # A failed warm-up already retries in the background. Do not evict a healthy engine.
+        reload_requested.set()
+        return {"status": state["status"]}
 
     return app
 

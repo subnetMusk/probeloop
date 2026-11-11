@@ -20,6 +20,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 
 from probeloop.ai.ports import LlmError, UserActionRequiredError
+from probeloop.ai.structured import StructuredOutputError
 from probeloop.interview.application.events import (
     AnswerRecorded,
     AnswerTimeWarning,
@@ -51,6 +52,7 @@ from probeloop.interview.application.phrases import (
 from probeloop.interview.application.ports import (
     Clock,
     Interviewer,
+    LimitReaderUnavailable,
     MoveDelta,
     MoveDone,
     MoveRequest,
@@ -252,7 +254,7 @@ class SessionOrchestrator:
         # would fail at the next move, so the user is told now and the interview stays paused.
         try:
             await self._interviewer.check()
-        except UserActionRequiredError as exc:
+        except (LlmError, LimitReaderUnavailable) as exc:
             await self._emit(
                 ErrorRaised(code="llm_unavailable", message=str(exc), recoverable=True)
             )
@@ -397,7 +399,7 @@ class SessionOrchestrator:
         """Load the model and fill its prompt cache with the stable part of the prompt."""
         try:
             await self._interviewer.prepare(self._request(TimeDirective.NORMAL, 0.0))
-        except UserActionRequiredError as exc:
+        except (UserActionRequiredError, LimitReaderUnavailable) as exc:
             return str(exc)
         except LlmError as exc:
             logger.warning(
@@ -475,6 +477,27 @@ class SessionOrchestrator:
                 speaker = None
         except asyncio.CancelledError:
             raise
+        except (LlmError, LimitReaderUnavailable) as exc:
+            if speaker is not None:
+                await speaker.cancel()
+                speaker = None
+            logger.warning(
+                "selected processing tool failed", extra={"error_type": type(exc).__name__}
+            )
+            async with self._lock:
+                if self.session.status is SessionStatus.IN_PROGRESS:
+                    self.session.pause(self._clock.now(), partial_move=self._take_partial())
+                    await self._commit()
+                    await self._emit(
+                        ErrorRaised(
+                            code="llm_unavailable",
+                            message=(
+                                "selected processing tool is unavailable; "
+                                "restore it and resume the interview"
+                            ),
+                            recoverable=True,
+                        )
+                    )
         except Exception as exc:  # the session must not stay stuck in THINKING
             logger.exception("interviewer move failed", extra={"session_id": self.session.id})
             async with self._lock:
@@ -555,6 +578,8 @@ class SessionOrchestrator:
                         return item.move
                 raise LlmError("interviewer stream ended without a move")
             except LlmError as exc:
+                if not isinstance(exc, StructuredOutputError):
+                    raise
                 logger.warning(
                     "interviewer move attempt failed",
                     extra={"session_id": self.session.id, "attempt": attempt, "error": str(exc)},

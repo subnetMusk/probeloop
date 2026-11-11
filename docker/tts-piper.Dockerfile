@@ -16,9 +16,10 @@ RUN useradd --create-home --uid 1000 piper \
     && mkdir -p /models/piper \
     && chown -R piper:piper /models
 USER piper
+COPY docker/tts-piper/wait-for-voice.py /usr/local/bin/wait-for-voice.py
 WORKDIR /home/piper
 EXPOSE 5000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/voices', timeout=2)"]
-ENTRYPOINT ["python", "-m", "piper.http_server", "--host", "0.0.0.0", "--port", "5000", "--data-dir", "/models/piper"]
+ENTRYPOINT ["python", "/usr/local/bin/wait-for-voice.py"]
 CMD ["-m", "it_IT-serena-medium"]

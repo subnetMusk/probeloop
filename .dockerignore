@@ -2,6 +2,7 @@
 # build context.
 *
 !docker/tts-piper/requirements.txt
+!docker/tts-piper/wait-for-voice.py
 !backend/pyproject.toml
 !backend/uv.lock
 !backend/src
@@ -16,3 +17,5 @@ frontend/playwright-report
 **/.pytest_cache
 **/.mypy_cache
 **/.ruff_cache
+**/.env
+**/.env.*

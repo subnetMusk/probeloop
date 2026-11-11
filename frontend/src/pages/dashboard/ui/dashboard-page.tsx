@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 
 import { cvCheckHistoryQuery } from '@/entities/cv-check'
+import { ActiveToolsSummary } from '@/features/execution-profile'
 import { interviewHistoryQuery, interviewLabels, labelOf } from '@/entities/interview'
 import { defineMessages, useMessages } from '@/shared/i18n'
 import { minutes, score } from '@/shared/lib/format'
@@ -98,6 +99,8 @@ export function DashboardPage() {
           </Button>
         }
       />
+
+      <ActiveToolsSummary />
 
       {fresh ? (
         <section className="relative overflow-hidden rounded-2xl p-8 ring-1 ring-foreground/10">

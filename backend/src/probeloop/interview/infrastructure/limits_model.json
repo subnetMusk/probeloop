@@ -1,0 +1,14 @@
+{
+  "id": "laya-stated-limits-v1",
+  "threshold": 0.5,
+  "max_tokens": 192,
+  "question_chars": 300,
+  "sizes": {
+    "limits-int8.onnx": 307962915,
+    "tokenizer/tokenizer.json": 34363188
+  },
+  "files": {
+    "limits-int8.onnx": "fff1c7bc834b0cdce8cfb0833980d1a7b51b6626b307177fafed181b2241a484",
+    "tokenizer/tokenizer.json": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f"
+  }
+}

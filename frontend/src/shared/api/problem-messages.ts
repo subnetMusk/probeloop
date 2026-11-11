@@ -6,6 +6,29 @@ import type { Language } from '@/shared/lib/preferences'
  * shown as sent.
  */
 export const PROBLEMS_IT: Readonly<Record<string, string>> = {
+  "not enough space in Docker's model volume":
+    'Spazio insufficiente per i modelli in Docker Desktop',
+  'model checksum or size mismatch; try the download again':
+    'Il file scaricato non supera la verifica. Riprova il download',
+  'model download failed; try again': 'Download del modello non riuscito. Riprova',
+  'model download was interrupted; try again':
+    'Download interrotto. Riprova: riutilizzeremo i file già scaricati e validi',
+  'model provisioning is unavailable': 'Il servizio di installazione non è raggiungibile',
+  'model provisioning is not configured': 'Il servizio di installazione non è configurato',
+  'configure the published Laya model URL in Settings first':
+    'Indica prima nelle Impostazioni l’indirizzo del modello Laya pubblicato',
+  'choose an available tool for every role in Settings':
+    'Scegli uno strumento disponibile per ogni ambito nelle Impostazioni',
+  'enable second transcription in Settings first':
+    'Attiva prima la seconda trascrizione nelle Impostazioni',
+  'Ollama is unavailable; check its connection and try again':
+    'Ollama non è raggiungibile. Controlla la connessione e riprova',
+  'Ollama could not download the model': 'Ollama non ha completato il download del modello',
+  'Ollama download was interrupted; try again': 'Download di Ollama interrotto. Riprova',
+  'selected processing tool is unavailable; restore it and resume the interview':
+    'Lo strumento selezionato non è disponibile. Ripristinalo, poi riprendi il colloquio',
+  'Laya is unavailable; check its model in Settings':
+    'Laya non è disponibile. Controlla il modello nelle Impostazioni',
   'confirm the target role and level before approving':
     'Conferma ruolo e livello target prima di approvare',
   'confirm the target role and level': 'Conferma ruolo e livello target',

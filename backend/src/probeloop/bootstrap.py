@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,12 +39,15 @@ from probeloop.context.application.snapshots import vocabulary_prompt
 from probeloop.context.infrastructure.fake_analysis import scripted_analysis
 from probeloop.context.infrastructure.text_extraction import TextExtractor
 from probeloop.ids import new_id
+from probeloop.interview.application.limits import LlmStatedLimitReader
 from probeloop.interview.application.llm_interviewer import LlmInterviewer
 from probeloop.interview.application.planner import TopicPlanner
+from probeloop.interview.application.ports import StatedLimitReader
 from probeloop.interview.application.service import SessionService
 from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptService
 from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import InterviewSession, Language, Modality
+from probeloop.interview.infrastructure.onnx_limits import OnnxStatedLimitReader
 from probeloop.platform.jobs import Handler, Job, JobRunner, Progress
 from probeloop.platform.model_access import BackgroundModelAccess
 from probeloop.settings import Settings
@@ -59,7 +63,17 @@ from probeloop.storage.sql_context import SqlContextStore
 from probeloop.storage.sql_jobs import SqlJobRepository
 from probeloop.storage.sql_reports import SqlReportStore
 from probeloop.storage.sql_sessions import SqlSessionStore
-from probeloop.workspace.execution import ExecutionProfiles, Profile
+from probeloop.workspace.execution import ExecutionProfiles, Profile, ToolOption, tool_for
+from probeloop.workspace.infrastructure.installation import InstallationFile
+from probeloop.workspace.infrastructure.provisioner import Provisioner
+from probeloop.workspace.infrastructure.provisioning import HttpModelInstaller, OllamaModelManager
+from probeloop.workspace.installation import (
+    INSTALL_MODEL_JOB,
+    PULL_MODEL_JOB,
+    InstallationConfig,
+    InstallationService,
+    ProvisioningError,
+)
 from probeloop.workspace.service import DataService
 
 
@@ -87,15 +101,20 @@ class Container:
     # The interviewer, analysis and evaluation roles, each with a model per profile.
     roles: Mapping[str, ProfiledChatModel]
     account: ChatGptAccount
+    limits: OnnxStatedLimitReader
+    tool_options: Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]]
+    installation: InstallationService
 
     async def startup(self) -> None:
         """Bring the schema up to date, then resume the background jobs."""
         await migrate(self.engine)
         await self.jobs.start()
+        self.limits.start()
 
     async def shutdown(self) -> None:
         await self.sessions.shutdown()
         await self.jobs.stop()
+        await self.limits.close()
         await self.data.close()
         await self.engine.dispose()
         self.extractor.close()
@@ -259,6 +278,23 @@ def build(
     assessment_model: ChatModel | None = None,
     voice: VoiceServices | None = None,
 ) -> Container:
+    managed = bool(settings.provisioner_url) and not settings.llm_fake
+    legacy = (
+        not managed
+        or (settings.data_dir / "probeloop.db").exists()
+        or (settings.data_dir / "execution-profile.json").exists()
+        or bool(settings.database_url)
+    )
+    installation_file = InstallationFile(
+        settings.data_dir / "installation.json",
+        InstallationConfig(
+            completed=legacy,
+            refinement=legacy,
+            ollama_url=settings.ollama_base_url,
+            limits_url=settings.limits_model_url,
+        ),
+    )
+    settings = settings.model_copy(update={"ollama_base_url": installation_file.read().ollama_url})
     if model is None and settings.llm_fake:
         model = FakeChatModel([scripted_moves()], chunk_delay_s=0.01)
     if model is None:
@@ -296,11 +332,18 @@ def build(
         FakeChatGptAccount() if settings.llm_fake else ChatGptAuth(settings.data_dir / "chatgpt")
     )
     cloud = build_cloud(settings, local, account)
+    local["limits"] = local["interviewer"]
+    cloud["limits"] = cloud["interviewer"]
+    limits = OnnxStatedLimitReader(settings.limits_model_dir, threads=settings.limits_threads)
     available: tuple[Profile, ...] = ("local", "cloud")
-    profiles = ExecutionProfiles(settings.data_dir / "execution-profile.json", available)
+    profiles = ExecutionProfiles(
+        settings.data_dir / "execution-profile.json",
+        available,
+        default="local" if legacy else "cloud",
+    )
     roles = {
         role: ProfiledChatModel(
-            {"local": local[role], "cloud": cloud[role]}, lambda: profiles.current
+            {"local": local[role], "cloud": cloud[role]}, lambda: profiles.current, role=role
         )
         for role in local
     }
@@ -325,6 +368,7 @@ def build(
         clock=clock,
         refiner=build_refiner(settings),
         vocabulary=lambda session: vocabulary_prompt(session.context.vocabulary),
+        refinement_enabled=lambda: installation_file.read().refinement,
     )
     holder: dict[str, SessionService] = {}
 
@@ -373,7 +417,15 @@ def build(
         pinned = roles["interviewer"].pinned(session.execution_profile or profiles.current)
         if settings.llm_debug_log:
             pinned = DebugLogChatModel(pinned, settings.data_dir / "logs" / "llm.jsonl")
-        return LlmInterviewer(pinned, two_step=settings.interviewer_turn == "two_step")
+        plan = session.execution_profile or profiles.current
+        reader: StatedLimitReader
+        if tool_for(plan, "limits") == "laya":
+            reader = limits
+        else:
+            reader = LlmStatedLimitReader(roles["limits"].pinned(plan))
+        return LlmInterviewer(
+            pinned, two_step=settings.interviewer_turn == "two_step", limit_reader=reader
+        )
 
     sessions = SessionService(
         interviewer_for=interviewer_for,
@@ -395,6 +447,45 @@ def build(
         pending=pending_jobs,
         clear_live=sessions.shutdown,
     )
+
+    async def apply_installation(config: InstallationConfig) -> None:
+        if config.ollama_url != installation_file.read().ollama_url:
+            seen: set[int] = set()
+            for adapter in local.values():
+                if isinstance(adapter, OllamaChatModel) and id(adapter) not in seen:
+                    seen.add(id(adapter))
+                    await adapter.reconfigure(config.ollama_url)
+
+    async def reload_installed_models() -> None:
+        await limits.reload()
+        if settings.stt_url and not settings.speech_fake:
+            import httpx
+
+            try:
+                async with httpx.AsyncClient(timeout=5) as client:
+                    response = await client.post(f"{settings.stt_url}/reload")
+                    response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise ProvisioningError(
+                    "models installed; speech service is unavailable, retry verification"
+                ) from exc
+
+    installation = InstallationService(
+        installation_file,
+        HttpModelInstaller(settings.provisioner_url),
+        OllamaModelManager(),
+        managed=managed,
+        local_models={
+            "interviewer": settings.interviewer_model,
+            "analysis": settings.analysis_model,
+            "evaluation": settings.evaluation_model,
+            "limits": settings.interviewer_model,
+        },
+        apply=apply_installation,
+        reload_models=reload_installed_models,
+    )
+    jobs.register(INSTALL_MODEL_JOB, installation.install)
+    jobs.register(PULL_MODEL_JOB, installation.pull)
     return Container(
         settings=settings,
         model=model,
@@ -412,7 +503,58 @@ def build(
         profiles=profiles,
         roles=roles,
         account=account,
+        limits=limits,
+        tool_options=build_tool_options(settings, local, cloud, account, limits),
+        installation=installation,
     )
+
+
+def build_tool_options(
+    settings: Settings,
+    local: Mapping[str, ChatModel],
+    cloud: Mapping[str, ChatModel],
+    account: ChatGptAccount,
+    limits: OnnxStatedLimitReader,
+) -> Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]]:
+    async def local_ready(model: ChatModel) -> bool:
+        if isinstance(model, OllamaChatModel):
+            return await model.available()
+        try:
+            async with asyncio.timeout(2):
+                await model.capabilities()
+            return True
+        except Exception:
+            return False
+
+    async def options() -> Mapping[str, tuple[ToolOption, ...]]:
+        ready = await asyncio.gather(*(local_ready(model) for model in local.values()))
+        status = account.status()
+        result = {}
+        for (role, model), installed in zip(local.items(), ready, strict=True):
+            choices: tuple[ToolOption, ...] = (
+                ToolOption(
+                    "local", installed, model.model_ref, "ready" if installed else "model_missing"
+                ),
+                ToolOption(
+                    "cloud",
+                    status.plan_usage,
+                    cloud[role].model_ref,
+                    "ready" if status.plan_usage else "sign_in_required",
+                ),
+            )
+            if role == "limits":
+                reason = {
+                    "missing": "model_missing",
+                    "failed": "model_invalid",
+                    "closed": "model_missing",
+                }.get(limits.state, limits.state)
+                if settings.interviewer_turn != "two_step":
+                    reason = "two_step_required"
+                choices += (ToolOption("laya", reason == "ready", limits.model_ref, reason),)
+            result[role] = choices
+        return result
+
+    return options
 
 
 def build_cloud(
@@ -464,3 +606,8 @@ def build_refiner(settings: Settings) -> SpeechToText | None:
         # The first call loads Whisper in the worker, which takes minutes on a cold start.
         return HttpSpeechToText(settings.stt_url, engine="refine", timeout_s=900.0)
     return None
+
+
+def build_provisioner(root: Path) -> Provisioner:
+    """Composition root for the separate, writable model provisioner process."""
+    return Provisioner(root)

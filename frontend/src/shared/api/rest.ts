@@ -22,7 +22,8 @@ export type AddFactIn = components['schemas']['AddFactIn']
 export type ReportData = components['schemas']['ReportData']
 export type ProgressGroup = components['schemas']['ProgressGroupView']
 export type ExecutionView = components['schemas']['ExecutionView']
-export type ExecutionProfile = ExecutionView['profile']
+export type InstallationView = components['schemas']['InstallationView']
+export type ExecutionProfile = string
 export type RequirementView = components['schemas']['RequirementView']
 export type ProfileIn = components['schemas']['ProfileIn']
 export type InterviewHistoryEntry = components['schemas']['InterviewHistoryView']
@@ -66,6 +67,17 @@ const json = (method: string, body: unknown): RequestInit => ({
 })
 
 export const api = {
+  installation: () => request<InstallationView>('/api/installation'),
+  configureInstallation: (body: components['schemas']['InstallationChoice']) =>
+    request<InstallationView>('/api/installation', json('PUT', body)),
+  installModel: (identity: string) =>
+    request<JobView>(`/api/installation/models/${encodeURIComponent(identity)}`, json('POST', {})),
+  installBase: () => request<JobView[]>('/api/installation/base', json('POST', {})),
+  pullLocalModel: (role: string) =>
+    request<JobView>(`/api/installation/ollama/${encodeURIComponent(role)}`, json('POST', {})),
+  ollamaStatus: () => request<{ available: boolean }>('/api/installation/ollama'),
+  completeInstallation: () =>
+    request<InstallationView>('/api/installation/complete', json('POST', {})),
   setRoleProfile: (id: string, body: RoleProfileData) =>
     request<PreparationView>(`${preparationPath(id)}/role-profile`, json('PUT', body)),
   reportHistory: () => request<ReportData[]>('/api/reports'),
@@ -79,6 +91,11 @@ export const api = {
   executionProfile: () => request<ExecutionView>('/api/settings/execution'),
   selectExecutionProfile: (profile: ExecutionProfile) =>
     request<ExecutionView>('/api/settings/execution', json('PUT', { profile })),
+  selectExecutionTools: (
+    tools: Partial<
+      Record<ExecutionView['tools'][number]['id'], ExecutionView['tools'][number]['selected']>
+    >,
+  ) => request<ExecutionView>('/api/settings/execution', json('PUT', { tools })),
   chatGptSignIn: () =>
     request<components['schemas']['SignInStart']>(
       '/api/settings/chatgpt/sign-in',

@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     # it (calls sharing the prompt prefix), or one structured generation. See
     # docs/research/adaptive-interview-validation.md before changing the default.
     interviewer_turn: Literal["single", "two_step"] = "two_step"
+    limits_model_dir: Path = Path("/models/stated-limits/v1")
+    limits_threads: int = 2
+    provisioner_url: str | None = None
+    limits_model_url: str = (
+        "https://huggingface.co/submsk/probeloop-laya-stated-limits/resolve/"
+        "4d8892cf85d84772b072b44e6db4515a6a6093f7"
+    )
 
     # Cloud execution profile (docs/adr/0013-cloud-execution-profile.md): the interviewer,
     # document analysis and evaluation use the signed-in user's ChatGPT plan through Sign in with

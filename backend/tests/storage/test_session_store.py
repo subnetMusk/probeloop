@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from probeloop.context.domain.model import RoleProfile
 from probeloop.interview.domain.model import (
@@ -18,6 +19,7 @@ from probeloop.interview.domain.model import (
     TurnIntent,
 )
 from probeloop.speech.audio import PcmAudio, from_wav
+from probeloop.storage.database import current_revision, downgrade
 from probeloop.storage.sql_sessions import SqlSessionStore
 from tests.speech_audio import tone
 from tests.storage.conftest import SESSION_ID, played_session
@@ -46,8 +48,41 @@ async def test_adaptive_intent_and_topic_clock_survive_reloading(store: SqlSessi
         ),
     )
     session.topic_engagement_s = {"t2": 51.25}
+    session.execution_profile = (
+        '{"version":1,"tools":{"interviewer":"local","analysis":"cloud",'
+        '"evaluation":"cloud","limits":"laya"}}'
+    )
     await store.save(session)
-    assert await store.load(session.id) == session
+    try:
+        assert await store.load(session.id) == session
+    finally:
+        # The PostgreSQL fixture downgrades between cases; mixed plans cannot be narrowed.
+        await store.delete(session.id)
+
+
+async def test_mixed_plans_cannot_be_downgraded_or_lost(
+    store: SqlSessionStore, engine: AsyncEngine
+) -> None:
+    session = played_session()
+    session.execution_profile = json.dumps(
+        {
+            "version": 1,
+            "tools": {
+                "interviewer": "local",
+                "analysis": "cloud",
+                "evaluation": "cloud",
+                "limits": "laya",
+            },
+        }
+    )
+    await store.save(session)
+    try:
+        with pytest.raises(RuntimeError, match="cannot downgrade"):
+            await downgrade(engine, "0006")
+        assert await current_revision(engine) == "0007"
+        assert await store.load(session.id) == session
+    finally:
+        await store.delete(session.id)
 
 
 async def test_save_load_list_delete(store: SqlSessionStore) -> None:

@@ -32,6 +32,7 @@ from probeloop.api.assessment_routes import assessment_router
 from probeloop.api.context_routes import context_router
 from probeloop.api.data_routes import data_router
 from probeloop.api.history_routes import history_router
+from probeloop.api.installation_routes import installation_router
 from probeloop.api.schemas import (
     MAX_AUDIO_FRAME_BYTES,
     CreateSession,
@@ -68,6 +69,7 @@ from probeloop.interview.domain.model import (
     Language,
 )
 from probeloop.settings import Settings
+from probeloop.workspace.execution import execution_tools
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +127,14 @@ def create_app(container: Container | None = None) -> FastAPI:
     def execution_for(requested: str | None) -> str:
         """The execution profile of new work: the requested one or the default (ADR 0015)."""
         profile = requested or container.profiles.current
-        if profile == "cloud" and not container.account.status().plan_usage:
+        try:
+            execution_tools(profile)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(422, "invalid execution plan") from exc
+        if (
+            "cloud" in execution_tools(profile).values()
+            and not container.account.status().plan_usage
+        ):
             raise HTTPException(409, "sign in with ChatGPT first")
         return profile
 
@@ -399,6 +408,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             except (InvalidTransitionError, ValueError) as exc:
                 outbox.put_nowait(error_message("invalid_command", str(exc)))
 
+    app.include_router(installation_router(container))
     app.include_router(context_router(container.context, jobs, execution_for))
     app.include_router(
         assessment_router(container.assessment, jobs, container.export_report, execution_for)
@@ -412,6 +422,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             container.data,
             container.account,
             settings.allowed_origins,
+            container.tool_options,
         )
     )
 

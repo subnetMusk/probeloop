@@ -11,6 +11,13 @@ test.skip(
 for (const profile of ['local', 'cloud'] as const) {
   test(`live acceptance with the ${profile} execution profile`, async ({ page, request }) => {
     test.setTimeout(1_800_000)
+    const configured = (await (await request.get('/api/settings/execution')).json()) as {
+      tools: { id: string; selected: string }[]
+    }
+    test.skip(
+      configured.tools.some((role) => role.id !== 'limits' && role.selected !== profile),
+      `Select ${profile} tools in Settings before running this acceptance case.`,
+    )
     await page.addInitScript(() => {
       localStorage.setItem(
         'probeloop.preferences',
@@ -18,12 +25,6 @@ for (const profile of ['local', 'cloud'] as const) {
       )
     })
     await page.goto('/new-interview')
-    const processing = page.getByRole('radio', {
-      name: profile === 'local' ? 'On this computer' : 'ChatGPT plan',
-      exact: true,
-    })
-    await expect(processing).toBeEnabled()
-    await processing.click()
     await page.getByRole('radio', { name: 'Italian', exact: true }).click()
     await page.getByRole('radio', { name: 'HR screening', exact: true }).click()
     const next = page.getByTestId('step-continue')

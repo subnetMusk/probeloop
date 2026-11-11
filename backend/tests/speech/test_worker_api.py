@@ -184,6 +184,16 @@ def test_a_preload_failure_is_reported_on_health() -> None:
         assert wait_for_status(client, "failed").status_code == 503
 
 
+def test_installed_models_become_ready_without_restarting_the_worker() -> None:
+    engine = GatedEngine(fail=True)
+    engine.gate.set()
+    with TestClient(create_worker_app({"live": engine}, preload=["live"])) as client:
+        assert wait_for_status(client, "failed").status_code == 503
+        engine.fail = False
+        assert client.post("/reload").status_code == 200
+        assert wait_for_status(client, "ready").status_code == 200
+
+
 async def test_requests_are_processed_one_at_a_time() -> None:
     probe = ConcurrencyProbe()
     app = create_worker_app({"live": probe})

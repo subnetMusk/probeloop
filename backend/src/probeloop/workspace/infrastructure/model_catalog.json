@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "parakeet",
+      "title": "Live speech recognition",
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/tree/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce",
+      "files": [
+        {
+          "path": "hf/hub/models--istupakov--parakeet-tdt-0.6b-v3-onnx/snapshots/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/config.json",
+          "url": "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/config.json",
+          "size": 97,
+          "sha256": "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466"
+        },
+        {
+          "path": "hf/hub/models--istupakov--parakeet-tdt-0.6b-v3-onnx/snapshots/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/encoder-model.int8.onnx",
+          "url": "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/encoder-model.int8.onnx",
+          "size": 652183999,
+          "sha256": "6139d2fa7e1b086097b277c7149725edbab89cc7c7ae64b23c741be4055aff09"
+        },
+        {
+          "path": "hf/hub/models--istupakov--parakeet-tdt-0.6b-v3-onnx/snapshots/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/decoder_joint-model.int8.onnx",
+          "url": "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/decoder_joint-model.int8.onnx",
+          "size": 18202004,
+          "sha256": "eea7483ee3d1a30375daedc8ed83e3960c91b098812127a0d99d1c8977667a70"
+        },
+        {
+          "path": "hf/hub/models--istupakov--parakeet-tdt-0.6b-v3-onnx/snapshots/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/vocab.txt",
+          "url": "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/vocab.txt",
+          "size": 93939,
+          "sha256": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"
+        }
+      ],
+      "reference": {
+        "path": "hf/hub/models--istupakov--parakeet-tdt-0.6b-v3-onnx/refs/main",
+        "value": "8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce"
+      }
+    },
+    {
+      "id": "whisper",
+      "title": "Second transcription (optional)",
+      "license": "MIT",
+      "source": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/tree/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+      "files": [
+        {
+          "path": "hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/snapshots/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/config.json",
+          "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/config.json",
+          "size": 2263,
+          "sha256": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e"
+        },
+        {
+          "path": "hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/snapshots/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/model.bin",
+          "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/model.bin",
+          "size": 1617884929,
+          "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+        },
+        {
+          "path": "hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/snapshots/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/preprocessor_config.json",
+          "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/preprocessor_config.json",
+          "size": 340,
+          "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+        },
+        {
+          "path": "hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/snapshots/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/tokenizer.json",
+          "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/tokenizer.json",
+          "size": 2710337,
+          "sha256": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd"
+        },
+        {
+          "path": "hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/snapshots/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/vocabulary.json",
+          "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/vocabulary.json",
+          "size": 1068114,
+          "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
+        }
+      ],
+      "reference": {
+        "path": "hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/refs/main",
+        "value": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"
+      }
+    },
+    {
+      "id": "piper-it",
+      "title": "Italian voice \u00b7 Serena",
+      "license": "CC-BY-4.0",
+      "source": "https://huggingface.co/rhasspy/piper-voices/tree/cf910fb59f1d79ab3b625a63993a108751c6c25d",
+      "files": [
+        {
+          "path": "piper/it_IT-serena-medium.onnx",
+          "url": "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/it/it_IT/serena/medium/it_IT-serena-medium.onnx",
+          "size": 63516051,
+          "sha256": "fe4e26b2c1236e2a44d2e295cad564d94a0d8b0a9fca1ccdfd70dd4af3116eb5"
+        },
+        {
+          "path": "piper/it_IT-serena-medium.onnx.json",
+          "url": "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/it/it_IT/serena/medium/it_IT-serena-medium.onnx.json",
+          "size": 5254,
+          "sha256": "14cb4995874138b2792ae07753b5540942124761af9ae6609f9b520f28837881"
+        },
+        {
+          "path": "piper/it_IT-serena-medium.MODEL_CARD",
+          "url": "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/it/it_IT/serena/medium/MODEL_CARD",
+          "size": 266,
+          "sha256": "1d0dbdc0182d19f6510fd3dcd2893587912a65f8cafe6da57754863f168bbe7e"
+        }
+      ],
+      "reference": null
+    },
+    {
+      "id": "laya",
+      "title": "Stated limits \u00b7 Laya",
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/submsk/probeloop-laya-stated-limits",
+      "reference": null,
+      "files": [
+        {
+          "path": "stated-limits/v1/limits-int8.onnx",
+          "url": "",
+          "size": 307962915,
+          "sha256": "fff1c7bc834b0cdce8cfb0833980d1a7b51b6626b307177fafed181b2241a484"
+        },
+        {
+          "path": "stated-limits/v1/tokenizer/tokenizer.json",
+          "url": "",
+          "size": 34363188,
+          "sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f"
+        }
+      ]
+    }
+  ]
+}

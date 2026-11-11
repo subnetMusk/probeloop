@@ -18,9 +18,8 @@ export function SettingsStep() {
   const completeSettings = useDraft((draft) => draft.completeSettings)
   const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
   const speech = useQuery(speechStatusQuery)
-  const cloudAvailable = execution.data?.chatgpt.plan_usage ?? false
   // The form starts from the server's default profile and the installed voices, so it waits.
-  const ready = (execution.isSuccess || execution.isError) && !speech.isPending
+  const ready = execution.isSuccess && !speech.isPending
   const voices = speech.data?.voices
   const voiced = (language: string) => voices === undefined || Boolean(voices[language])
   const values: InterviewSettings = {
@@ -28,9 +27,7 @@ export function SettingsStep() {
     language: voiced(settings.language)
       ? settings.language
       : (LANGUAGES.find(voiced) ?? settings.language),
-    execution:
-      settings.execution ??
-      (execution.data?.profile === 'cloud' && cloudAvailable ? 'cloud' : 'local'),
+    execution: execution.data?.profile ?? 'local',
   }
   return (
     <StepFrame
@@ -42,11 +39,13 @@ export function SettingsStep() {
         <SettingsForm
           id={FORM}
           values={values}
-          cloudAvailable={cloudAvailable}
           voices={voices}
           onChange={updateSettings}
           onSubmit={(submitted) => {
-            completeSettings(submitted)
+            completeSettings({
+              ...submitted,
+              execution: execution.data.profile,
+            })
             void navigate({ to: stepPath(nextStep(useDraft.getState(), 'interview-settings')) })
           }}
         />

@@ -15,8 +15,8 @@ from probeloop.interview.application.events import (
     UtteranceDelta,
 )
 from probeloop.interview.application.orchestrator import SessionOrchestrator
-from probeloop.interview.application.phrases import FALLBACK, FAREWELL
-from probeloop.interview.application.ports import MoveRequest
+from probeloop.interview.application.phrases import FAREWELL
+from probeloop.interview.application.ports import LimitReaderUnavailable, MoveRequest
 from probeloop.interview.domain.model import (
     EndReason,
     InterviewerMove,
@@ -138,30 +138,37 @@ async def test_events_describe_the_move_and_the_answer(
     ]
 
 
-async def test_llm_failure_is_retried_once(
+async def test_a_provider_error_pauses_until_the_user_resumes(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
     o, interviewer = orchestrator(clock, store, recorder, ScriptedInterviewer(failing(1)))
     await o.start()
     await o.wait_for_move()
-    move = o.session.last_move()
-    assert move is not None
-    assert not move.fallback
+    assert o.session.status is SessionStatus.PAUSED
+    assert o.session.last_move() is None
+    assert len(interviewer.requests) == 1
+    assert recorder.of(ErrorRaised)[0].code == "llm_unavailable"
+    await o.resume()
+    await o.wait_for_move()
+    assert o.session.status is SessionStatus.IN_PROGRESS
     assert len(interviewer.requests) == 2
-    assert recorder.of(ErrorRaised) == []
 
 
-async def test_repeated_llm_failure_falls_back_to_a_fixed_phrase(
-    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+@pytest.mark.parametrize(
+    "error", [LlmError("provider down"), LimitReaderUnavailable("classifier down")]
+)
+async def test_a_provider_error_after_an_answer_preserves_it_without_a_fallback(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder, error: Exception
 ) -> None:
-    o, _ = orchestrator(clock, store, recorder, ScriptedInterviewer(failing(5)))
+    o, interviewer = orchestrator(clock, store, recorder)
     await o.start()
     await o.wait_for_move()
-    move = o.session.last_move()
-    assert move is not None
-    assert move.fallback
-    assert move.utterance == FALLBACK[Language.ITALIAN]
-    assert o.session.phase is Phase.INTERVIEWER_SPEAKING
+    interviewer.script = lambda _: error
+    await answer(o, clock, "Synthetic answer to preserve.", 10)
+    assert o.session.status is SessionStatus.PAUSED
+    assert o.session.candidate_turns()[-1].text == "Synthetic answer to preserve."
+    assert len(interviewer.requests) == 2
+    assert len(recorder.of(MoveCompleted)) == 1
     assert recorder.of(ErrorRaised)[0].code == "llm_unavailable"
 
 

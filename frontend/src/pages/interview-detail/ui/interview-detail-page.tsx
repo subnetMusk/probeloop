@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInstallation } from '@/features/installation'
 import { Link, useParams } from '@tanstack/react-router'
 
 import {
@@ -24,6 +25,7 @@ import { Answer } from './answer'
 import { transcriptMessages } from './messages'
 
 export function InterviewDetailPage() {
+  const installation = useInstallation()
   const { sessionId } = useParams({ from: '/interviews/$sessionId/' })
   const t = useMessages(transcriptMessages)
   const labels = useMessages(interviewLabels)
@@ -187,6 +189,9 @@ export function InterviewDetailPage() {
             </Card>
           )}
           {ended && data.modality === 'voice' && (
+            <p className="text-sm text-muted-foreground">{t.refineNote}</p>
+          )}
+          {ended && data.modality === 'voice' && installation.data?.config.refinement !== false && (
             <Card>
               <CardHeader>
                 <CardTitle role="heading" aria-level={2}>
@@ -194,7 +199,6 @@ export function InterviewDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm">
-                <p className="text-muted-foreground">{t.refineNote}</p>
                 {isRunning(refineJob) && (
                   <div role="status">
                     <p>{refineJob?.status === 'queued' ? t.queued : t.refining}</p>
