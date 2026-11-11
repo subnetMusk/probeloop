@@ -68,6 +68,11 @@ the supported Compose variables; see `compose.yaml` and `probeloop.settings.Sett
 | `PROBELOOP_LIMITS_THREADS` | Classifier CPU threads; default 2, with idle spinning disabled |
 | `PROBELOOP_LIMITS_MODEL_URL` | Initial approved, pinned public HTTPS model directory |
 | `PROBELOOP_STT_THREADS`, `PROBELOOP_STT_CPUS` | Speech worker resource allocation |
+
+Speech recognition uses six engine threads by default, without an explicit container CPU quota.
+This allows the setup page to open when Docker Desktop exposes fewer than six CPUs. An optional
+`PROBELOOP_STT_CPUS` quota must fit Docker's allocation; `0.0` leaves that quota unset, following
+the [Compose CPU setting](https://docs.docker.com/reference/compose-file/services/#cpus).
 | `PROBELOOP_TTS_VOICE` | Default Italian Piper voice identifier |
 | `PROBELOOP_DATABASE_URL` | Optional PostgreSQL connection instead of default SQLite |
 | `PROBELOOP_PORT` | Published loopback port in the installer bundle |

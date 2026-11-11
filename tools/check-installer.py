@@ -19,6 +19,7 @@ with tempfile.TemporaryDirectory() as directory:
         services = yaml.safe_load(archive.read(prefix + "compose.yaml"))["services"]
         assert set(services) == {"backend", "stt-worker", "tts-piper", "provisioner"}
         assert services["backend"]["ports"] == ["127.0.0.1:${PROBELOOP_PORT:-8000}:8000"]
+        assert services["stt-worker"]["cpus"] == "${PROBELOOP_STT_CPUS:-0.0}"
         for name, service in services.items():
             assert "build" not in service
             assert "@sha256:" in service["image"]

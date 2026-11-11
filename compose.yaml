@@ -68,7 +68,8 @@ services:
     volumes:
       - models:/models:ro
     networks: [internal]
-    cpus: ${PROBELOOP_STT_CPUS:-6}
+    # Do not require six CPUs before the first-run resource check can open.
+    cpus: ${PROBELOOP_STT_CPUS:-0.0}
     restart: unless-stopped
 
   # The only long-running service with writable access to model files. It cannot control Docker.
