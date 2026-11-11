@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -72,7 +73,6 @@ from probeloop.workspace.installation import (
     PULL_MODEL_JOB,
     InstallationConfig,
     InstallationService,
-    ProvisioningError,
 )
 from probeloop.workspace.service import DataService
 
@@ -465,10 +465,12 @@ def build(
                 async with httpx.AsyncClient(timeout=5) as client:
                     response = await client.post(f"{settings.stt_url}/reload")
                     response.raise_for_status()
-            except httpx.HTTPError as exc:
-                raise ProvisioningError(
-                    "models installed; speech service is unavailable, retry verification"
-                ) from exc
+            except httpx.HTTPError:
+                # The worker retries missing models itself. A loading consumer must not turn
+                # a verified installation into a failed download job.
+                logging.getLogger(__name__).warning(
+                    "models installed; speech worker will retry loading when available"
+                )
 
     installation = InstallationService(
         installation_file,

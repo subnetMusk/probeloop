@@ -27,6 +27,10 @@ before activation. Consumers mount models read-only. Temporary download parts be
 installer; a retry resumes them where supported and revalidates the final complete file. Valid
 models are reused rather than copied into application images or per-service volumes.
 
+A verified download completes independently of engine warm-up. Reload notifications are best
+effort: a speech worker that is still loading does not turn verified files into a failed download.
+It retries model loading automatically; voice remains unavailable until its readiness check passes.
+
 The Laya installer downloads only its int8 ONNX and tokenizer, about 342 MB. The full Safetensors
 checkpoint is for maintainers and further training; it is not downloaded by the application.
 

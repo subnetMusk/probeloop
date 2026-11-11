@@ -41,6 +41,8 @@ limited, and the benefit of a second recogniser is not established on representa
 The first model installation still needs disk space and internet access, and model loading may
 continue after download verification. The app shows those states separately. Cloud processing
 needs an eligible sign-in and sends the text required by the selected roles to that provider.
+Consumer reload notifications are best effort. A temporarily unavailable speech worker retries
+loading itself and must not cause a verified download job to be reported as failed.
 
 Runtime images expose application code publicly; they contain no model weights or personal data.
 Piper remains a separate GPL program, with its own source and licence obligations. The app does

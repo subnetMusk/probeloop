@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from probeloop.ai.fake import FakeChatModel
 from probeloop.api.app import create_app
 from probeloop.bootstrap import build
+from probeloop.platform.jobs import Job, JobStatus, Progress
 from probeloop.settings import Settings
+from probeloop.workspace.installation import INSTALL_MODEL_JOB
 
 
 def test_new_installation_prefers_cloud_and_disables_whisper(tmp_path: Path) -> None:
@@ -89,3 +93,43 @@ def test_configuration_is_persisted_but_does_not_complete_setup(tmp_path: Path) 
         assert client.post("/api/installation/models/whisper", json={}).status_code == 409
         assert client.post("/api/installation/base", content="not json").status_code == 415
     assert build(Settings(data_dir=tmp_path, llm_fake=True)).installation.config.refinement is False
+
+
+@pytest.mark.parametrize("simulate_timeout", [False, True])
+async def test_verified_download_survives_a_loading_speech_consumer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, simulate_timeout: bool
+) -> None:
+    container = build(Settings(data_dir=tmp_path, llm_fake=True, stt_url="http://speech"))
+    events: list[str] = []
+
+    async def verified(model: str, url: str, progress: Progress) -> None:
+        events.append("verified")
+        await progress(1.0, "Model installed and verified")
+
+    async def reload_limits() -> None:
+        events.append("limits")
+
+    def loading(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/reload"
+        events.append("speech")
+        if simulate_timeout:
+            raise httpx.ReadTimeout("synthetic model loading", request=request)
+        return httpx.Response(503)
+
+    real_client = httpx.AsyncClient
+
+    def make_client(**kwargs: Any) -> httpx.AsyncClient:
+        return real_client(transport=httpx.MockTransport(loading), **kwargs)
+
+    monkeypatch.setattr(container.installation.installer, "install", verified)
+    monkeypatch.setattr(container.limits, "reload", reload_limits)
+    monkeypatch.setattr(httpx, "AsyncClient", make_client)
+
+    async def progress(value: float, message: str | None) -> None:
+        pass
+
+    job = Job("synthetic-install", INSTALL_MODEL_JOB, "laya", JobStatus.RUNNING, 0)
+    result = await container.installation.install(job, progress)
+    assert result == {"model": "laya", "verified": True}
+    assert events == ["verified", "limits", "speech"]
+    await container.shutdown()
