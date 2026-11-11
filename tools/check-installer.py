@@ -28,5 +28,9 @@ with tempfile.TemporaryDirectory() as directory:
             assert f"models:/models{'' if name == 'provisioner' else ':ro'}" in service["volumes"]
         assert archive.getinfo(prefix + "Start.command").external_attr >> 16 & 0o111
         assert archive.getinfo(prefix + "Start.sh").external_attr >> 16 & 0o111
+        assert b"Copyright 2026 subnetMusk" in archive.read(prefix + "LICENSE")
+        assert b"Piper 1.8.0" in archive.read(prefix + "NOTICE")
+        assert "licenses/inter-OFL-1.1.txt" in archive.read(prefix + "THIRD_PARTY_NOTICES.md").decode()
+        assert b"SIL OPEN FONT LICENSE" in archive.read(prefix + "licenses/inter-OFL-1.1.txt")
         assert not any(".env" in name or "model.safetensors" in name for name in archive.namelist())
 print("Installer archive contracts passed.")

@@ -1,0 +1,27 @@
+ProbeLoop
+Copyright 2026 subnetMusk and ProbeLoop contributors
+
+ProbeLoop application code, documentation and installation scripts are licensed
+under the Apache License, Version 2.0. See LICENSE.
+
+Third-party components retain their own copyrights, licences and notices.
+This notice does not change their terms or imply endorsement by their authors.
+See THIRD_PARTY_NOTICES.md and the licence metadata distributed with dependencies.
+
+Piper 1.8.0 is distributed as a separate, unmodified GPL-3.0-or-later program in
+the tts-piper image. Upstream source and licence:
+https://github.com/OHF-Voice/piper1-gpl/tree/v1.8.0
+
+Inter: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter).
+Space Grotesk: Copyright 2020 The Space Grotesk Project Authors
+(https://github.com/floriankarsten/space-grotesk).
+Both fonts use SIL Open Font License 1.1; full notices are in licenses/.
+The frontend bundle includes THIRD_PARTY_LICENSES.txt with production dependency
+notices, served alongside the application assets.
+
+Model weights are downloaded separately and are not covered by the application's
+licence. Parakeet weights are by NVIDIA, with ONNX conversion by istupakov,
+under CC-BY-4.0. Piper voices, Whisper and Laya retain their model-card terms.
+Laya multilingual is by ConvAI Innovations under Apache-2.0; its underlying
+mmBERT-base encoder by JHU-CLSP and the mmBERT authors is identified as MIT:
+https://huggingface.co/jhu-clsp/mmBERT-base

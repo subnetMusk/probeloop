@@ -4,6 +4,7 @@
 
 - Status: Accepted
 - Date: 2026-11-03
+- Amended: 2026-11-11, installer notices and separate model publication.
 
 ## Context
 
@@ -21,9 +22,12 @@ CC0, CC-BY-4.0 or M-AILABS for the Piper voices.
 - No AGPL library is used.
 - GPL components are never imported in-process. They run only as separate, unmodified programs in
   their own containers, reached over HTTP; Piper runs as the `tts-piper` service.
-- Model weights and voices are not redistributed. The user downloads them, and the documentation
-  and UI show each license, including attribution where required.
+- Runtime images and installer archives contain no model weights or voices. Users download
+  approved models separately; the provisional Laya fine-tuning is published separately on
+  Hugging Face. Documentation and UI show their own licences and attribution.
 - Any third-party code that is copied keeps its notice in `THIRD_PARTY_NOTICES.md`.
+- `LICENSE`, `NOTICE` and third-party attributions accompany the installer and images.
+  Frontend bundles preserve production-package notices; full font licences accompany the assets.
 
 ## Consequences
 

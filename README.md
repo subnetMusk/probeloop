@@ -69,9 +69,9 @@ in named volumes.
 Whisper is **optional and initially disabled** on new installations. Enabling the second
 transcription in Settings downloads its model. Existing installations retain their configuration.
 
-The repository is currently private, so its release downloads require repository access. Published
-GHCR images and the [provisional Laya checkpoint](https://huggingface.co/submsk/probeloop-laya-stated-limits)
-are public. Full instructions, disk requirements and troubleshooting are in
+Source code, release downloads, GHCR images and the
+[provisional Laya checkpoint](https://huggingface.co/submsk/probeloop-laya-stated-limits)
+are distributed publicly. Full instructions, disk requirements and troubleshooting are in
 [the installation guide](docs/getting-started.md).
 
 ## Choose where processing happens
@@ -133,4 +133,5 @@ ProbeLoop application code is [Apache-2.0 licensed](LICENSE). Piper is GPL-3.0-o
 and runs as an independent program in its own container, reached over HTTP. Model weights and
 voices retain their own licences and credits; see [voice credits](docs/voices.md) and the model
 cards linked by the installer. The wordmark uses Space Grotesk under the SIL Open Font License;
-stack badges are SVGs served by Shields.io.
+stack badges are SVGs served by Shields.io. Copyright and third-party attributions are recorded
+in [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md), included in the distribution.

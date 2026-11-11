@@ -83,6 +83,7 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           reference="ghcr.io/subnetmusk/probeloop-$IMAGE@$DIGEST"
+          docker run --rm --entrypoint python "$reference" -c 'from pathlib import Path; root=Path("/usr/share/doc/probeloop"); assert "Copyright 2026 subnetMusk" in (root/"LICENSE").read_text(); assert (root/"NOTICE").is_file(); assert (root/"THIRD_PARTY_NOTICES.md").is_file()'
           if [ "$IMAGE" = backend ]; then
             docker run --rm -v "$PWD/backend/tests/fixtures/synthetic/installation:/fixtures:ro" --entrypoint python "$reference" -c 'import onnxruntime as ort, tokenizers, numpy as np; from probeloop.bootstrap import build_provisioner; options=ort.SessionOptions(); options.intra_op_num_threads=1; session=ort.InferenceSession("/fixtures/matmul-int8.onnx", options, providers=["CPUExecutionProvider"]); np.testing.assert_array_equal(session.run(None, {"x":np.array([[2,3]],dtype=np.uint8)})[0], [[5,2]]); print("Native int8 CPU kernel ready")'
           elif [ "$IMAGE" = stt-worker ]; then

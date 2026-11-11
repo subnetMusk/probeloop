@@ -43,7 +43,10 @@ def package(version: str, digests: dict[str, str], output: Path) -> None:
             write(name, (ROOT / "installer" / name).read_text(), name.endswith(".sh"))
         write("Start.command", (ROOT / "installer/Start.sh").read_text(), True)
         write("images.json", json.dumps({"version": version, "digests": digests}, indent=2))
-        write("LICENSE", (ROOT / "LICENSE").read_text())
+        for name in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"):
+            write(name, (ROOT / name).read_text())
+        for notice in sorted((ROOT / "licenses").glob("*.txt")):
+            write(f"licenses/{notice.name}", notice.read_text())
 
 
 if __name__ == "__main__":

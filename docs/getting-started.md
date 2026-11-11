@@ -8,8 +8,8 @@ and disk to Docker Desktop for the selected speech models; the setup page report
 visible to Docker, rather than assuming it can inspect the host's complete hardware.
 
 Download the ZIP from [Releases](https://github.com/subnetMusk/probeloop/releases) and extract the
-whole folder. Release assets currently require access to the private repository. Container images
-are distributed publicly through GHCR, with amd64 and arm64 variants and immutable digests in
+whole folder. Source code and release assets are public. Container images are distributed
+publicly through GHCR, with amd64 and arm64 variants and immutable digests in
 the ZIP's Compose file.
 
 | System | Start |

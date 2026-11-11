@@ -18,6 +18,10 @@ model-index:
 
 # ProbeLoop Laya stated-limit classifier
 
+**Application and source:** [ProbeLoop on GitHub](https://github.com/subnetMusk/probeloop) ·
+[Installation guide](https://github.com/subnetMusk/probeloop/blob/main/docs/getting-started.md) ·
+[Pilot evaluation](https://github.com/subnetMusk/probeloop/blob/main/docs/research/laya-limits-pilot.md)
+
 **Provisional checkpoint, trained on 2026-11-10.** This is an experimental fine-tuning of
 [Laya multilingual](https://huggingface.co/convaiinnovations/laya-multilingual) for one narrow task:
 identifying sentences in which an interview candidate explicitly states that they do not know,
@@ -103,7 +107,10 @@ decisions about people.
 
 ## Attribution
 
-Fine-tuned for ProbeLoop by submsk. Based on `convaiinnovations/laya-multilingual`, whose
-multilingual encoder is mmBERT-base; retain the upstream attribution and Apache-2.0 licence.
-Model weights and runtime exports are distributed under Apache-2.0. No real CVs, recordings,
+Fine-tuned for ProbeLoop by submsk. Based on
+[ConvAI Innovations' Laya multilingual](https://huggingface.co/convaiinnovations/laya-multilingual),
+released under Apache-2.0. Its underlying multilingual encoder is
+[mmBERT-base by JHU-CLSP and the mmBERT authors](https://huggingface.co/jhu-clsp/mmBERT-base),
+whose model card specifies MIT. Retain those upstream attributions and applicable terms.
+ProbeLoop's fine-tuning and runtime exports use Apache-2.0. No real CVs, recordings,
 transcripts, personal data or authentication material are included in this release.

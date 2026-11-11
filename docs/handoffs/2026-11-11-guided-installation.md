@@ -23,6 +23,8 @@ only the int8 ONNX export and tokenizer, approximately 342 MB.
 - Backend: 616 tests passed, 38 PostgreSQL variants skipped locally, 23 live tests deselected.
   Later installer/API changes passed their 14 targeted tests; speech worker tests passed 18.
   Ruff, strict mypy and all 10 import contracts passed.
+- Remote source validation subsequently passed 618 backend tests and the PostgreSQL storage
+  contracts, including the explicit no-Ollama first-run and disconnect regression checks.
 - Frontend: 77 unit tests passed, along with lint, architecture, formatting, type and bundle checks.
 - Rebuilt browser application: 20 Playwright scenarios passed, with two opt-in live-provider
   scenarios skipped. These include first run, mobile settings, persisted progress, accessibility,
@@ -47,3 +49,14 @@ Parakeet took about 20 minutes on this Windows machine. There was no OOM; sample
 waiting on model-file reads and checksums. The subsequent fresh-download test was much faster.
 Do not replace the original pilot timings with this observation or claim a Mac benchmark.
 Startup readiness is asynchronous and the interface remains available while models load.
+
+## Distribution notices
+
+`LICENSE` identifies the 2026 project copyright holder. `NOTICE`, third-party attribution and
+full font notices accompany the installer and images. Browser builds retain production dependency
+licences. The model catalog correctly identifies Parakeet's CC-BY-4.0 terms. The separately
+published Hugging Face LICENSE was updated in metadata-only revision
+`ff5d0f32a6ccc350794c8cd015df400fa1dc1730`; the pinned runtime files and their hashes did not change.
+The model card links the public ProbeLoop repository, installation guide and pilot in metadata
+revision `0faadf4eeac6b58702f0583bc4c172e60cad500a`. Source and release documentation now reflect
+the repository's public visibility.

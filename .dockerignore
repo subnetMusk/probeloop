@@ -1,6 +1,10 @@
 # Only the backend sources, the frontend sources and the pinned Piper requirements go into the
 # build context.
 *
+!LICENSE
+!NOTICE
+!THIRD_PARTY_NOTICES.md
+!licenses/*.txt
 !docker/tts-piper/requirements.txt
 !docker/tts-piper/wait-for-voice.py
 !backend/pyproject.toml

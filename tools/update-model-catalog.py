@@ -8,7 +8,7 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 SPECS = [
     (
-        "parakeet", "Live speech recognition", "Apache-2.0",
+        "parakeet", "Live speech recognition", "CC-BY-4.0",
         "istupakov/parakeet-tdt-0.6b-v3-onnx", "8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce",
         ["config.json", "encoder-model.int8.onnx", "decoder_joint-model.int8.onnx", "vocab.txt"],
     ),

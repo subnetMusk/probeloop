@@ -1,5 +1,8 @@
 # Documentation
 
+Project copyright and dependency/model attributions are in [NOTICE](../NOTICE) and
+[third-party notices](../THIRD_PARTY_NOTICES.md).
+
 These guides describe the current implementation. The roadmap records milestone scope; ADRs
 record decisions and their amendments. Research, proposals and handoffs retain their original
 dates and evidence and must not be treated as current installation instructions.

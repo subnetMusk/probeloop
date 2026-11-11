@@ -26,6 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra stt --no-install-project
 COPY backend/src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --extra stt
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /usr/share/doc/probeloop/
 USER app
 EXPOSE 8000
 # Loading Parakeet from the models volume takes about 25 s on a cold cache.

@@ -12,8 +12,8 @@ cd probeloop
 docker compose up -d --build
 ```
 
-Open [127.0.0.1:8000](http://127.0.0.1:8000) and complete guided setup. The repository is currently
-private, so cloning needs your normal GitHub access. No host Python or Node installation is used.
+Open [127.0.0.1:8000](http://127.0.0.1:8000) and complete guided setup. The repository is public;
+cloning requires no account. No host Python or Node installation is used.
 Models are downloaded through Settings; the images contain dependencies, not weights.
 
 For hot reload:
@@ -79,7 +79,7 @@ checkpoints and exported weights stay under ignored `var/` and are published sep
 The release workflow runs CI, builds each runtime image natively for amd64 and arm64, combines
 their platform manifests and creates an installer ZIP pinned to their image digests. It publishes
 a prerelease rather than claiming model-quality acceptance. The ZIP contains launchers, Compose,
-licence and digest metadata. Public package visibility is configured separately from the private
-source repository; verify anonymous pulls before announcing a release.
+licence and digest metadata. Public package visibility is configured separately from source
+repository visibility; verify anonymous pulls before announcing a release.
 
 Never publish dev images, data volumes, personal files, tokens or model caches as runtime artifacts.

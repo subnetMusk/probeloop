@@ -28,6 +28,7 @@ WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
+COPY licenses/ /licenses/
 RUN npm run build
 
 # Runtime: application dependencies only, plus the built frontend.
@@ -38,6 +39,8 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-ins
 COPY backend/src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 COPY --from=frontend /frontend/dist ./static
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /usr/share/doc/probeloop/
+COPY licenses/ /usr/share/doc/probeloop/licenses/
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=10s --start-period=90s \
@@ -58,6 +61,7 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --all-extras --no
 COPY --chown=app:app backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --all-extras \
     && chown app:app /app
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /usr/share/doc/probeloop/
 USER app
 EXPOSE 8000
 CMD ["uvicorn", "probeloop.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src"]

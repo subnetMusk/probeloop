@@ -15,6 +15,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN useradd --create-home --uid 1000 piper \
     && mkdir -p /models/piper \
     && chown -R piper:piper /models
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /usr/share/doc/probeloop/
 USER piper
 COPY docker/tts-piper/wait-for-voice.py /usr/local/bin/wait-for-voice.py
 WORKDIR /home/piper
