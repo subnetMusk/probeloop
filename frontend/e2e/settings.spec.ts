@@ -59,7 +59,9 @@ test('tools are selected by role in Settings and shown on the dashboard', async 
 
   await account.getByRole('button', { name: 'Continue with ChatGPT' }).click()
   await expect(page).toHaveURL(/\/settings\?chatgpt=connected$/)
-  await expect(page.getByRole('status')).toContainText('Signed in with ChatGPT')
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Signed in with ChatGPT' }),
+  ).toContainText('Signed in with ChatGPT')
   await expect(account).toContainText('synthetic@example.test')
   await page.getByRole('button', { name: 'Got it' }).click()
   await analysis.click()
