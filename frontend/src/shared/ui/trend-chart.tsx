@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 export interface ChartPoint {
@@ -25,8 +25,8 @@ export interface ChartSeries {
   segments: ChartPoint[][]
 }
 
-const MARGIN = { top: 12, right: 16, bottom: 28, left: 28 }
-const HIT_RADIUS = 28
+const MARGIN = { top: 14, right: 40, bottom: 28, left: 36 }
+const Y_TICKS = [0, 25, 50, 75, 100]
 
 /** Up to four ticks across the points, one per distinct label, so a single day shows once. */
 function ticksBetween(min: number, max: number, label: (x: number) => string): number[] {
@@ -39,6 +39,49 @@ function ticksBetween(min: number, max: number, label: (x: number) => string): n
     return true
   })
   return ticks.length === 1 ? [(min + max) / 2] : ticks
+}
+
+/**
+ * A monotone cubic path through the points (Fritsch-Carlson): smooth, but never above or below
+ * the values it joins, so the curve does not invent peaks between two reports.
+ */
+export function monotonePath(points: readonly (readonly [number, number])[]): string {
+  const n = points.length
+  if (n === 0) return ''
+  const [first] = points
+  if (!first) return ''
+  if (n < 3) return points.map(([x, y], i) => `${i ? 'L' : 'M'}${String(x)},${String(y)}`).join('')
+  const dx: number[] = []
+  const slope: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = points[i] ?? first
+    const [x1, y1] = points[i + 1] ?? first
+    dx.push(x1 - x0)
+    slope.push(x1 === x0 ? 0 : (y1 - y0) / (x1 - x0))
+  }
+  // Steffen's tangents: zero at a local extreme, never steeper than twice the gentler side.
+  const tangent: number[] = [slope[0] ?? 0]
+  for (let i = 1; i < n - 1; i++) {
+    const s0 = slope[i - 1] ?? 0
+    const s1 = slope[i] ?? 0
+    const h0 = dx[i - 1] ?? 0
+    const h1 = dx[i] ?? 0
+    const p = (s0 * h1 + s1 * h0) / (h0 + h1 || 1)
+    tangent.push(
+      (Math.sign(s0) + Math.sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(p)),
+    )
+  }
+  tangent.push(slope[n - 2] ?? 0)
+  let d = `M${String(first[0])},${String(first[1])}`
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = points[i] ?? first
+    const [x1, y1] = points[i + 1] ?? first
+    const h = (dx[i] ?? 0) / 3
+    d += `C${String(x0 + h)},${String(y0 + h * (tangent[i] ?? 0))} ${String(x1 - h)},${String(
+      y1 - h * (tangent[i + 1] ?? 0),
+    )} ${String(x1)},${String(y1)}`
+  }
+  return d
 }
 
 /** Line keys and names of the series, for two or more series. */
@@ -60,9 +103,11 @@ export function ChartLegend({ series }: { series: readonly ChartSeries[] }) {
 }
 
 /**
- * Scores over time on a fixed 0 to 100 scale. Lines are 2 px, points have a ring in the surface
- * colour, and a crosshair with a tooltip follows the pointer to the nearest point. Every value
- * is also in the table view, so the tooltip never gates information.
+ * Scores over time on a fixed 0 to 100 scale. Lines are 2 px monotone curves; a single series
+ * also gets a faint wash beneath it. Points have a ring in the surface colour, each series' latest
+ * value is labelled at its end, and a crosshair snaps to the date nearest the pointer (or to the
+ * point chosen with the arrow keys) with a tooltip. Every value is also in the table view, so
+ * the tooltip never gates information.
  */
 export function TrendChart({
   series,
@@ -82,9 +127,10 @@ export function TrendChart({
   /** False when the legend is drawn elsewhere, for example beside the chart's filters. */
   legend?: boolean
 }) {
+  const gradient = useId()
   const box = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(640)
-  const [active, setActive] = useState<{ point: ChartPoint; series: ChartSeries } | null>(null)
+  const [active, setActive] = useState<number | null>(null)
   useLayoutEffect(() => {
     const element = box.current
     if (!element) return
@@ -97,8 +143,12 @@ export function TrendChart({
     }
   }, [])
 
+  // Every point once, in time order: the crosshair and the arrow keys walk this list.
   const points = useMemo(
-    () => series.flatMap((s) => s.segments.flat().map((point) => ({ point, series: s }))),
+    () =>
+      series
+        .flatMap((s) => s.segments.flat().map((point) => ({ point, series: s })))
+        .sort((a, b) => a.point.x - b.point.x),
     [series],
   )
   const xs = points.map((p) => p.point.x)
@@ -112,23 +162,37 @@ export function TrendChart({
   const sx = (x: number) => MARGIN.left + ((x - x0) / (x1 - x0)) * plotW
   const sy = (y: number) => MARGIN.top + ((100 - y) / 100) * plotH
   const xTicks = ticksBetween(minX, maxX, formatX)
+  const current = active === null ? null : (points[active] ?? null)
+  const single = series.length === 1
 
-  const nearest = (clientX: number, clientY: number, rect: DOMRect) => {
+  const nearestX = (clientX: number, rect: DOMRect) => {
     const px = clientX - rect.left
-    const py = clientY - rect.top
-    let best: (typeof points)[number] | null = null
-    let distance = HIT_RADIUS
-    for (const candidate of points) {
-      const d = Math.hypot(sx(candidate.point.x) - px, sy(candidate.point.y) - py)
-      if (d <= distance) {
-        best = candidate
+    let best: number | null = null
+    let distance = Infinity
+    points.forEach((candidate, index) => {
+      const d = Math.abs(sx(candidate.point.x) - px)
+      if (d < distance) {
+        best = index
         distance = d
       }
-    }
+    })
     return best
   }
 
-  const rows = [...points].sort((a, b) => b.point.x - a.point.x)
+  // The latest value of each series, labelled at its end unless it would touch another label.
+  const ends = series
+    .map((s) => ({ series: s, point: s.segments.flat().reduce<ChartPoint | null>(
+      (latest, p) => (latest === null || p.x > latest.x ? p : latest),
+      null,
+    ) }))
+    .filter((end): end is { series: ChartSeries; point: ChartPoint } => end.point !== null)
+    .sort((a, b) => sy(a.point.y) - sy(b.point.y))
+    .filter((end, index, all) => {
+      const previous = all[index - 1]
+      return !previous || Math.abs(sy(end.point.y) - sy(previous.point.y)) >= 14
+    })
+
+  const rows = [...points].reverse()
   return (
     <div className="flex flex-col gap-3">
       {legend && series.length > 1 && <ChartLegend series={series} />}
@@ -138,20 +202,48 @@ export function TrendChart({
           aria-label={ariaLabel}
           width={width}
           height={height}
-          className={active?.point.onSelect ? 'cursor-pointer' : undefined}
+          tabIndex={points.length ? 0 : undefined}
+          className={`rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${current?.point.onSelect ? 'cursor-pointer' : ''}`}
           onPointerMove={(event) => {
-            setActive(
-              nearest(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect()),
-            )
+            setActive(nearestX(event.clientX, event.currentTarget.getBoundingClientRect()))
           }}
           onPointerLeave={() => {
             setActive(null)
           }}
+          onBlur={() => {
+            setActive(null)
+          }}
+          onKeyDown={(event) => {
+            if (!points.length) return
+            if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+              event.preventDefault()
+              const step = event.key === 'ArrowRight' ? 1 : -1
+              setActive((index) =>
+                index === null
+                  ? step > 0
+                    ? 0
+                    : points.length - 1
+                  : Math.min(points.length - 1, Math.max(0, index + step)),
+              )
+            } else if (event.key === 'Enter') {
+              current?.point.onSelect?.()
+            } else if (event.key === 'Escape') {
+              setActive(null)
+            }
+          }}
           onClick={() => {
-            active?.point.onSelect?.()
+            current?.point.onSelect?.()
           }}
         >
-          {[0, 25, 50, 75, 100].map((tick) => (
+          <defs>
+            {single && series[0] && (
+              <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={series[0].color} stopOpacity={0.16} />
+                <stop offset="100%" stopColor={series[0].color} stopOpacity={0} />
+              </linearGradient>
+            )}
+          </defs>
+          {Y_TICKS.map((tick) => (
             <g key={tick}>
               <line
                 x1={MARGIN.left}
@@ -162,7 +254,7 @@ export function TrendChart({
                 strokeWidth={1}
               />
               <text
-                x={MARGIN.left - 10}
+                x={MARGIN.left - 8}
                 y={sy(tick)}
                 dy="0.32em"
                 textAnchor="end"
@@ -190,24 +282,41 @@ export function TrendChart({
                 {formatX(tick)}
               </text>
             ))}
-          {active && (
+          {single &&
+            series[0]?.segments
+              .filter((segment) => segment.length > 1)
+              .map((segment) => {
+                const coords = segment.map((p) => [sx(p.x), sy(p.y)] as const)
+                const first = coords[0]
+                const last = coords.at(-1)
+                if (!first || !last) return null
+                const base = sy(0)
+                return (
+                  <path
+                    key={`wash-${segment[0]?.id ?? ''}`}
+                    d={`${monotonePath(coords)}L${String(last[0])},${String(base)}L${String(first[0])},${String(base)}Z`}
+                    fill={`url(#${gradient})`}
+                  />
+                )
+              })}
+          {current && (
             <line
-              x1={sx(active.point.x)}
-              x2={sx(active.point.x)}
+              x1={sx(current.point.x)}
+              x2={sx(current.point.x)}
               y1={MARGIN.top}
               y2={height - MARGIN.bottom}
               stroke="var(--muted-foreground)"
               strokeWidth={1}
-              opacity={0.5}
+              opacity={0.45}
             />
           )}
           {series.map((s) =>
             s.segments
               .filter((segment) => segment.length > 1)
               .map((segment) => (
-                <polyline
+                <path
                   key={`${s.id}-${segment[0]?.id ?? ''}`}
-                  points={segment.map((p) => `${String(sx(p.x))},${String(sy(p.y))}`).join(' ')}
+                  d={monotonePath(segment.map((p) => [sx(p.x), sy(p.y)] as const))}
                   fill="none"
                   stroke={s.color}
                   strokeWidth={2}
@@ -221,35 +330,47 @@ export function TrendChart({
               key={`${s.id}-${point.id}`}
               cx={sx(point.x)}
               cy={sy(point.y)}
-              r={active?.point === point ? 6 : 4}
+              r={current?.point === point ? 6 : 4}
               fill={s.color}
               stroke="var(--card)"
               strokeWidth={2}
+              className="transition-[r] duration-150 motion-reduce:transition-none"
             />
           ))}
+          {ends.map(({ series: s, point }) => (
+            <text
+              key={`end-${s.id}`}
+              x={sx(point.x) + 9}
+              y={sy(point.y)}
+              dy="0.32em"
+              className="fill-foreground font-heading text-[12px] font-semibold tabular-nums"
+            >
+              {formatY(point.y)}
+            </text>
+          ))}
         </svg>
-        {active && (
+        {current && (
           <div
             aria-hidden="true"
             className="pointer-events-none absolute z-10 min-w-36 -translate-x-1/2 -translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md"
             style={{
-              left: Math.min(Math.max(sx(active.point.x), 72), width - 72),
-              top: sy(active.point.y) - 10,
+              left: Math.min(Math.max(sx(current.point.x), 72), width - 72),
+              top: sy(current.point.y) - 12,
             }}
           >
-            <p className="font-heading text-base font-semibold">{formatY(active.point.y)}</p>
+            <p className="font-heading text-base font-semibold">{formatY(current.point.y)}</p>
             {series.length > 1 && (
               <p className="flex items-center gap-1.5 text-muted-foreground">
                 <span
                   className="h-0.5 w-3 rounded-full"
-                  style={{ backgroundColor: active.series.color }}
+                  style={{ backgroundColor: current.series.color }}
                 />
-                {active.series.name}
+                {current.series.name}
               </p>
             )}
-            <p>{active.point.title}</p>
-            {active.point.detail && (
-              <p className="text-muted-foreground">{active.point.detail}</p>
+            <p>{current.point.title}</p>
+            {current.point.detail && (
+              <p className="text-muted-foreground">{current.point.detail}</p>
             )}
           </div>
         )}

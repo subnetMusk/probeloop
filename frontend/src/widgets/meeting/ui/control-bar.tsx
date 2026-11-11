@@ -32,7 +32,7 @@ function RoundButton(props: {
           disabled={props.disabled}
           onClick={props.onClick}
           className={cn(
-            'flex size-12 items-center justify-center rounded-full bg-zinc-800 text-zinc-100 transition-colors hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 [&_svg]:size-5',
+            'flex size-11 items-center justify-center rounded-full bg-zinc-800 md:size-12 text-zinc-100 transition-colors hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 [&_svg]:size-5',
             props.active && 'bg-zinc-100 text-zinc-900 hover:bg-white',
             props.className,
           )}
@@ -63,7 +63,7 @@ interface ControlBarProps {
 export function ControlBar(props: ControlBarProps) {
   const t = useMessages(meetingMessages)
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-3">
+    <div className="flex flex-col items-center gap-2 px-3 py-3 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-4 md:px-4">
       <div className="flex items-center gap-3 text-sm text-zinc-300">
         <span className="font-mono tabular-nums" data-testid="timer">
           {props.clock}
@@ -75,13 +75,13 @@ export function ControlBar(props: ControlBarProps) {
           </span>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         {props.answering ? (
           <button
             type="button"
             onClick={props.onEndAnswer}
             data-testid="end-answer"
-            className="flex h-12 items-center gap-2 rounded-full bg-red-500 px-5 font-medium text-white transition-colors hover:bg-red-600 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
+            className="flex h-11 items-center gap-2 rounded-full bg-red-500 px-4 font-medium md:h-12 md:px-5 text-white transition-colors hover:bg-red-600 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
           >
             <SquareIcon className="size-4 fill-current" />
             {t.endAnswer}
@@ -92,7 +92,7 @@ export function ControlBar(props: ControlBarProps) {
             onClick={props.onAnswer}
             disabled={!props.canAnswer}
             data-testid="answer"
-            className="flex h-12 items-center gap-2 rounded-full bg-brand px-5 font-medium text-brand-foreground transition-colors hover:bg-brand/85 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+            className="flex h-11 items-center gap-2 rounded-full bg-brand px-4 font-medium md:h-12 md:px-5 text-brand-foreground transition-colors hover:bg-brand/85 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
           >
             <MicIcon className="size-5" />
             {t.answer}
@@ -112,7 +112,7 @@ export function ControlBar(props: ControlBarProps) {
         <RoundButton
           label={t.endCall}
           onClick={props.onEndCall}
-          className="w-16 bg-red-600 text-white hover:bg-red-700"
+          className="w-14 bg-red-600 text-white hover:bg-red-700 md:w-16"
           testId="end-call"
         >
           <PhoneOffIcon />

@@ -3,6 +3,7 @@ import { defineMessages } from '@/shared/i18n'
 export const accessibilityMessages = defineMessages({
   en: {
     title: 'Accessibility statement',
+    toc: 'On this page',
     updated: 'Self-assessment of 9 November 2026, not verified by a third party.',
     commitment: {
       title: 'Commitment',
@@ -37,6 +38,7 @@ export const accessibilityMessages = defineMessages({
   },
   it: {
     title: 'Dichiarazione di accessibilità',
+    toc: 'In questa pagina',
     updated: 'Autovalutazione del 9 novembre 2026, non verificata da terzi.',
     commitment: {
       title: 'Impegno',

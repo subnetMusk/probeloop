@@ -77,7 +77,7 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   const interviews = await json<unknown[]>(request.get('/api/history/interviews'))
 
   await page.goto('/')
-  await expect(page).toHaveTitle('dashboard | ProbeLoop')
+  await expect(page).toHaveTitle('Dashboard | ProbeLoop')
   const summary = page.getByRole('region', { name: 'Summary' })
   await expect(summary).toContainText('Interviews')
   await expect(summary).toContainText('CV checks')
@@ -95,21 +95,15 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await expect(pager).toContainText('2 of')
   await expect(page.getByRole('link', { name: 'All interviews' })).toBeVisible()
 
-  // Only the content scrolls; the round button brings it back to the top.
+  // The short dashboard scrolls inside the shell without the long-page control.
   const content = page.getByTestId('content')
   const top = page.getByRole('button', { name: 'Back to top' })
-  // Clicking the pager above scrolls it into view first.
-  await content.evaluate((element) => {
-    element.scrollTo({ top: 0 })
-  })
-  await expect(top).toBeHidden()
   await content.evaluate((element) => {
     element.scrollTo({ top: element.scrollHeight })
   })
-  await expect(top).toBeVisible()
+  await expect(top).toBeHidden()
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeInViewport()
-  await top.click()
-  await expect.poll(() => content.evaluate((element) => element.scrollTop)).toBe(0)
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
   await noSeriousViolations(page)
 
   // The CV checks are a short list too; each opens its own page.
@@ -117,7 +111,7 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await expect(checks.first()).toBeVisible()
   expect(await checks.count()).toBeLessThanOrEqual(4)
   await page.goto(`/cv-checks/${snapshotId}`)
-  await expect(page).toHaveTitle('cv-check-detail | ProbeLoop')
+  await expect(page).toHaveTitle('CV check | ProbeLoop')
   await expect(page.getByRole('heading', { name: 'Versions' })).toBeVisible()
   const versions = await json<{ version: number }[]>(
     request.get(`/api/snapshots/${snapshotId}/cv-reviews`),
@@ -130,7 +124,7 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   await expect(page.getByText('Typed text: there is no original file.')).toBeVisible()
   await noSeriousViolations(page)
   await latestReport.click()
-  await expect(page).toHaveTitle('cv-report | ProbeLoop')
+  await expect(page).toHaveTitle('Report | ProbeLoop')
   await expect(page.getByRole('heading', { name: 'Document checks' })).toBeVisible()
   for (const theme of ['light', 'dark']) {
     await setTheme(page, theme)
@@ -157,7 +151,7 @@ test('a profile is renamed in place, edited on its page and used', async ({ page
   )
 
   await page.goto('/profiles')
-  await expect(page).toHaveTitle('profiles | ProbeLoop')
+  await expect(page).toHaveTitle('Profiles | ProbeLoop')
   const row = page.getByTestId('profile-row').filter({ hasText: name })
   await row.getByRole('button', { name: `Rename ${name}` }).click()
   const field = page.getByRole('textbox', { name: 'Profile name' })
@@ -167,7 +161,7 @@ test('a profile is renamed in place, edited on its page and used', async ({ page
   await noSeriousViolations(page)
 
   await page.getByRole('link', { name: `Open ${name} renamed` }).click()
-  await expect(page).toHaveTitle('profile-detail | ProbeLoop')
+  await expect(page).toHaveTitle('Profile | ProbeLoop')
   const text = page.getByRole('textbox', { name: 'CV text', exact: true })
   await expect(text).toHaveValue(cv.trim())
   await text.fill(`${cv.trim()}\nAlso maintains the CI pipeline.`)

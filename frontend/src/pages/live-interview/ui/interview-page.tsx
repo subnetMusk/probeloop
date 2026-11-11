@@ -1,25 +1,42 @@
 import { Link, useParams } from '@tanstack/react-router'
-import { CheckIcon, Loader2Icon, MicIcon, PhoneOffIcon, RotateCcwIcon, XIcon } from 'lucide-react'
+import { MicIcon, PhoneOffIcon, RotateCcwIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { audioMessages, useAudio } from '@/shared/lib/audio'
 import { Captions } from '@/widgets/meeting'
 import { ControlBar } from '@/widgets/meeting'
-import { Dots, ParticipantTile } from '@/widgets/meeting'
+import { Dots, ParticipantTile, ProgressRing, StepIcon } from '@/widgets/meeting'
 import { TranscriptPanel } from '@/widgets/meeting'
+import { localizeProblem } from '@/shared/api'
 import { Button } from '@/shared/ui/button'
-import { Progress } from '@/shared/ui/progress'
 import { Wordmark } from '@/shared/ui/wordmark'
+import { useLanguage } from '@/shared/lib/preferences'
+import { measurement } from '@/shared/lib/format'
 import { micLevel, useAnimatedLevel } from '@/shared/lib/hooks'
 import { useHotkey } from '@/shared/lib/hooks'
-import { formatClock, remainingSeconds } from '@/features/live-interview'
-import type { Entry, InterviewState } from '@/features/live-interview'
+import {
+  formatClock,
+  preparationSteps,
+  remainingSeconds,
+  replySteps,
+} from '@/features/live-interview'
+import type { Entry, InterviewState, Notice } from '@/features/live-interview'
 import { useInterview } from '@/features/live-interview'
 import { cn } from '@/shared/lib/utils'
 import { useMessages } from '@/shared/i18n'
 import { meetingMessages } from '@/widgets/meeting'
 import { callMessages } from './messages'
+
+/** The notice in the interface language. */
+function useNoticeText(notice: Notice | null): string | null {
+  const t = useMessages(callMessages)
+  const language = useLanguage()
+  if (!notice) return null
+  if (notice.kind === 'answer_time') return t.answerTime(notice.remainingS)
+  const notices: Record<string, string> = t.notices
+  return notices[notice.code] ?? localizeProblem(notice.message, language)
+}
 
 function useNow(intervalMs: number): number {
   const [now, setNow] = useState(() => performance.now())
@@ -54,54 +71,120 @@ function Lobby({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+/**
+ * Between "start" and the first question: the interviewer's avatar, with one arc of the ring per
+ * thing being loaded, and the same steps listed below with what each one is for.
+ */
 function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () => void }) {
   const t = useMessages(callMessages)
-  const preparing = state.preparing
-  const failed = preparing?.steps.some((s) => s.state === 'failed') ?? false
+  const language = useLanguage()
+  const now = useNow(250)
+  const steps = preparationSteps(state, now)
+  const notice = useNoticeText(state.notice)
+  const failed = steps.some((s) => s.state === 'failed')
+  const elapsedS = state.preparingAt === null ? 0 : (now - state.preparingAt) / 1000
+  const stateText = {
+    done: t.states.ready,
+    active: t.states.loading,
+    failed: t.states.failed,
+    pending: '',
+  }
+  const ready = steps.filter((s) => s.state === 'done').length
   return (
-    <Lobby title={failed ? t.failed : t.joining}>
-      <div className="flex flex-col gap-5">
-        <Progress value={(preparing?.progress ?? 0) * 100} data-testid="preparation-progress" />
-        <ul className="flex flex-col gap-3 text-sm">
-          {preparing?.steps.map((step) => (
-            <li
-              key={step.name}
-              className="flex items-center gap-3"
-              data-testid={`step-${step.name}`}
-            >
-              {step.state === 'loading' && (
-                <Loader2Icon className="size-4 animate-spin text-zinc-400" />
-              )}
-              {step.state === 'ready' && <CheckIcon className="size-4 text-success" />}
-              {step.state === 'failed' && <XIcon className="size-4 text-red-400" />}
-              <span className="flex-1">{t.steps[step.name]}</span>
-              <span className="text-xs text-zinc-500">{t.states[step.state]}</span>
-            </li>
-          ))}
-        </ul>
-        {preparing?.steps
-          .filter((s) => s.detail)
-          .map((s) => (
-            <p key={s.name} className="text-sm text-red-400">
-              {s.detail}
-            </p>
-          ))}
-        {!preparing && !state.notice && (
+    <Stage className="items-center overflow-y-auto p-6">
+      <div
+        className="my-auto flex w-full max-w-md flex-col items-center gap-6 py-6 text-center"
+        data-testid="preparation"
+        data-failed={failed}
+      >
+        <div className="relative flex size-44 items-center justify-center">
+          <ProgressRing segments={steps} dimmed={failed} className="absolute inset-0 size-full" />
+          <span
+            aria-hidden
+            className={cn(
+              'absolute size-24 rounded-full bg-gradient-to-br from-brand to-highlight opacity-30 blur-md',
+              !failed && 'motion-safe:animate-pulse',
+            )}
+          />
+          <div
+            className={cn(
+              'relative flex size-24 items-center justify-center rounded-full bg-gradient-to-br from-brand to-highlight text-2xl font-semibold text-white shadow-lg transition-[filter] duration-500',
+              failed && 'grayscale',
+            )}
+          >
+            AI
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h1 className="font-heading text-xl font-semibold">{failed ? t.failed : t.joining}</h1>
+          <p className="text-sm text-zinc-400">{t.preparingNote}</p>
+        </div>
+
+        {steps.length === 0 && !state.notice && (
           <p className="text-sm text-zinc-400">
             {t.connecting}
             <Dots />
           </p>
         )}
-        {state.notice && <p className="text-sm text-highlight-text">{state.notice}</p>}
+
+        {steps.length > 0 && (
+          <ol
+            className="w-full divide-y divide-white/5 overflow-hidden rounded-2xl bg-zinc-900/80 text-left ring-1 ring-white/5"
+            data-testid="preparation-progress"
+            role="progressbar"
+            aria-label={t.joining}
+            aria-valuemin={0}
+            aria-valuemax={steps.length}
+            aria-valuenow={ready}
+          >
+            {steps.map((step) => (
+              <li
+                key={step.name}
+                className="flex items-start gap-3 px-4 py-3"
+                data-testid={`step-${step.name}`}
+                data-state={step.state}
+              >
+                <StepIcon state={step.state} className="mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      'text-sm',
+                      step.state === 'active' ? 'font-medium text-white' : 'text-zinc-200',
+                    )}
+                  >
+                    {t.steps[step.name]}
+                  </p>
+                  <p
+                    className={cn(
+                      'text-xs',
+                      step.state === 'failed' ? 'text-red-400' : 'text-zinc-500',
+                    )}
+                  >
+                    {step.detail ? localizeProblem(step.detail, language) : t.stepNotes[step.name]}
+                  </p>
+                </div>
+                <span className="pt-0.5 text-xs text-zinc-500">{stateText[step.state]}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {/* A failed step already says why; other problems (a lost connection) come as notices. */}
+        {notice && !failed && <p className="text-sm text-highlight-text">{notice}</p>}
         {(failed || state.notice) && (
           <Button onClick={onRetry}>
             <RotateCcwIcon data-icon="inline-start" />
             {t.retry}
           </Button>
         )}
-        <p className="text-xs text-zinc-500">{t.loading}</p>
+        {!failed && elapsedS > 8 && (
+          <p className="text-xs text-zinc-500 motion-safe:animate-in motion-safe:fade-in">
+            {t.loading}
+          </p>
+        )}
       </div>
-    </Lobby>
+    </Stage>
   )
 }
 
@@ -158,6 +241,7 @@ export function InterviewPage() {
   const t = useMessages(callMessages)
   const meeting = useMessages(meetingMessages)
   const audioText = useMessages(audioMessages)
+  const language = useLanguage()
   const { sessionId } = useParams({ from: '/live-interview/$sessionId' })
   const audio = useAudio()
   const kit = audio.kit
@@ -165,7 +249,8 @@ export function InterviewPage() {
     sessionId,
     kit,
   )
-  const now = useNow(500)
+  const now = useNow(state.reply ? 200 : 500)
+  const notice = useNoticeText(state.notice)
   const [captions, setCaptions] = useState(true)
   const [transcript, setTranscript] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -173,6 +258,14 @@ export function InterviewPage() {
   useEffect(() => kit?.player.subscribe(setSpeaking), [kit])
   const readInterviewer = useCallback(() => kit?.player.level() ?? 0, [kit])
   const interviewerLevel = useAnimatedLevel(readInterviewer, speaking)
+  const interviewerVoice = useCallback(
+    (target: Uint8Array<ArrayBuffer>) => kit?.player.spectrum(target) ?? false,
+    [kit],
+  )
+  const candidateVoice = useCallback(
+    (target: Uint8Array<ArrayBuffer>) => kit?.microphone.spectrum(target) ?? false,
+    [kit],
+  )
 
   useEffect(() => {
     if (!state.notice) return
@@ -216,14 +309,28 @@ export function InterviewPage() {
   const candidate = lastOf(state.entries, 'candidate')
   const transcribing = live && phase === 'finalizing_transcript'
   const interviewerTalking = speaking || phase === 'interviewer_thinking'
+  // Between an answer and the next question the ring around the interviewer shows the steps;
+  // the captions stay empty, so the question is not read before it is heard.
+  const reply = state.reply && !speaking ? replySteps(state.reply, now, state.latenciesMs) : null
+  const replyStep = reply?.find((s) => s.state === 'active')
   const caption =
     answering || transcribing
       ? { speaker: meeting.you, text: candidate && !candidate.final ? candidate.text : '' }
-      : { speaker: meeting.interviewer, text: interviewerTalking ? (interviewer?.text ?? '') : '' }
+      : {
+          speaker: meeting.interviewer,
+          text: interviewerTalking && !reply ? (interviewer?.text ?? '') : '',
+        }
   const lastLatency = state.latenciesMs.at(-1)
 
   let interviewerStatus: ReactNode = null
   if (state.status === 'paused') interviewerStatus = t.pausedShort
+  else if (replyStep)
+    interviewerStatus = (
+      <span role="status" data-testid="reply-step" data-step={replyStep.name}>
+        {t.replySteps[replyStep.name]}
+        <Dots />
+      </span>
+    )
   else if (phase === 'interviewer_thinking')
     interviewerStatus = (
       <>
@@ -234,7 +341,8 @@ export function InterviewPage() {
   else if (canAnswer) interviewerStatus = t.waiting
 
   let candidateStatus: ReactNode = null
-  if (transcribing)
+  if (transcribing && !reply)
+    // with a reply in progress the interviewer's ring shows this step
     candidateStatus = (
       <>
         {t.transcribing}
@@ -248,14 +356,14 @@ export function InterviewPage() {
       <header className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-2">
           <Wordmark className="text-base" />
-          <span className="font-medium">{t.title}</span>
-          <span className="text-zinc-500">{t.voice}</span>
+          <span className="hidden font-medium sm:inline">{t.title}</span>
+          <span className="hidden text-zinc-500 sm:inline">{t.voice}</span>
         </div>
         <div className="flex items-center gap-3 text-xs text-zinc-500">
           {state.connection === 'closed' && <span className="text-red-400">{t.lost}</span>}
           {lastLatency !== undefined && (
             <span data-testid="latency">
-              {t.reply} {(lastLatency / 1000).toFixed(1)} s
+              {t.reply} {measurement(lastLatency / 1000, language)} s
             </span>
           )}
         </div>
@@ -274,22 +382,27 @@ export function InterviewPage() {
               speaking={speaking}
               muted={!speaking}
               status={interviewerStatus}
+              progress={reply}
+              voice={interviewerVoice}
+              listening={answering}
             />
             <ParticipantTile
               testId="tile-candidate"
               name={meeting.you}
               role={meeting.candidate}
-              initials="YOU"
+              initials={meeting.you.toUpperCase()}
               tone="candidate"
               level={answering ? micLevel(audio.level) : 0}
               speaking={answering}
               muted={!answering}
               status={candidateStatus}
+              voice={candidateVoice}
+              listening={speaking}
             />
           </div>
-          {state.notice && (
+          {notice && (
             <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-highlight/15 px-4 py-2 text-sm text-highlight-text ring-1 ring-highlight/30 backdrop-blur">
-              {state.notice}
+              {notice}
             </div>
           )}
           {state.status === 'paused' && (

@@ -96,12 +96,20 @@ export const api = {
       Record<ExecutionView['tools'][number]['id'], ExecutionView['tools'][number]['selected']>
     >,
   ) => request<ExecutionView>('/api/settings/execution', json('PUT', { tools })),
+  setAnswerReconstruction: (enabled: boolean) =>
+    request<ExecutionView>(
+      '/api/settings/execution',
+      json('PUT', { answer_reconstruction: enabled }),
+    ),
   chatGptSignIn: () =>
     request<components['schemas']['SignInStart']>(
       '/api/settings/chatgpt/sign-in',
       json('POST', {}),
     ),
   chatGptSignOut: () => request<ExecutionView>('/api/settings/chatgpt/sign-out', json('POST', {})),
+  saveJevKey: (key: string) =>
+    request<ExecutionView>('/api/settings/jev/key', json('PUT', { key })),
+  removeJevKey: () => request<ExecutionView>('/api/settings/jev/remove', json('POST', {})),
   interviewReports: (id: string) => request<ReportData[]>(`${sessionPath(id)}/reports`),
   reviewInterview: (id: string, language: 'it' | 'en') =>
     request<JobView>(`${sessionPath(id)}/reports`, json('POST', { language })),

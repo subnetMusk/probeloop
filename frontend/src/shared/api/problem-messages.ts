@@ -29,6 +29,32 @@ export const PROBLEMS_IT: Readonly<Record<string, string>> = {
     'Lo strumento selezionato non è disponibile. Ripristinalo, poi riprendi il colloquio',
   'Laya is unavailable; check its model in Settings':
     'Laya non è disponibile. Controlla il modello nelle Impostazioni',
+  'add a Jev API key in Settings': 'Aggiungi una chiave API di Jev nelle Impostazioni',
+  'the Jev API key was rejected; check it in Settings':
+    'La chiave API di Jev non è stata accettata. Controllala nelle Impostazioni',
+  'Jev is unreachable; check the connection and try again':
+    'Jev non è raggiungibile. Controlla la connessione e riprova',
+  'Jev could not read the answer; try again': 'Jev non ha potuto leggere la risposta. Riprova',
+  'paste the Jev API key without spaces': 'Incolla la chiave API di Jev senza spazi',
+  'the stated-limit reader is not reachable':
+    'Il lettore dei limiti dichiarati non è raggiungibile',
+  'the language model is not reachable or could not be loaded':
+    'Il modello linguistico non è raggiungibile o non si è caricato',
+  'the speech services are not configured': 'I servizi vocali non sono configurati',
+  'the speech recognition service is unreachable': 'Il riconoscimento vocale non è raggiungibile',
+  'the speech recognition service is still loading its model':
+    'Il riconoscimento vocale sta ancora caricando il modello',
+  'the speech recognition service is not working (see its logs)':
+    'Il riconoscimento vocale non funziona (vedi i suoi log)',
+  'the speech recognition service did not answer in time':
+    'Il riconoscimento vocale non ha risposto in tempo',
+  'the speech synthesis service is unreachable': 'La sintesi vocale non è raggiungibile',
+  'the speech synthesis service sent an invalid answer':
+    'La sintesi vocale ha inviato una risposta non valida',
+  'the speech synthesis service could not use the voice':
+    'La sintesi vocale non è riuscita a usare la voce',
+  'a speech service is not ready': 'Un servizio vocale non è pronto',
+  'a speech service could not be checked': 'Non è stato possibile controllare un servizio vocale',
   'confirm the target role and level before approving':
     'Conferma ruolo e livello target prima di approvare',
   'confirm the target role and level': 'Conferma ruolo e livello target',

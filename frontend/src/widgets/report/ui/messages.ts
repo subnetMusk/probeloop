@@ -78,6 +78,7 @@ export const reportMessages = defineMessages({
     recording: 'Recording',
     transcript: 'Transcript',
     back: 'Back to the interview',
+    toc: 'On this page',
     backCv: 'Back to the CV check',
   },
   it: {
@@ -157,6 +158,7 @@ export const reportMessages = defineMessages({
     recording: 'Registrazione',
     transcript: 'Trascritto',
     back: 'Torna al colloquio',
+    toc: 'In questa pagina',
     backCv: 'Torna al CV check',
   },
 })

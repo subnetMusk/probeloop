@@ -5,9 +5,6 @@ export const documentsMessages = defineMessages({
     loading: 'Loading the documents of the profile…',
     loadError: 'The documents of the profile could not be loaded.',
     field: {
-      upload: 'Upload a file',
-      uploading: 'Uploading…',
-      replace: 'Replace with a file',
       formats: 'PDF, DOCX or text, up to 10 MB. Scanned documents are not supported.',
       original: 'Original file',
       clear: 'Clear',
@@ -68,9 +65,6 @@ export const documentsMessages = defineMessages({
     loading: 'Caricamento dei documenti del profilo…',
     loadError: 'Non è stato possibile caricare i documenti del profilo.',
     field: {
-      upload: 'Carica un file',
-      uploading: 'Caricamento…',
-      replace: 'Sostituisci con un file',
       formats: 'PDF, DOCX o testo, fino a 10 MB. I documenti scansionati non sono supportati.',
       original: 'File originale',
       clear: 'Svuota',

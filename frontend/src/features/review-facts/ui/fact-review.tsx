@@ -68,7 +68,7 @@ function FactItem({
           {kindLabel(t, fact.kind)} · {originLabel(t, fact.origin)}
         </p>
         {detailed && fact.quote && (
-          <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground">
+          <blockquote className="rounded-lg bg-muted/70 px-3 py-2 text-sm text-muted-foreground">
             <span className="sr-only">{t.fact.quote}: </span>“{fact.quote}”
           </blockquote>
         )}

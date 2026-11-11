@@ -51,8 +51,8 @@ export function SetupPage() {
         </p>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {it
-            ? 'Riconoscimento vocale, voce e Laya lavorano localmente. Con ChatGPT, il testo necessario alle funzioni selezionate viene inviato al servizio cloud. Ollama è facoltativo e non viene installato nel percorso cloud.'
-            : 'Speech recognition, synthesis and Laya run locally. With ChatGPT, text needed by the selected features is sent to the cloud service. Ollama is optional and is not installed for cloud use.'}
+            ? 'Riconoscimento vocale e voce lavorano localmente, come Laya se scegli di installarlo. Con ChatGPT o Jev, il testo necessario alle funzioni selezionate viene inviato al servizio cloud. Ollama è facoltativo e non viene installato nel percorso cloud.'
+            : 'Speech recognition and synthesis run locally, as does Laya if you choose to install it. With ChatGPT or Jev, text needed by the selected features is sent to that cloud service. Ollama is optional and is not installed for cloud use.'}
         </p>
       </div>
       <section aria-labelledby="setup-tools" className="space-y-4">

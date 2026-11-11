@@ -3,21 +3,35 @@ import { defineMessages } from '@/shared/i18n'
 export const callMessages = defineMessages({
   en: {
     failed: 'The interview could not start',
-    joining: 'Joining the interview…',
+    joining: 'Getting the interview ready',
+    preparingNote:
+      'Everything the interview needs is loaded first, so the conversation never stops to wait for it.',
     connecting: 'Connecting',
     retry: 'Try again',
-    loading: 'Loading the language model can take a minute the first time.',
+    loading: 'The first start after a while can take up to a minute.',
     steps: {
       language_model: 'Language model',
       stated_limits: 'Stated limits',
       speech_recognition: 'Speech recognition',
       speech_synthesis: 'Interviewer’s voice',
     },
+    stepNotes: {
+      language_model: 'Loads the model and the interview context',
+      stated_limits: 'Recognises when you say you cannot recall something',
+      speech_recognition: 'Transcribes your answers as you speak',
+      speech_synthesis: 'Gives the interviewer a voice',
+    },
     states: { loading: 'loading', ready: 'ready', failed: 'failed' },
+    replyTitle: 'The interviewer is working on your answer',
+    replySteps: {
+      audio: 'Receiving audio',
+      transcript: 'Transcription',
+      question: 'Next question',
+    },
     ended: 'The interview has ended',
     summary: (n: number, duration: string) =>
       `${String(n)} ${n === 1 ? 'answer' : 'answers'} · ${duration} of conversation`,
-    kept: 'The full transcript and the audio of the whole conversation are kept with the session. Your answers are now transcribed again, more accurately: review them before the report.',
+    kept: 'The full transcript and the audio of the whole conversation are kept with the session. Review the answers, especially the flagged ones, before the report.',
     review: 'Review the transcript',
     newInterview: 'New interview',
     enableTitle: 'Enable the microphone to join',
@@ -35,24 +49,44 @@ export const callMessages = defineMessages({
     voice: '· voice',
     lost: 'Connection lost',
     reply: 'reply after',
+    notices: {
+      stt_failed: 'Part of your answer could not be transcribed. Its audio is kept.',
+      tts_failed: 'A sentence could not be spoken; its text is shown.',
+      llm_unavailable: 'A selected tool is unavailable: restore it, then resume the interview.',
+    },
+    answerTime: (seconds: number) => `About ${String(Math.round(seconds))} s left for this answer.`,
   },
   it: {
     failed: 'Impossibile avviare il colloquio',
-    joining: 'Accesso al colloquio…',
+    joining: 'Preparazione del colloquio',
+    preparingNote:
+      'Prima carichiamo tutto ciò che serve, così il colloquio non si ferma mai ad aspettare.',
     connecting: 'Connessione',
     retry: 'Riprova',
-    loading: 'Il primo caricamento del modello può richiedere un minuto.',
+    loading: 'Il primo avvio dopo una pausa lunga può richiedere fino a un minuto.',
     steps: {
       language_model: 'Modello linguistico',
       stated_limits: 'Limiti dichiarati',
       speech_recognition: 'Riconoscimento vocale',
       speech_synthesis: 'Voce dell’intervistatore',
     },
+    stepNotes: {
+      language_model: 'Carica il modello e il contesto del colloquio',
+      stated_limits: 'Riconosce quando dichiari di non ricordare qualcosa',
+      speech_recognition: 'Trascrive le tue risposte mentre parli',
+      speech_synthesis: 'Dà la voce all’intervistatore',
+    },
     states: { loading: 'caricamento', ready: 'pronto', failed: 'non riuscito' },
+    replyTitle: 'L’intervistatore sta elaborando la tua risposta',
+    replySteps: {
+      audio: 'Ricezione audio',
+      transcript: 'Trascrizione',
+      question: 'Prossima domanda',
+    },
     ended: 'Il colloquio è terminato',
     summary: (n: number, duration: string) =>
       `${String(n)} ${n === 1 ? 'risposta' : 'risposte'} · ${duration} di conversazione`,
-    kept: 'Il trascritto e l’audio completo sono salvati con la sessione. Le risposte vengono ora ritrascritte con maggiore accuratezza: controllale prima del report.',
+    kept: 'Il trascritto e l’audio completo sono salvati con la sessione. Rivedi le risposte, soprattutto quelle segnalate, prima del report.',
     review: 'Rivedi il trascritto',
     newInterview: 'Nuovo colloquio',
     enableTitle: 'Attiva il microfono per partecipare',
@@ -70,5 +104,13 @@ export const callMessages = defineMessages({
     voice: '· voce',
     lost: 'Connessione persa',
     reply: 'risposta dopo',
+    notices: {
+      stt_failed: 'Una parte della risposta non è stata trascritta. Il suo audio è conservato.',
+      tts_failed: 'Una frase non è stata pronunciata; ne vedi il testo.',
+      llm_unavailable:
+        'Uno strumento selezionato non è disponibile: ripristinalo, poi riprendi il colloquio.',
+    },
+    answerTime: (seconds: number) =>
+      `Restano circa ${String(Math.round(seconds))} s per questa risposta.`,
   },
 })

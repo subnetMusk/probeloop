@@ -126,7 +126,7 @@ export function InstallationSettings() {
             ) : (
               <Download className="size-4" />
             )}
-            {it ? 'Installa i componenti vocali e Laya' : 'Install speech components and Laya'}
+            {it ? 'Installa i componenti vocali' : 'Install speech components'}
           </Button>
           <Button
             variant="outline"
@@ -194,6 +194,13 @@ export function InstallationSettings() {
                           ? 'Da installare'
                           : 'Not installed'}
                 </p>
+                {model.id === 'laya' && model.state !== 'ready' && (
+                  <p className="max-w-md text-xs text-muted-foreground">
+                    {it
+                      ? 'Facoltativo. Legge in locale i limiti dichiarati nelle risposte. Senza Laya, scegli l’LLM o Jev per questo ambito negli strumenti di elaborazione.'
+                      : 'Optional. Reads stated limits in answers on this machine. Without Laya, choose the LLM or Jev for this role in the processing tools.'}
+                  </p>
+                )}
                 {model.id === 'laya' && !model.download_available && !config.limits_url && (
                   <p className="text-xs text-muted-foreground">
                     {it
@@ -297,8 +304,8 @@ export function InstallationSettings() {
                 </span>
                 <span className="mt-1 block text-muted-foreground">
                   {it
-                    ? 'Facoltativa. Se la attivi, scarichiamo Whisper e riascoltiamo le risposte dopo il colloquio. Puoi sempre ascoltare e correggere il testo a mano.'
-                    : 'Optional. Enabling it downloads Whisper and transcribes answers again after the interview. Listening and manual edits always remain available.'}
+                    ? 'Facoltativa. Se la attivi, scarichiamo Whisper e riascoltiamo le risposte dopo il colloquio. Consigliata con l’intervistatore locale; con ChatGPT e la trascrizione ricostruita di solito non serve. Puoi sempre ascoltare e correggere il testo a mano.'
+                    : 'Optional. Enabling it downloads Whisper and transcribes answers again after the interview. Recommended with the local interviewer; with ChatGPT and the reconstructed transcript it is usually unnecessary. Listening and manual edits always remain available.'}
                 </span>
               </span>
             </label>

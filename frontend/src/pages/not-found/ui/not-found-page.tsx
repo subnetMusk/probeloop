@@ -21,8 +21,8 @@ const messages = defineMessages({
 export function NotFoundPage() {
   const t = useMessages(messages)
   useEffect(() => {
-    document.title = 'not-found | ProbeLoop'
-  }, [])
+    document.title = `${t.title} | ProbeLoop`
+  }, [t.title])
   return (
     <Page narrow>
       <PageHeader title={t.title} description={t.text} />

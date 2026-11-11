@@ -15,7 +15,12 @@ export const transcriptMessages = defineMessages({
     saving: 'Saving…',
     cancel: 'Cancel',
     history: 'Revision history',
-    sources: { stt: 'live transcript', retranscription: 'refined', user_edit: 'edited' },
+    sources: {
+      stt: 'live transcript',
+      retranscription: 'refined',
+      user_edit: 'edited',
+      reconstruction: 'reconstructed by the interviewer model',
+    },
     confidence: (n: number) => `Recognised with ${String(n)}% confidence`,
     refine: 'Second transcription',
     refineNote:
@@ -37,6 +42,23 @@ export const transcriptMessages = defineMessages({
     unfinished: 'The interview is not over yet.',
     resume: 'Resume interview',
     noTurns: 'There are no conversation turns yet.',
+    issues: {
+      live_incomplete:
+        'Part of the audio was not transcribed during the interview. Listen to the recording and complete the text.',
+      reading_missing:
+        'The interviewer could not reconstruct this answer: the live transcript is shown. Check it before the report.',
+    },
+    reviewTitle: 'Check the transcript',
+    reviewNote: 'These answers may contain transcription errors. Correct them before the report.',
+    reviewItem: (n: number) => `Answer ${String(n)}`,
+    confirmTitle: 'Generate the report from this transcript?',
+    confirmFlagged: (n: number) =>
+      `${String(n)} ${n === 1 ? 'answer is' : 'answers are'} flagged for review.`,
+    confirmLive: (n: number) =>
+      `${String(n)} ${n === 1 ? 'answer is' : 'answers are'} still the live transcript, which can contain recognition errors.`,
+    confirmNote: 'The report assesses the text as it is now.',
+    confirmGo: 'Generate the report',
+    confirmBack: 'Review first',
   },
   it: {
     title: 'Trascritto del colloquio',
@@ -52,7 +74,12 @@ export const transcriptMessages = defineMessages({
     saving: 'Salvataggio…',
     cancel: 'Annulla',
     history: 'Cronologia delle revisioni',
-    sources: { stt: 'trascritto iniziale', retranscription: 'rifinito', user_edit: 'modificato' },
+    sources: {
+      stt: 'trascritto iniziale',
+      retranscription: 'rifinito',
+      user_edit: 'modificato',
+      reconstruction: 'ricostruito dal modello dell’intervistatore',
+    },
     confidence: (n: number) => `Riconosciuta con affidabilità del ${String(n)}%`,
     refine: 'Seconda trascrizione',
     refineNote:
@@ -74,5 +101,27 @@ export const transcriptMessages = defineMessages({
     unfinished: 'Il colloquio non è ancora terminato.',
     resume: 'Riprendi il colloquio',
     noTurns: 'Non ci sono ancora turni di conversazione.',
+    issues: {
+      live_incomplete:
+        'Parte dell’audio non è stata trascritta durante il colloquio. Ascolta la registrazione e completa il testo.',
+      reading_missing:
+        'L’intervistatore non è riuscito a ricostruire questa risposta: vedi il testo riconosciuto dal vivo. Controllalo prima del report.',
+    },
+    reviewTitle: 'Controlla il trascritto',
+    reviewNote:
+      'Queste risposte possono contenere errori di trascrizione. Correggile prima del report.',
+    reviewItem: (n: number) => `Risposta ${String(n)}`,
+    confirmTitle: 'Generare il report da questo trascritto?',
+    confirmFlagged: (n: number) =>
+      n === 1
+        ? '1 risposta è segnalata da controllare.'
+        : `${String(n)} risposte sono segnalate da controllare.`,
+    confirmLive: (n: number) =>
+      n === 1
+        ? '1 risposta è ancora il testo riconosciuto dal vivo, che può contenere errori.'
+        : `${String(n)} risposte sono ancora il testo riconosciuto dal vivo, che può contenere errori.`,
+    confirmNote: 'Il report valuta il testo così com’è adesso.',
+    confirmGo: 'Genera il report',
+    confirmBack: 'Controlla prima',
   },
 })

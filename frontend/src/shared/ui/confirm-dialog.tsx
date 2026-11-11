@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Button } from './button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './dialog'
 
-/** Ask before an action that cannot be undone. */
+/** Ask before an action that cannot be undone, or that should not happen by mistake. */
 export function ConfirmDialog({
   open,
   title,
@@ -12,6 +12,7 @@ export function ConfirmDialog({
   cancel,
   pending,
   error,
+  tone = 'destructive',
   onConfirm,
   onCancel,
 }: {
@@ -22,6 +23,7 @@ export function ConfirmDialog({
   cancel: string
   pending: boolean
   error?: string
+  tone?: 'destructive' | 'default'
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -44,7 +46,7 @@ export function ConfirmDialog({
           <Button type="button" variant="ghost" disabled={pending} onClick={onCancel}>
             {cancel}
           </Button>
-          <Button type="button" variant="destructive" disabled={pending} onClick={onConfirm}>
+          <Button type="button" variant={tone} disabled={pending} onClick={onConfirm}>
             {confirm}
           </Button>
         </div>

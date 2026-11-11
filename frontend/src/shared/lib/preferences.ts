@@ -90,3 +90,27 @@ export function usePreferences() {
 export function useLanguage() {
   return usePreferences().language
 }
+
+const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+function systemDark(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia(DARK_QUERY).matches
+}
+
+/** The theme in effect: the saved choice, or the system's when the choice is "system". */
+export function useResolvedTheme(): 'light' | 'dark' {
+  const { theme } = usePreferences()
+  const dark = useSyncExternalStore(
+    (listener) => {
+      const media = window.matchMedia(DARK_QUERY)
+      media.addEventListener('change', listener)
+      return () => {
+        media.removeEventListener('change', listener)
+      }
+    },
+    systemDark,
+    () => false,
+  )
+  if (theme === 'system') return dark ? 'dark' : 'light'
+  return theme
+}

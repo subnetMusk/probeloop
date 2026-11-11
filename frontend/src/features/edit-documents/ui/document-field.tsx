@@ -6,17 +6,20 @@ import type { DocumentSlot } from '@/entities/preparation'
 import { api } from '@/shared/api'
 import { useMessages } from '@/shared/i18n'
 import { Button } from '@/shared/ui/button'
-import { Input } from '@/shared/ui/input'
+import { FileDrop } from '@/shared/ui/file-drop'
 import { RequiredMark } from '@/shared/ui/required-mark'
 import { Textarea } from '@/shared/ui/textarea'
 import { ACCEPTED_FILES, MAX_TEXT, MAX_TITLE, UPLOAD_KEY, slotOf } from '../model/documents'
 import { documentsMessages } from './messages'
 
+const MAX_FILE_BYTES = 10_000_000 // the server's upload limit
+
 const fileTitle = (name: string) => name.replace(/\.[^.]+$/, '').slice(0, MAX_TITLE) || name
 
 /**
- * One document: its text, editable, and a file upload. A file is stored as soon as it is chosen
- * and its extracted text fills the editor; edits to it become a revision when the step continues.
+ * One document: a file upload area, then its text, editable. A file is stored as soon as it is
+ * dropped or chosen and its extracted text fills the editor; edits to it become a revision when
+ * the step continues.
  */
 export function DocumentField({
   id,
@@ -54,6 +57,24 @@ export function DocumentField({
       <label htmlFor={`${id}-text`} className="flex items-center gap-1 text-sm font-medium">
         {label} {required && <RequiredMark />}
       </label>
+      {canUpload && (
+        <>
+          <FileDrop
+            id={`${id}-file`}
+            accept={ACCEPTED_FILES}
+            maxBytes={MAX_FILE_BYTES}
+            busy={upload.isPending}
+            replacing={Boolean(slot.text)}
+            describedBy={hint}
+            onFile={(file) => {
+              upload.mutate(file)
+            }}
+          />
+          <p id={hint} className="text-xs text-muted-foreground">
+            {t.field.formats}
+          </p>
+        </>
+      )}
       {slot.filename && (
         <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <FileTextIcon className="size-3.5" aria-hidden="true" />
@@ -93,43 +114,18 @@ export function DocumentField({
           </div>
         </div>
       )}
-      <div className="flex flex-wrap items-end gap-3">
-        {canUpload && (
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor={`${id}-file`} className="text-sm">
-              {upload.isPending ? t.field.uploading : slot.text ? t.field.replace : t.field.upload}
-            </label>
-            <Input
-              id={`${id}-file`}
-              type="file"
-              accept={ACCEPTED_FILES}
-              aria-describedby={hint}
-              disabled={upload.isPending}
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) upload.mutate(file)
-                event.currentTarget.value = ''
-              }}
-            />
-          </div>
-        )}
-        {(slot.text || slot.documentId) && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              onChange(emptySlot(slot.title))
-            }}
-          >
-            {t.field.clear}
-          </Button>
-        )}
-      </div>
-      {canUpload && (
-        <p id={hint} className="text-xs text-muted-foreground">
-          {t.field.formats}
-        </p>
+      {(slot.text || slot.documentId) && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            onChange(emptySlot(slot.title))
+          }}
+        >
+          {t.field.clear}
+        </Button>
       )}
       {upload.error && (
         <p role="alert" className="text-sm text-destructive">

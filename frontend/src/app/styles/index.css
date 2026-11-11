@@ -57,23 +57,25 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.145 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  /* Light theme: an off-white page with white cards and light grey for quiet surfaces. Every
+     text token keeps 4.5:1 on all three surfaces; input borders keep 3:1 (WCAG 1.4.11). */
+  --background: #f5f5f2;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --secondary: #ebebe7;
+  --secondary-foreground: #262626;
+  --muted: #ebebe7;
+  --muted-foreground: #5c5c57;
+  --accent: #e7e7e2;
+  --accent-foreground: #262626;
+  --destructive: #bf1e1e;
+  --border: #deded8;
+  --input: #8d8d87;
   --ring: #7c3aed;
   /* Chart series in a fixed order, validated for colour-vision deficiencies against the card
      surface (adjacent CVD ΔE >= 10). Slot 3 is below 3:1 here: charts carry a legend and a table. */
@@ -88,17 +90,17 @@
   --brand-foreground: #ffffff;
   --brand-text: #7c3aed;
   --highlight: #ea580c;
-  --highlight-text: #c2410c;
-  --success: #15803d;
-  --warning: #b45309;
+  --highlight-text: #b03a0a;
+  --success: #126b30;
+  --warning: #9a4705;
   --brand-gradient: linear-gradient(135deg, #7c3aed, #ea580c);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar: #efefeb;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #e7e7e2;
+  --sidebar-accent-foreground: #262626;
+  --sidebar-border: #deded8;
   --sidebar-ring: oklch(0.708 0 0);
 }
 

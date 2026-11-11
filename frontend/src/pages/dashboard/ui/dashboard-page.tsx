@@ -23,6 +23,7 @@ import { InterviewHistory } from '@/widgets/interview-history'
 import { ProfileList } from '@/widgets/profile-list'
 import { CvTrend, InterviewTrend } from '@/widgets/progress-trends'
 import { kpisOf } from '../model/kpis'
+import { GettingStarted } from './getting-started'
 
 /** Rows per page of each list on the dashboard. */
 const PAGE = 4
@@ -43,10 +44,6 @@ const messages = defineMessages({
     practiceNote: 'Interview time without pauses',
     cvChecks: 'CV checks',
     latestCv: (value: string) => `Latest: ${value} / 100`,
-    welcome: {
-      title: 'Practise your first interview',
-      text: 'Choose the interview, add your CV and the job offer, check what the analysis understood, then answer out loud. Reports and trends appear here.',
-    },
   },
   it: {
     title: 'Dashboard',
@@ -63,10 +60,6 @@ const messages = defineMessages({
     practiceNote: 'Durata dei colloqui senza pause',
     cvChecks: 'CV check',
     latestCv: (value: string) => `Ultimo: ${value} / 100`,
-    welcome: {
-      title: 'Fai il tuo primo colloquio',
-      text: 'Scegli il colloquio, aggiungi CV e offerta, controlla ciò che l’analisi ha capito, poi rispondi a voce. Qui compariranno report e andamenti.',
-    },
   },
 })
 
@@ -81,6 +74,7 @@ export function DashboardPage() {
   const kpis = kpisOf(interviews.data ?? [], checks.data ?? [], now)
   const fresh = interviews.data?.length === 0 && checks.data?.length === 0
   const delta = kpis.latest?.delta
+  const reported = (interviews.data ?? []).filter((entry) => entry.latest_report).length
   return (
     <Page>
       <PageHeader
@@ -100,23 +94,11 @@ export function DashboardPage() {
         }
       />
 
+      {interviews.data && <GettingStarted interviews={interviews.data.length} reports={reported} />}
+
       <ActiveToolsSummary />
 
-      {fresh ? (
-        <section className="relative overflow-hidden rounded-2xl p-8 ring-1 ring-foreground/10">
-          {/* The accent stays decorative: text sits on the plain surface for its contrast. */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 top-0 h-1.5"
-            style={{ background: 'var(--brand-gradient)' }}
-          />
-          <h2 className="text-2xl font-semibold">{t.welcome.title}</h2>
-          <p className="mt-2 max-w-xl text-muted-foreground">{t.welcome.text}</p>
-          <Button asChild className="mt-6 bg-brand text-brand-foreground hover:bg-brand/90">
-            <Link to="/new-interview">{t.start}</Link>
-          </Button>
-        </section>
-      ) : (
+      {fresh ? null : (
         <>
           <section aria-label={t.summary} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatTile

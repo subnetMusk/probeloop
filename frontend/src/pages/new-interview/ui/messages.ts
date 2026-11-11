@@ -47,6 +47,20 @@ export const newInterviewMessages = defineMessages({
       voice: 'There is no interviewer voice for the chosen language.',
       busy: 'Wait for background processing to finish.',
     },
+    background: {
+      title: 'Background processing is running',
+      note: 'The interview can start when it finishes: it uses the same models, and running both would slow each down.',
+      kinds: {
+        refine_transcript: 'Transcript refinement',
+        review_interview: 'Interview report',
+        review_cv: 'CV check',
+        analyse_context: 'Document analysis',
+        install_model: 'Model installation',
+        pull_local_model: 'Local model download',
+      },
+      other: 'Processing',
+      queued: 'queued',
+    },
     analysis: {
       title: 'Analysing your documents',
       waiting: 'Waiting for the analysis to start',
@@ -130,6 +144,20 @@ export const newInterviewMessages = defineMessages({
       speech: 'I servizi vocali non sono pronti.',
       voice: 'Non c’è una voce dell’intervistatore per la lingua scelta.',
       busy: 'Attendi la fine delle elaborazioni in background.',
+    },
+    background: {
+      title: 'Elaborazioni in corso',
+      note: 'Il colloquio può iniziare quando finiscono: usano gli stessi modelli, e insieme rallenterebbero entrambi.',
+      kinds: {
+        refine_transcript: 'Rifinitura del trascritto',
+        review_interview: 'Report del colloquio',
+        review_cv: 'Controllo del CV',
+        analyse_context: 'Analisi dei documenti',
+        install_model: 'Installazione di un modello',
+        pull_local_model: 'Download del modello locale',
+      },
+      other: 'Elaborazione',
+      queued: 'in coda',
     },
     analysis: {
       title: 'Analisi dei documenti',

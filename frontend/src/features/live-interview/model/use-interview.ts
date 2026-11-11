@@ -94,6 +94,7 @@ export function useInterview(sessionId: string, kit: AudioKit | null) {
     if (!kit) return
     kit.microphone.forwardFrames(null)
     const endedAt = performance.now()
+    dispatch({ type: 'reply', at: endedAt })
     kit.player.begin((startsAt) => {
       dispatch({ type: 'latency', ms: startsAt - endedAt })
     })
@@ -114,12 +115,12 @@ export function useInterview(sessionId: string, kit: AudioKit | null) {
   }, [kit])
 
   const retryStart = useCallback(() => {
-    dispatch({ type: 'notice', text: null })
+    dispatch({ type: 'dismiss' })
     socketRef.current?.command('session.start')
   }, [])
 
   const dismissNotice = useCallback(() => {
-    dispatch({ type: 'notice', text: null })
+    dispatch({ type: 'dismiss' })
   }, [])
 
   return { state, answer, endAnswer, endCall, resume, retryStart, dismissNotice }

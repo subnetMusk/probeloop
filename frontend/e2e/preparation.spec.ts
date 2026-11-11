@@ -45,9 +45,9 @@ async function toDocuments(page: Page, profile: string) {
 
 test('back and forward keep what was entered until the interview starts', async ({ page }) => {
   await startOver(page)
-  await expect(page).toHaveTitle('interview-settings | ProbeLoop')
+  await expect(page).toHaveTitle('Interview settings | ProbeLoop')
   const trail = page.getByRole('navigation', { name: 'Breadcrumbs' })
-  await expect(trail).toContainText('new-interview')
+  await expect(trail).toContainText('New interview')
   await expect(page.getByText('Fields marked * are required.')).toBeVisible()
   await noSeriousViolations(page)
   await page.getByRole('radio', { name: 'HR screening', exact: true }).click()
@@ -146,8 +146,8 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
   await startOver(page)
   await toDocuments(page, 'This interview only')
   await page.locator('#documents-cv-file').setInputFiles(cvPath)
+  await expect(page.getByRole('link', { name: 'Original file' })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('textbox', { name: 'CV text', exact: true })).toHaveValue(/\S/)
-  await expect(page.getByRole('link', { name: 'Original file' })).toBeVisible()
   await page.getByRole('radio', { name: 'Describe a role', exact: true }).click()
   await page
     .getByLabel('Role description', { exact: true })

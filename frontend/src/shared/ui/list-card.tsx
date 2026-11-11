@@ -68,13 +68,16 @@ export function FilterPills({
   options,
   value,
   onChange,
+  showLabel = false,
 }: {
   label: string
   options: readonly { value: string; label: string }[]
   value: string
   onChange: (value: string) => void
+  /** Print the group's name before the pills, when several groups share option names. */
+  showLabel?: boolean
 }) {
-  return (
+  const pills = (
     <div role="group" aria-label={label} className="flex flex-wrap gap-1 self-start rounded-lg bg-muted p-1 text-xs">
       {options.map((option) => (
         <button
@@ -94,6 +97,15 @@ export function FilterPills({
           {option.label}
         </button>
       ))}
+    </div>
+  )
+  if (!showLabel) return pills
+  return (
+    <div className="flex items-center gap-2">
+      <span aria-hidden="true" className="text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+      {pills}
     </div>
   )
 }

@@ -34,7 +34,7 @@ export function Quotes({ quotes }: { quotes: QuoteView[] }) {
       {quotes.map((quote, i) => (
         <blockquote
           key={i}
-          className="border-l-2 border-brand/35 pl-3 text-sm text-muted-foreground"
+          className="rounded-lg bg-muted/70 px-3 py-2 text-sm text-muted-foreground"
         >
           “{quote.text}”{' '}
           {quote.answer !== null && (
@@ -69,7 +69,7 @@ export function Notes({ notes }: { notes: NoteView[] }) {
           <p className="leading-relaxed whitespace-pre-wrap">{note.text}</p>
           <Quotes quotes={note.quotes} />
           {note.replacement && (
-            <div className="rounded-lg border-l-4 border-highlight bg-muted p-4 text-sm text-foreground">
+            <div className="rounded-lg border border-highlight/40 bg-highlight/5 p-4 text-sm text-foreground">
               <p className="mb-1 font-semibold">{t.correction}</p>
               <p className="whitespace-pre-wrap">{note.replacement}</p>
             </div>

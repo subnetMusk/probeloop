@@ -224,5 +224,6 @@ are reported separately. Synthetic acceptance cannot close interview-quality or 
 
 See [current status](status.md) for open acceptance work, [development](development.md) for checks,
 and ADRs [0016](adr/0016-adaptive-role-based-interviews.md),
-[0017](adr/0017-local-stated-limit-classifier.md), [0018](adr/0018-per-role-processing-tools.md) and
-[0019](adr/0019-guided-installation.md) for the relevant decisions.
+[0017](adr/0017-local-stated-limit-classifier.md), [0018](adr/0018-per-role-processing-tools.md),
+[0019](adr/0019-guided-installation.md), [0020](adr/0020-faster-turns-and-reviewed-transcripts.md)
+and [0021](adr/0021-interface-guidance-and-navigation.md) for the relevant decisions.

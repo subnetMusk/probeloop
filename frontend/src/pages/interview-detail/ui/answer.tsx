@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { PencilIcon } from 'lucide-react'
+import { PencilIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { api } from '@/shared/api'
 import type { SessionView, TurnView, WordView } from '@/shared/api'
@@ -9,6 +9,7 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { RequiredMark } from '@/shared/ui/required-mark'
 import { Textarea } from '@/shared/ui/textarea'
+import { openIssues } from '../model/review'
 import { transcriptMessages } from './messages'
 
 export function Words({ words }: { words: WordView[] }) {
@@ -56,6 +57,7 @@ export function Answer({
   })
   const editable = session.status === 'ended' || session.status === 'failed'
   const current = turn.revisions.at(-1)
+  const issues = openIssues(turn)
   const sourceLabel = (source: string) =>
     (t.sources as Readonly<Record<string, string>>)[source] ?? source
   return (
@@ -68,6 +70,19 @@ export function Answer({
         <h3 className="text-xs font-semibold text-foreground/75">{t.answer(number)}</h3>
         {current && <Badge variant="outline">{sourceLabel(current.source)}</Badge>}
       </div>
+      {issues.length > 0 && (
+        <ul
+          data-testid="answer-issues"
+          className="mb-3 flex flex-col gap-1.5 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
+        >
+          {issues.map((issue) => (
+            <li key={issue} className="flex items-start gap-2">
+              <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+              <span>{t.issues[issue]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {draft === null ? (
         <p data-testid="answer-text" className="leading-relaxed whitespace-pre-wrap">
           {turn.words.length > 0 ? (
@@ -146,12 +161,12 @@ export function Answer({
       {turn.revisions.length > 1 && (
         <details className="mt-3 text-sm">
           <summary className="cursor-pointer font-medium">{t.history}</summary>
-          <ol className="mt-2 flex flex-col gap-3 border-l-2 pl-3">
+          <ol className="mt-2 flex flex-col gap-2">
             {turn.revisions
               .slice(0, -1)
               .toReversed()
               .map((revision) => (
-                <li key={revision.number}>
+                <li key={revision.number} className="rounded-lg border bg-background/60 px-3 py-2">
                   <p className="text-xs text-foreground/75">
                     v{revision.number} · {sourceLabel(revision.source)}
                   </p>

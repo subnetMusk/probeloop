@@ -24,6 +24,7 @@ export class SpeechPlayer {
   constructor(private readonly context: AudioContext) {
     this.analyser = context.createAnalyser()
     this.analyser.fftSize = 1024
+    this.analyser.smoothingTimeConstant = 0.7
     this.gain = context.createGain()
     this.analyser.connect(this.gain)
     this.gain.connect(context.destination)
@@ -93,6 +94,16 @@ export class SpeechPlayer {
     let sum = 0
     for (const s of this.samples) sum += s * s
     return Math.min(1, Math.sqrt(sum / this.samples.length) * 4)
+  }
+
+  /**
+   * The spectrum of what is playing now (byte magnitudes, one per frequency bin), written into
+   * `target`. False when nothing plays, so the caller can let its picture settle.
+   */
+  spectrum(target: Uint8Array<ArrayBuffer>): boolean {
+    if (this.sources.size === 0) return false
+    this.analyser.getByteFrequencyData(target)
+    return true
   }
 
   /** Called with true when speech starts and false when it stops. Returns an unsubscribe. */

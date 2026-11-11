@@ -1,7 +1,8 @@
 # Current implementation and acceptance status
 
-Updated for the guided-installation release, 2026-11-11. This page describes current behaviour;
-dated research and handoffs retain the measurements available at their original checkpoints.
+Updated for the interview and interface source checkpoint, 2026-11-11. This page describes
+current behaviour; dated research and handoffs retain the measurements available at their
+original checkpoints.
 
 The [alpha.2 installation validation](research/installation-validation-2026-11-11.md) records
 published-artifact checks, the empty-volume Windows run and the limits of ARM64 evidence.
@@ -11,13 +12,28 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
 - Reviewed document context, source-linked facts and confirmed profession, role and seniority.
 - Adaptive text and voice interviews, follow-ups and per-session execution plans.
 - Separate per-role processing tools in Settings, availability checks and home-page summaries.
-- Local ONNX stated-limit reading with Laya; interview decisions remain with the selected LLM.
+- Local ONNX stated-limit reading with Laya, or the optional TypeSafe Jev service; interview
+  decisions remain with the selected LLM.
+- `auto` interviewer turns: one constrained call with ChatGPT, two steps with a local model.
+- Preparation that loads and tries every engine before the first question, with visible steps.
+- Optional answer reconstruction by the ChatGPT interviewer, flagged answers and a confirmation
+  before reports built on live transcripts.
 - Guided first run, model provisioning with hashes and progress, optional Ollama model pulls.
 - Local Parakeet recognition and Piper synthesis; optional Whisper second transcription.
 - Correctable transcripts with revision history, report exports, history and portable backups.
+- First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
 - Evidence-scoped reports with descriptive anchors shown on a 0–100 scale and unassessed criteria.
 - Container-based tooling, import contracts, adapter contracts and scripted browser acceptance.
 - Versioned installer packaging for amd64/arm64 images and OS-native shell launchers.
+
+## Verified source checkpoint
+
+The 2026-11-11 checkpoint passed container-based lint, formatting, strict type checks, import
+contracts, documentation and installer checks, and API schema/type regeneration. The backend
+suite passed 665 tests, with 39 skipped and 23 live tests deselected; a separate PostgreSQL 17
+run passed all 39 storage contracts. The frontend passed 90 unit tests and 30 browser tests
+against the rebuilt runtime, including the scripted voice interview. Two opt-in live browser
+tests remained skipped. These checks do not close the real-model quality gates below.
 
 ## Remaining quality gates
 

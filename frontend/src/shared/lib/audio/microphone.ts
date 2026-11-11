@@ -25,6 +25,7 @@ export class Microphone {
     private readonly stream: MediaStream,
     private readonly source: MediaStreamAudioSourceNode,
     private readonly node: AudioWorkletNode,
+    private readonly analyser: AnalyserNode,
   ) {
     node.port.onmessage = (event: MessageEvent<CaptureFrame>) => {
       this.onLevel(event.data.level)
@@ -68,13 +69,29 @@ export class Microphone {
       channelCountMode: 'explicit',
     })
     source.connect(node)
-    return new Microphone(stream, source, node)
+    // An analyser for the speaking animation. Its silent path to the output keeps it processed
+    // in every browser; nothing is audible.
+    const analyser = context.createAnalyser()
+    analyser.fftSize = 1024
+    analyser.smoothingTimeConstant = 0.7
+    const mute = context.createGain()
+    mute.gain.value = 0
+    source.connect(analyser)
+    analyser.connect(mute)
+    mute.connect(context.destination)
+    return new Microphone(stream, source, node, analyser)
   }
 
   /** Send frames to `handler` from now on (answer), or stop with `null`. */
   forwardFrames(handler: ((pcm: Int16Array) => void) | null): void {
     this.streaming = handler !== null
     this.onFrame = handler ?? (() => undefined)
+  }
+
+  /** The spectrum of the microphone now (byte magnitudes per frequency bin), into `target`. */
+  spectrum(target: Uint8Array<ArrayBuffer>): boolean {
+    this.analyser.getByteFrequencyData(target)
+    return true
   }
 
   get label(): string {
@@ -84,6 +101,7 @@ export class Microphone {
   close(): void {
     this.forwardFrames(null)
     this.source.disconnect()
+    this.analyser.disconnect()
     this.node.port.onmessage = null
     for (const track of this.stream.getTracks()) track.stop()
   }

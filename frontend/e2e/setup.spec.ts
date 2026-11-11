@@ -60,7 +60,11 @@ test('an empty installation opens guided setup and keeps unavailable Laya disabl
   await expect(page.getByRole('checkbox', { name: /Second transcription/ })).not.toBeChecked()
   await page.getByRole('combobox', { name: 'Stated limits' }).click()
   await expect(page.getByRole('option', { name: /Laya/ })).toBeDisabled()
+  await expect(page.getByRole('option', { name: /Jev.*Add a Jev API key/ })).toBeDisabled()
   await page.keyboard.press('Escape')
+  // Laya is optional: the one-click installation covers speech only.
+  await expect(page.getByRole('button', { name: 'Install speech components' })).toBeVisible()
+  await expect(page.getByText(/^Optional\. Reads stated limits/)).toBeVisible()
   const scan = await new AxeBuilder({ page }).analyze()
   expect(scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
     [],

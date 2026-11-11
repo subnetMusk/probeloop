@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useInstallation } from '@/features/installation'
 import { Link, useParams } from '@tanstack/react-router'
+import { TriangleAlertIcon } from 'lucide-react'
+import { useState } from 'react'
 
 import {
   conversationOf,
@@ -18,9 +20,11 @@ import { useLanguage } from '@/shared/lib/preferences'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { ConfirmDialog } from '@/shared/ui/confirm-dialog'
 import { Page, PageHeader } from '@/shared/ui/page-header'
 import { Pager } from '@/shared/ui/pager'
 import { Progress } from '@/shared/ui/progress'
+import { transcriptReview } from '../model/review'
 import { Answer } from './answer'
 import { transcriptMessages } from './messages'
 
@@ -31,6 +35,7 @@ export function InterviewDetailPage() {
   const labels = useMessages(interviewLabels)
   const language = useLanguage()
   const client = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
   const session = useQuery({
     queryKey: ['session', sessionId],
     queryFn: () => api.session(sessionId),
@@ -68,6 +73,7 @@ export function InterviewDetailPage() {
   const review = useMutation({
     mutationFn: () => api.reviewInterview(sessionId, language),
     onSuccess: (job) => {
+      setConfirming(false)
       rememberReportJob(job.id)
       client.setQueryData<JobView[]>(['jobs', sessionId], (old) => [...(old ?? []), job])
       void client.invalidateQueries({ queryKey: ['jobs', sessionId] })
@@ -85,6 +91,7 @@ export function InterviewDetailPage() {
   const meta = history.data?.find((item) => item.id === data.id)
   const latest = reports.data?.at(-1)
   const busy = isRunning(refineJob) || isRunning(reportJob)
+  const check = transcriptReview(data)
   return (
     <Page>
       <PageHeader
@@ -188,6 +195,31 @@ export function InterviewDetailPage() {
               </CardContent>
             </Card>
           )}
+          {ended && check.flagged.length > 0 && (
+            <Card data-testid="transcript-review" className="border-warning/40">
+              <CardHeader>
+                <CardTitle role="heading" aria-level={2} className="flex items-center gap-2">
+                  <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
+                  {t.reviewTitle}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 text-sm">
+                <p className="text-muted-foreground">{t.reviewNote}</p>
+                <ul className="flex flex-wrap gap-2">
+                  {check.flagged.map((item) => (
+                    <li key={item.seq}>
+                      <a
+                        href={`#turn-${String(item.seq)}`}
+                        className="text-brand-text underline underline-offset-4"
+                      >
+                        {t.reviewItem(item.number)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
           {ended && data.modality === 'voice' && (
             <p className="text-sm text-muted-foreground">{t.refineNote}</p>
           )}
@@ -241,11 +273,37 @@ export function InterviewDetailPage() {
                 <Button
                   disabled={busy || review.isPending || jobs.isPending}
                   onClick={() => {
-                    review.mutate()
+                    // A spoken transcript is confirmed first while it may still hold errors.
+                    if (check.flagged.length > 0 || check.liveOnly > 0) setConfirming(true)
+                    else review.mutate()
                   }}
                 >
                   {t.generate}
                 </Button>
+                <ConfirmDialog
+                  open={confirming}
+                  tone="default"
+                  title={t.confirmTitle}
+                  description={
+                    <span className="flex flex-col gap-2">
+                      {check.flagged.length > 0 && (
+                        <span>{t.confirmFlagged(check.flagged.length)}</span>
+                      )}
+                      {check.liveOnly > 0 && <span>{t.confirmLive(check.liveOnly)}</span>}
+                      <span>{t.confirmNote}</span>
+                    </span>
+                  }
+                  confirm={t.confirmGo}
+                  cancel={t.confirmBack}
+                  pending={review.isPending}
+                  error={review.error?.message}
+                  onConfirm={() => {
+                    review.mutate()
+                  }}
+                  onCancel={() => {
+                    setConfirming(false)
+                  }}
+                />
                 {isRunning(refineJob) && <p role="status">{t.refinementWait}</p>}
                 {isRunning(reportJob) && (
                   <div role="status">

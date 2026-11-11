@@ -10,6 +10,7 @@ import { useLanguage } from '@/shared/lib/preferences'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Page, PageHeader } from '@/shared/ui/page-header'
+import { TocLayout } from '@/shared/ui/page-toc'
 import { CvReport, InterviewReport, reportMessages } from '@/widgets/report'
 
 export function ReportPage() {
@@ -89,22 +90,24 @@ export function ReportPage() {
           </Badge>
         )}
       </PageHeader>
-      <div data-testid="report-content" className="flex flex-col gap-8">
-        {(session.error ?? snapshot.error) && (
-          <p role="alert">{(session.error ?? snapshot.error)?.message}</p>
-        )}
-        {data.kind === 'cv' ? (
-          snapshot.isPending && snapshotId ? (
+      <TocLayout label={t.toc}>
+        <div data-testid="report-content" className="flex flex-col gap-8">
+          {(session.error ?? snapshot.error) && (
+            <p role="alert">{(session.error ?? snapshot.error)?.message}</p>
+          )}
+          {data.kind === 'cv' ? (
+            snapshot.isPending && snapshotId ? (
+              <p role="status">{t.loading}</p>
+            ) : (
+              <CvReport view={toCvReportView(data)} snapshot={snapshot.data} />
+            )
+          ) : session.isPending && sessionId ? (
             <p role="status">{t.loading}</p>
           ) : (
-            <CvReport view={toCvReportView(data)} snapshot={snapshot.data} />
-          )
-        ) : session.isPending && sessionId ? (
-          <p role="status">{t.loading}</p>
-        ) : (
-          <InterviewReport view={toInterviewReportView(data, session.data)} />
-        )}
-      </div>
+            <InterviewReport view={toInterviewReportView(data, session.data)} />
+          )}
+        </div>
+      </TocLayout>
       <Button asChild variant="outline" className="self-start">
         {data.kind === 'cv' ? (
           <Link to="/cv-checks/$snapshotId" params={{ snapshotId }}>

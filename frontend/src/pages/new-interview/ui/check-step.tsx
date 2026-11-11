@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { LoaderCircleIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { useDraft } from '@/entities/preparation'
@@ -10,6 +11,7 @@ import { api } from '@/shared/api'
 import { useMessages } from '@/shared/i18n'
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
+import { Progress } from '@/shared/ui/progress'
 import { newInterviewMessages } from './messages'
 import { stepPath } from '../model/paths'
 import { StepFooter, StepFrame } from './step-frame'
@@ -90,6 +92,12 @@ export function CheckStep() {
     refetchInterval: 3000,
   })
   const start = useStartInterview()
+  const kinds: Record<string, string> = t.background.kinds
+  const snapshotId = draft.profile?.kind === 'quick' ? null : draft.snapshotId
+  // The CV check of this preparation shows its own progress on this page.
+  const others = (background.data ?? []).filter(
+    (job) => !(job.kind === 'review_cv' && job.subject_id === snapshotId),
+  )
   const busy = cvBusy || (background.data?.length ?? 0) > 0
   const missing = [
     readiness.audio.kit === null && t.missing.microphone,
@@ -97,7 +105,6 @@ export function CheckStep() {
     readiness.speech.data?.ready === true && readiness.voice === null && t.missing.voice,
     busy && t.missing.busy,
   ].filter((text): text is string => typeof text === 'string')
-  const snapshotId = draft.profile?.kind === 'quick' ? null : draft.snapshotId
   return (
     <StepFrame
       step="final-check"
@@ -114,6 +121,33 @@ export function CheckStep() {
         />
       }
     >
+      {others.length > 0 && (
+        <Alert role="status" data-testid="background-work">
+          <LoaderCircleIcon className="animate-spin text-brand-text" />
+          <AlertTitle>{t.background.title}</AlertTitle>
+          <AlertDescription>
+            <p>{t.background.note}</p>
+            <ul className="mt-3 flex w-full flex-col gap-3">
+              {others.map((job) => (
+                <li key={job.id} className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-3 text-sm text-foreground">
+                    <span>{kinds[job.kind] ?? t.background.other}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {job.status === 'queued'
+                        ? t.background.queued
+                        : `${String(Math.round(job.progress * 100))}%`}
+                    </span>
+                  </div>
+                  <Progress
+                    value={job.progress * 100}
+                    aria-label={kinds[job.kind] ?? t.background.other}
+                  />
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-6">
           {snapshotId && (

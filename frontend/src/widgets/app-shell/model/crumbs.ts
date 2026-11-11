@@ -27,7 +27,7 @@ export function pageSlug(matches: readonly RouteMatchLike[]): string | undefined
   return [...matches].reverse().find((match) => match.staticData.slug)?.staticData.slug
 }
 
-/** The browser tab title: `<slug> | ProbeLoop`. */
-export function tabTitle(slug: string | undefined): string {
-  return slug ? `${slug} | ProbeLoop` : 'ProbeLoop'
+/** The browser tab title: `<page name> | ProbeLoop`. */
+export function tabTitle(name: string | undefined): string {
+  return name ? `${name} | ProbeLoop` : 'ProbeLoop'
 }

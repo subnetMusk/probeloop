@@ -15,6 +15,7 @@ import { AccessibilityPage } from '@/pages/accessibility'
 import { CvCheckDetailPage } from '@/pages/cv-check-detail'
 import { CvChecksPage } from '@/pages/cv-checks'
 import { DashboardPage } from '@/pages/dashboard'
+import { GuidePage } from '@/pages/guide'
 import { InterviewsPage } from '@/pages/interviews'
 import { InterviewDetailPage } from '@/pages/interview-detail'
 import { ReportPage } from '@/pages/report'
@@ -35,9 +36,10 @@ import { SetupPage } from '@/pages/setup'
 import { api } from '@/shared/api'
 import { Root } from './root'
 
-// Every route that names a page declares its slug: the URL segment, the breadcrumb label and the
-// tab title (`<slug> | ProbeLoop`) are the same, in English (ADR 0014). Detail pages of a user's
-// resources use a generic slug and keep the resource id in the URL.
+// Every route that names a page declares its slug, which is also its URL segment, in English
+// (ADR 0014). The breadcrumbs and the tab title (`<page name> | ProbeLoop`) show the page's name
+// in the interface language (ADR 0021). Detail pages of a user's resources use a generic slug
+// and keep the resource id in the URL.
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
     slug?: string
@@ -197,6 +199,12 @@ const settingsRoute = createRoute({
   staticData: { slug: 'settings' },
   component: SettingsPage,
 })
+const guideRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'guide',
+  staticData: { slug: 'guide' },
+  component: GuidePage,
+})
 const accessibilityRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'accessibility',
@@ -262,6 +270,7 @@ export const router = createRouter({
     ]),
     profilesRoute.addChildren([profilesIndexRoute, profileRoute]),
     settingsRoute,
+    guideRoute,
     accessibilityRoute,
     oldSessionsRoute,
     oldSessionRoute,

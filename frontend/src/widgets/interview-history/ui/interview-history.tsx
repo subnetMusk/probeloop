@@ -158,6 +158,7 @@ export function InterviewHistory({
         manage && (
           <div className="flex flex-wrap gap-2">
             <FilterPills
+              showLabel
               label={t.type}
               value={type}
               onChange={setType}
@@ -170,6 +171,7 @@ export function InterviewHistory({
               ]}
             />
             <FilterPills
+              showLabel
               label={t.status}
               value={status}
               onChange={setStatus}

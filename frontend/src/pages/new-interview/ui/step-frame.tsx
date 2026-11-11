@@ -135,7 +135,10 @@ export function StepFooter({
   const draft = useDraft()
   const back = previousStep(draft, step)
   return (
-    <div className="sticky bottom-0 z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-6 py-4 backdrop-blur">
+    <div
+      data-sticky-bar
+      className="sticky bottom-0 z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-6 py-4 backdrop-blur"
+    >
       {back ? (
         <Button
           type="button"

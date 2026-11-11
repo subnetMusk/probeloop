@@ -4,9 +4,10 @@ import { useMessages } from '@/shared/i18n'
 import { crumbsOf } from '../model/crumbs'
 import { shellMessages } from './messages'
 
-/** The trail of route slugs from the dashboard to the current page (ADR 0014). */
+/** The trail of page names from the dashboard to the current page (ADR 0021). */
 export function Breadcrumbs() {
   const t = useMessages(shellMessages)
+  const pages: Record<string, string> = t.pages
   const crumbs = crumbsOf(useMatches())
   return (
     <nav aria-label={t.breadcrumbs} className="text-sm text-muted-foreground">
@@ -18,7 +19,7 @@ export function Breadcrumbs() {
               {index > 0 && <span aria-hidden="true">›</span>}
               {last ? (
                 <span aria-current="page" className="font-medium text-foreground">
-                  {crumb.slug}
+                  {pages[crumb.slug] ?? crumb.slug}
                 </span>
               ) : (
                 <Link
@@ -27,7 +28,7 @@ export function Breadcrumbs() {
                   activeOptions={{ exact: true }}
                   className="rounded-sm hover:text-foreground hover:underline"
                 >
-                  {crumb.slug}
+                  {pages[crumb.slug] ?? crumb.slug}
                 </Link>
               )}
             </li>

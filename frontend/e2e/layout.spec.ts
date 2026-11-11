@@ -37,11 +37,8 @@ for (const width of [1280, 1440]) {
         element.scrollTo({ top: element.scrollHeight })
       })
       const top = page.getByRole('button', { name: 'Back to top' })
-      await expect(top).toBeVisible()
+      await expect(top).toBeHidden()
       await page.screenshot({ path: `test-results/dashboard-${String(width)}-${theme}-lists.png` })
-      const button = await top.boundingBox()
-      const main = await page.locator('main').boundingBox()
-      expect(button?.x).toBeGreaterThanOrEqual((main?.x ?? 0) + (main?.width ?? 0) - 24)
       expect(await page.evaluate(() => window.scrollY)).toBe(0)
     })
   }

@@ -116,6 +116,63 @@ test('a configured local model that is missing cannot be selected', async ({ pag
   await expect(page.getByRole('option', { name: /Local LLM/ })).toBeDisabled()
 })
 
+test('a Jev key is verified before use and its data use is stated', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
+  })
+  let saved = false
+  const scripted = (view: ExecutionView) => {
+    if (!saved) return view
+    view.jev.configured = true
+    for (const role of view.tools)
+      if (role.id === 'limits') {
+        role.selected = 'jev'
+        for (const option of role.options)
+          if (option.id === 'jev') Object.assign(option, { available: true, reason: 'ready' })
+      }
+    return view
+  }
+  // No request reaches TypeSafe: the key check and the resulting state are scripted here.
+  await page.route('**/api/settings/jev/key', async (route) => {
+    const body = route.request().postDataJSON() as { key: string }
+    if (body.key !== 'synthetic-accepted-key') {
+      await route.fulfill({
+        status: 422,
+        json: { detail: 'the Jev API key was rejected; check it in Settings' },
+      })
+      return
+    }
+    saved = true
+    const response = await page.request.get('/api/settings/execution')
+    await route.fulfill({ json: scripted((await response.json()) as ExecutionView) })
+  })
+  await page.route('**/api/settings/execution', async (route) => {
+    const response = await route.fetch()
+    await route.fulfill({ json: scripted((await response.json()) as ExecutionView) })
+  })
+  await page.goto('/settings')
+  const jev = page.getByRole('region', { name: 'Jev service' })
+  const key = jev.getByLabel('Jev API key')
+  await expect(key).toHaveAttribute('type', 'password')
+  await key.fill('synthetic-wrong-key')
+  await jev.getByRole('button', { name: 'Verify and save' }).click()
+  await expect(jev.getByRole('alert')).toContainText('rejected')
+  await key.fill('synthetic-accepted-key')
+  await jev.getByRole('button', { name: 'Verify and save' }).click()
+  await expect(jev).toContainText('Key saved')
+  await expect(jev.getByLabel('Replace the API key')).toHaveValue('')
+  await expect(page.getByRole('combobox', { name: 'Stated limits', exact: true })).toContainText(
+    'Jev',
+  )
+  await expect(page.getByText('jev-1.14.0', { exact: true })).toBeVisible()
+  await expect(jev.getByRole('note')).toContainText('sent to TypeSafe on every turn')
+  const scan = await new AxeBuilder({ page }).analyze()
+  expect(scan.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual(
+    [],
+  )
+  await page.screenshot({ path: 'test-results/jev-settings.png', fullPage: true })
+})
+
 test('tool menus are locked while an interview is open', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en' }))
