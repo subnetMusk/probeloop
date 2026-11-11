@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Published Laya tokenizer SHA-256, not an authentication token"
+regexTarget = "secret"
+regexes = ['''^609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f$''']

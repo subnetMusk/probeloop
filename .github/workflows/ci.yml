@@ -218,4 +218,4 @@ jobs:
           fetch-depth: 0
       - name: Scan for secrets
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.28.0 git /repo --redact --exit-code 1
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.28.0 git /repo --config /repo/.gitleaks.toml --redact --exit-code 1
