@@ -6,6 +6,9 @@ for (const path of ['/guide', '/settings', '/accessibility']) {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(path)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
+      await page.evaluate(() => window.innerHeight),
+    )
     const toc = page.getByTestId('toc-layout').locator('nav:visible').first()
     const links = toc.getByRole('link')
     await expect(links.first()).toBeVisible()
@@ -34,6 +37,9 @@ for (const path of ['/guide', '/settings', '/accessibility']) {
       }, id)
       expect(alignment.section).toBeGreaterThanOrEqual(alignment.visibleTop - 1)
       expect(alignment.headerTop).toBe(0)
+      expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
+        await page.evaluate(() => window.innerHeight),
+      )
     }
     if (path === '/guide') {
       const back = page.getByTestId('back-to-top')
