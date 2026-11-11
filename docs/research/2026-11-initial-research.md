@@ -1,5 +1,8 @@
 # Initial technical research (2026-11)
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 - **Date:** 2026-11-03.
 - **Scope:** reuse of existing projects, local LLMs, speech engines, realtime transport, frontend
   tooling and a future OpenAI integration.

@@ -1,5 +1,8 @@
 # 0011 — Interviewer move format: constrained JSON
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+> The adaptive interview now defaults to the decision-plus-question flow in ADR 0016. The original single-generation format remains a supported alternative; Laya requires two-step mode.
+
 - Status: Accepted
 - Date: 2026-11-06
 

@@ -1,5 +1,8 @@
 # Laya pilot: local classifiers for adaptive turn steps (2026-11-10)
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 The two-step adaptive turn makes up to three model calls in a row. In the cloud each call pays
 about three seconds before its first output
 ([measurements](voice-interviews-cloud-2026-11-10.md#where-the-reply-latency-goes)). This pilot
@@ -70,3 +73,44 @@ takes the same decision as fp32 on all 2,549 sentences. A container with only `o
   independent cards were not used.
 - The voice-interview professions contribute only 21 contexts.
 - The classifier returns whole sentences, while the LLM quotes a substring.
+
+## Application integration checkpoint (2026-11-10)
+
+The approved int8 export is now an optional `StatedLimitReader` adapter. Settings chooses the
+reader independently of interviewing, document analysis and evaluation. Startup loads it in the
+background after verifying the model and tokenizer digests; a missing, loading or invalid model
+cannot be selected. A selected reader failure pauses the interview instead of changing tools.
+
+The production adapter retains the training preprocessing: split on punctuation followed by
+whitespace, pair each sentence with the last 300 characters of the question, and truncate pairs
+to 192 tokens. Whole answer sentences are returned and the application checks their grounding.
+The decision and question still use the selected interviewer model.
+
+With the rebuilt runtime image, two CPU threads and worker spinning disabled, 40 reads of two
+synthetic answers took a median **261.5 ms** and p90 **288.6 ms**, including tokenization and the
+async port call. The answers contain four and three sentences. Loading took 8.34 s in that run;
+application startup under concurrent development workloads took 32.2 s. These measurements differ
+from the pilot's thread settings and do not establish a voice-interview latency improvement.
+
+An isolated running application, using the actual classifier and scripted LLMs, completed a
+synthetic preparation and adaptive text turn through HTTP and WebSocket. The stored move refers
+to `laya-stated-limits-v1@fff1c7bc834b:threshold=0.5`, records a stated limit, and refuses a tool
+change while the interview is connected. The driver is `backend/evals/limits_smoke.py`; local
+results and desktop/mobile screenshots are in the ignored `var/test-run/limits-integration/`.
+
+Independent quality acceptance, including recognition errors on voice transcripts, remains open.
+
+## Publication checkpoint (2026-11-11)
+
+The provisional fine-tuning is public at
+[submsk/probeloop-laya-stated-limits](https://huggingface.co/submsk/probeloop-laya-stated-limits/tree/4d8892cf85d84772b072b44e6db4515a6a6093f7),
+tagged `pilot-2026-11-10`. The full final state dict was converted from the preserved local
+checkpoint to Safetensors; all 136 tensors were compared exactly, with 306,941,186 parameters
+in the custom encoder-plus-binary-head model. This conversion is not a new training run.
+
+The public runtime export retains the approved ONNX SHA-256
+`fff1c7bc834b0cdce8cfb0833980d1a7b51b6626b307177fafed181b2241a484` and tokenizer SHA-256
+`609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f`.
+The guided installer pins that commit and downloads only those two assets. The model card marks
+the checkpoint provisional and keeps synthetic-pilot metrics separate from real-interview
+acceptance. Publishing the files does not close the independent quality gates.

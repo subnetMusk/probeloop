@@ -1,5 +1,8 @@
 # Adaptive interview continuation
 
+> **Historical checkpoint.** This records the state and checks at its original date. Later changes may supersede it.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Date: 2026-11-10. This note records implementation progress and development measurements, not
 release acceptance. It continues
 [the 2026-11-09 checkpoint](2026-11-09-adaptive-interview-continuation.md), whose remaining

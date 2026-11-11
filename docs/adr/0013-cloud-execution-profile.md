@@ -1,5 +1,8 @@
 # 0013 — Optional cloud execution profile through Sign in with ChatGPT
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+> ADRs 0015, 0018 and 0019 amend selection, locking and first-run setup. Tool choices now live in Settings per role; later provider checks supersede the initial sign-in verification checkpoint.
+
 - Status: Accepted
 - Date: 2026-11-08
 

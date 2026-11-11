@@ -1,5 +1,8 @@
 # Adaptive interview validation
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 The software-only classifier checkpoint does not establish cross-profession validity. The
 adaptive policy is tested separately from legacy classifier calibration. This note records the
 protocol and subsequent measurements without promoting development examples to held-out evidence.

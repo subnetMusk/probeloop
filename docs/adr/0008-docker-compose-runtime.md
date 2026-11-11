@@ -1,5 +1,8 @@
 # 0008 — Docker Compose as the runtime and development environment
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+> ADR 0019 adds packaged launchers, the internal provisioner and optional native Ollama. Current Compose definitions and the architecture guide take precedence over this initial service table.
+
 - Status: Accepted
 - Date: 2026-11-03
 

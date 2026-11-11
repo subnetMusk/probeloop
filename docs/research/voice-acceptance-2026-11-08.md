@@ -1,5 +1,8 @@
 # Voice acceptance interviews, ChatGPT plan profile (2026-11-08)
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Two complete ten-minute voice interviews ran on the real stack of machine A. The language models
 used the cloud execution profile ([ADR 0013](../adr/0013-cloud-execution-profile.md)):
 `chatgpt:gpt-6.1-terra` through Sign in with ChatGPT. Speech used Parakeet live, Whisper

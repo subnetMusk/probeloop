@@ -1,5 +1,8 @@
 # M6 UI redesign verification
 
+> **Historical checkpoint.** This records the state and checks at its original date. Later changes may supersede it.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 This checkpoint continues [the redesign handoff](2026-11-09-ui-redesign-continuation.md).
 The owner authorized focused local commits only. Do not push or open a PR unless requested.
 Speak Italian with the owner; keep repository text and commits in English.

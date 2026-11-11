@@ -1,5 +1,8 @@
 # CV review measurements
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Measured on 2026-11-08 on machine A using `ollama:qwen3.5:9b@ctx8192`, thinking enabled,
 temperature 0.1, rubric `cv.v1`. Inputs are synthetic; raw reports stay in ignored `var/test-run`.
 

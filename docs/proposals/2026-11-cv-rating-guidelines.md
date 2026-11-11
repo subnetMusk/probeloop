@@ -1,5 +1,8 @@
 # CV rating requirements
 
+> **Dated design proposal.** Preserve the original rationale; consult the implemented architecture for current behaviour.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 - Date: 2026-11-08.
 - Status: owner-supplied general guidelines incorporated into the CV review design; the anchors
   below are a calibration draft. Runtime CV review is not implemented yet.

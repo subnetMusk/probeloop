@@ -11,7 +11,7 @@ The project is in early development. Work follows the milestones in
 anticipate later milestones or add features that have not been approved.
 
 The backend is in `backend/` (`src/probeloop`, `tests`, `evals`). The commands are listed in
-the [README](README.md#running-the-text-skeleton).
+the [README](docs/development.md#source-runtime).
 
 ## Language
 

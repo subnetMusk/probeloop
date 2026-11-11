@@ -1,5 +1,8 @@
 # Adaptive interview implementation checkpoint
 
+> **Historical checkpoint.** This records the state and checks at its original date. Later changes may supersede it.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Date: 2026-11-09. This records implementation progress, not release acceptance.
 
 ## Latest active checkpoint

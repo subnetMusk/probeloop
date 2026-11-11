@@ -1,5 +1,8 @@
 # 0009 — Speech recognition: Parakeet live, Whisper turbo refinement
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+> ADR 0019 makes the second Whisper transcription optional and off on new installations. Existing installations preserve their preference; real-recording accuracy remains an open gate.
+
 - Status: Accepted (WER on real recordings to be confirmed)
 - Date: 2026-11-06
 

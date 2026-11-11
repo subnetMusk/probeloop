@@ -1,5 +1,8 @@
 # Interview evaluation latency and accuracy
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 This note analyses why the first interview report took 27 minutes, describes the revised
 pipeline (judge prompt v3) and records the smallest comparison that can accept or reject it.
 It complements [ADR 0012](../adr/0012-interview-evaluation-pipeline.md).

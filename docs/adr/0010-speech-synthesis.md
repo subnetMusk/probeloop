@@ -1,5 +1,7 @@
 # 0010 — Speech synthesis: Piper in its own container
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+
 - Status: Accepted for the engine. The default Italian voice is pending a listening test.
 - Date: 2026-11-06
 

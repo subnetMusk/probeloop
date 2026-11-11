@@ -1,5 +1,8 @@
 # M5 context extraction evaluation
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Measured on 2026-11-08 using the native Ollama, `qwen3.5:9b` with an 8192-token context,
 thinking off, extraction temperature 0.1 and `extract_facts.v1`. All evaluation code ran in the
 rebuilt development container. Documents and labels are synthetic and kept in

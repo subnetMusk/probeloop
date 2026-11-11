@@ -1,5 +1,7 @@
 # 0014 — Frontend architecture (Feature-Sliced Design) and visual identity
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+
 - Status: Accepted
 - Date: 2026-11-08
 

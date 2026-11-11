@@ -1,5 +1,8 @@
 # Interview evaluator: persona calibration, first run
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Date: 2026-11-08. Machine A. Evaluator `qwen3.5:9b` (16k context), prompts
 `classify_units@v2:off+judge_unit@v3:asc,desc-scores:off+check_claim@v1:off+synthesise@v3:off`
 ([ADR 0012](../adr/0012-interview-evaluation-pipeline.md)). Persona model `ministral-3:8b`.

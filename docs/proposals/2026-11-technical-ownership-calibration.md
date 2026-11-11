@@ -1,5 +1,8 @@
 # Technical contribution and calibration
 
+> **Dated design proposal.** Preserve the original rationale; consult the implemented architecture for current behaviour.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Status: approved by the owner on 2026-11-09; implemented and verified, calibration in progress.
 
 ## Problem

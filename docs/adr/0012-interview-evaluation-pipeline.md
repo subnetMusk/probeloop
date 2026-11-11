@@ -1,5 +1,8 @@
 # 0012 — Interview evaluation pipeline: evidence-first judging without thinking
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+> ADR 0016 amends assessment grounding, autonomy and the public 0–100 scale. Prompt and rubric identities in this record describe that earlier checkpoint.
+
 - Status: Accepted
 - Date: 2026-11-08
 

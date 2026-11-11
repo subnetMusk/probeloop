@@ -1,6 +1,6 @@
 # 0017 — Local classifier for stated limits in adaptive turns
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-10
 
 ## Context
@@ -30,39 +30,47 @@ interviewer model.
 
 ## Decision
 
-Proposed: the limits reading becomes a port with two implementations, the current LLM reading
-and a local ONNX classifier. The classifier is used when its model is installed, and the LLM
-reading otherwise, so behaviour without the model is unchanged.
+The limits reading is a port with the current LLM reader and a local ONNX classifier. The user
+selects its tool in Settings, independently of the interviewer, analysis and evaluation tools
+([ADR 0018](0018-per-role-processing-tools.md)). Without an installed classifier the LLM options
+remain available. No reader is substituted automatically during an interview.
 
 - **Port.** The application asks for the stated limits of the latest answer given the question.
   The classifier returns whole sentences as quotes; the question rules and the prompt reserve
   already take quotes of any length.
 - **Runtime.** `onnxruntime` and `tokenizers` join the backend image. They are small and do not
-  pull in PyTorch. The model loads in the background when the backend starts. Until it is
-  loaded, or if it fails, the LLM reading is used.
+  pull in PyTorch. The model loads in the background when the backend starts. Its option is
+  disabled until checksum verification, loading and a small inference check succeed. If the
+  selected reader fails during the interview, the interview pauses and retains its answers.
 - **Model distribution.** The model is not committed and not built into the image ([ADR
   0007](0007-licensing-policy.md)). The synthetic labelled sentences are committed under
-  `fixtures/synthetic/`. A `setup` profile service produces the int8 model in the `models`
-  volume, in one of two ways that the owner chooses between:
-  1. **Training at setup.** It downloads the Laya weights and fine-tunes them on the committed
-     sentences. This is fully reproducible but takes an estimated 35 minutes on CPU.
-  2. **Download.** It downloads a published model built the same way. Setup takes minutes but
-     needs a hosting place and a release process.
+  `fixtures/synthetic/`. ADR 0019 adds browser installation through the internal provisioner.
+  The provisional checkpoint is public at
+  [submsk/probeloop-laya-stated-limits](https://huggingface.co/submsk/probeloop-laya-stated-limits),
+  pinned to commit `4d8892cf85d84772b072b44e6db4515a6a6093f7`. The app downloads only the
+  int8 ONNX and tokenizer and verifies their approved SHA-256 digests. The legacy `limits-model`
+  setup command can still install a preserved local export. Training is not part of startup
+  or setup; the full Safetensors weights are a separate maintainer artifact.
 - **Threshold.** 0.5 by default, recorded with the model.
+- **CPU budget.** Two inference threads by default, configurable with
+  `PROBELOOP_LIMITS_THREADS`. Worker spinning is disabled so the reader does not compete with
+  speech services between calls ([ONNX Runtime thread management](https://onnxruntime.ai/docs/performance/tune-performance/threading.html)).
 
 ## Consequences
 
-- About 3.5 s less per cloud turn and about 0.7 s less per local turn, with precision measured
-  at the level of the LLM reading on development data.
+- The expected saving is the removed LLM reading call minus classifier overhead. The old
+  reading took about 3.5 s in the cloud and 0.8 s locally; the integrated adapter later measured
+  261.5 ms median on its specified synthetic multi-sentence inputs. Complete voice-turn latency
+  and independent precision remain to be verified.
 - One more model to version: its labels, training script, threshold and ONNX export. A change to
   the labels or the base model means retraining and measuring again.
 - The labels are synthetic, come from one labeller and cover development professions only. Use
   in releases needs a check on the independent cards and on real voice transcripts, where
   recognition errors change the wording.
 - The backend image gains a few tens of MB of runtime libraries; the `models` volume gains
-  308 MB.
-- The first load from a cold volume took 137 s in the pilot, so the LLM fallback during startup
-  is needed.
+  about 342 MB including its tokenizer.
+- The first load from a cold volume took 137 s in the pilot. The backend remains responsive
+  while loading; an interview configured to use Laya must wait for it to become ready.
 
 ## Alternatives considered
 

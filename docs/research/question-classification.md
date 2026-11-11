@@ -1,5 +1,8 @@
 # Question classification regression measurements
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Measured on 2026-11-09 with `ollama:qwen3.5:9b@ctx16384`, temperature 0.1, presence penalty 0,
 thinking off. All inputs are synthetic. These small checks do not establish general accuracy.
 

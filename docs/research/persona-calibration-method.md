@@ -1,5 +1,8 @@
 # Audited persona calibration
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Benchmark `personas@v3:technical-ownership` uses technical rubric v2. Its planted problems are
 an incorrect technical claim and unclear individual contribution. The latter is measured against
 `technical.ownership`, separately from practical experience. Thresholds remain detection at least

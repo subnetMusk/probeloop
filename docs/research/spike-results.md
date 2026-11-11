@@ -1,5 +1,8 @@
 # M1 spike results
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 - **Dates:** 2026-11-04 to 2026-11-06.
 - **Machine:** Machine A, as described in the [initial research](2026-11-initial-research.md):
   - Windows 10 Pro, Ryzen 9 3900X, RTX 2070 Super 8 GB, 16 GB RAM;

@@ -1,5 +1,8 @@
 # 0015 — Execution profile per interview
 
+> **Decision record.** Current implementation guidance is in [architecture](../architecture.md) and [configuration](../configuration.md); later ADRs amend specific decisions.
+> ADR 0018 supersedes per-interview provider selection and permits changes only while idle. Frozen preparation/session plans remain; ADR 0019 adds guided setup and preserves existing choices.
+
 - Status: Accepted (amends 0013)
 - Date: 2026-11-08
 

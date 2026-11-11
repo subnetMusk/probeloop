@@ -1,5 +1,8 @@
 # Proposal: context acquisition, CV review, interview evaluation and reports
 
+> **Dated design proposal.** Preserve the original rationale; consult the implemented architecture for current behaviour.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 - Status: reviewed by the owner; decisions recorded in [section 9](#9-decisions)
 - Date: 2026-11-07
 - Scope: M4, M5 and M7 of the [roadmap](../roadmap.md), plus CV review.

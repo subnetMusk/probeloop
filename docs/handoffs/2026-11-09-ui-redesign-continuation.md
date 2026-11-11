@@ -1,5 +1,8 @@
 # UI redesign (M6) continuation
 
+> **Historical checkpoint.** This records the state and checks at its original date. Later changes may supersede it.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Historical starting checkpoint. See [the verification checkpoint](2026-11-09-ui-redesign-completion.md)
 for the continuation work and final acceptance status.
 

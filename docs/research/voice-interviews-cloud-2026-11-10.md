@@ -1,5 +1,8 @@
 # Voice interviews with the cloud profile (2026-11-10)
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 Three complete voice interviews ran on the real stack with the cloud execution profile
 (`chatgpt:gpt-6.1-terra`) and two-step adaptive turns. They used professions not seen before in
 development: hydraulic engineering, electrical design and food-plant maintenance. All material

@@ -1,5 +1,8 @@
 # Assessment, UI and data workflow continuation
 
+> **Historical checkpoint.** This records the state and checks at its original date. Later changes may supersede it.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 This is a development checkpoint, not a declaration that M7, M6 or M9 is complete.
 Read `AGENTS.md`, `docs/proposals/2026-11-context-evaluation-reports.md`, the CV rating
 requirements, `docs/roadmap.md` and this document before continuing. Speak Italian with the

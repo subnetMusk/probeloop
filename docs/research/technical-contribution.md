@@ -1,5 +1,8 @@
 # Technical contribution verification
 
+> **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
+> Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
+
 The owner approved a separate individual-contribution criterion on 2026-11-09, following the
 [anchor proposal](../proposals/2026-11-technical-ownership-calibration.md). `technical.v2` appends
 `ownership`; the six v1 criteria and their anchors are unchanged. Existing files and reports

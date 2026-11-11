@@ -1,5 +1,13 @@
 # Roadmap
 
+> **Current checkpoint (2026-11-11).** M0–M6 capabilities and the M7 adaptive-interview/reporting
+> implementation are present; M7's independent cross-profession and real-speech quality gates
+> remain open. Guided installation, per-role tools and provisional Laya deployment are approved
+> additions to that work. The milestone descriptions below retain their original sequencing and
+> acceptance criteria; they do not replace the current [status](status.md),
+> [installation guide](getting-started.md) or [architecture](architecture.md). ADRs 0016–0019
+> supersede earlier per-interview selection, mandatory refinement and fallback descriptions.
+
 Estimates are in **effective working days** for one person assisted by coding agents, review
 included. The largest uncertainties are the quality of local models (prompts need iteration) and
 browser audio behaviour.
