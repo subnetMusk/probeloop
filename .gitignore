@@ -66,6 +66,8 @@ logs/
 
 # Model weights and voices
 models/
+!docs/models/
+!docs/models/*.md
 *.gguf
 *.onnx
 *.onnx.json
