@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -45,6 +46,10 @@ jobs:
 
       - name: Tests
         run: docker run --rm probeloop-backend:dev pytest -q
+
+      - name: Documentation and installer contracts
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" --entrypoint sh probeloop-backend:dev -c "python /repo/tools/check-docs.py && python /repo/tools/check-installer.py && sh -n /repo/installer/Start.sh"
 
       # The store and migration tests run again on PostgreSQL, so that SQLite-only constructs
       # cannot slip in (ADR 0004). A throwaway server without a password, on its own network.
@@ -88,6 +93,22 @@ jobs:
             sleep 1
           done
           docker logs probeloop-smoke
+          exit 1
+
+      - name: Empty-volume provisioner and legacy ownership smoke
+        run: |
+          docker run -d --name probeloop-provisioner-smoke --read-only --tmpfs /tmp \
+            --tmpfs /models:uid=0,gid=0,mode=755 --user 0:0 --cap-drop ALL \
+            --cap-add CHOWN --cap-add SETUID --cap-add SETGID --entrypoint sh \
+            probeloop-backend:runtime -c 'mkdir /models/piper; exec python -m probeloop.workspace.infrastructure.provisioner'
+          trap 'docker logs probeloop-provisioner-smoke; docker rm -f probeloop-provisioner-smoke' EXIT
+          for i in $(seq 1 60); do
+            if docker exec probeloop-provisioner-smoke python -c 'import json,urllib.request; status=json.load(urllib.request.urlopen("http://127.0.0.1:8000/status", timeout=2)); assert status["available"] and len(status["models"])==4'; then
+              docker exec --user 1000:1000 probeloop-provisioner-smoke python -c 'from pathlib import Path; Path("/models/piper/ownership-check").write_text("synthetic"); Path("/models/.installation/ownership-check").write_text("synthetic")'
+              exit 0
+            fi
+            sleep 1
+          done
           exit 1
 
       - name: Build stt-worker image
