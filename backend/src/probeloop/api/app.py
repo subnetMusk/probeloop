@@ -423,6 +423,7 @@ def create_app(container: Container | None = None) -> FastAPI:
             container.account,
             settings.allowed_origins,
             container.tool_options,
+            container.jev,
         )
     )
 

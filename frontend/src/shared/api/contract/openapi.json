@@ -628,6 +628,17 @@
       "ExecutionChoice": {
         "additionalProperties": false,
         "properties": {
+          "answer_reconstruction": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Reconstruction"
+          },
           "profile": {
             "anyOf": [
               {
@@ -705,8 +716,14 @@
       },
       "ExecutionView": {
         "properties": {
+          "answer_reconstruction": {
+            "$ref": "#/components/schemas/ReconstructionView"
+          },
           "chatgpt": {
             "$ref": "#/components/schemas/ChatGptView"
+          },
+          "jev": {
+            "$ref": "#/components/schemas/JevView"
           },
           "locked": {
             "title": "Locked",
@@ -735,7 +752,9 @@
           "profile",
           "profiles",
           "chatgpt",
+          "jev",
           "tools",
+          "answer_reconstruction",
           "locked"
         ],
         "title": "ExecutionView",
@@ -1109,6 +1128,33 @@
         ],
         "title": "InterviewType",
         "type": "string"
+      },
+      "JevKeyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "JevKeyIn",
+        "type": "object"
+      },
+      "JevView": {
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured"
+        ],
+        "title": "JevView",
+        "type": "object"
       },
       "JobMode": {
         "enum": [
@@ -2058,6 +2104,24 @@
           "intent"
         ],
         "title": "QuestionTrace",
+        "type": "object"
+      },
+      "ReconstructionView": {
+        "properties": {
+          "applies": {
+            "title": "Applies",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "applies"
+        ],
+        "title": "ReconstructionView",
         "type": "object"
       },
       "ReferenceDocument": {
@@ -3114,7 +3178,8 @@
         "enum": [
           "local",
           "cloud",
-          "laya"
+          "laya",
+          "jev"
         ],
         "type": "string"
       },
@@ -3307,6 +3372,15 @@
         "title": "TopicView",
         "type": "object"
       },
+      "TranscriptIssue": {
+        "description": "Why the text of an answer may need the candidate's review before the report.",
+        "enum": [
+          "live_incomplete",
+          "reading_missing"
+        ],
+        "title": "TranscriptIssue",
+        "type": "string"
+      },
       "TurnIntent": {
         "description": "Validated elicitation and assistance metadata recorded before the question is spoken.",
         "properties": {
@@ -3427,6 +3501,14 @@
                 "type": "null"
               }
             ]
+          },
+          "issues": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TranscriptIssue"
+            },
+            "title": "Issues",
+            "type": "array"
           },
           "revisions": {
             "items": {
@@ -4096,6 +4178,7 @@
     },
     "/api/installation/base": {
       "post": {
+        "description": "The speech components. Laya and Whisper are optional and installed one by one.",
         "operationId": "install_base_api_installation_base_post",
         "responses": {
           "202": {
@@ -5585,6 +5668,62 @@
           }
         },
         "summary": "Select Execution"
+      }
+    },
+    "/api/settings/jev/key": {
+      "put": {
+        "operationId": "save_jev_key_api_settings_jev_key_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JevKeyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Jev Key"
+      }
+    },
+    "/api/settings/jev/remove": {
+      "post": {
+        "operationId": "remove_jev_key_api_settings_jev_remove_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove Jev Key"
       }
     },
     "/api/snapshots/{snapshot_id}": {

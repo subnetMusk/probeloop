@@ -192,6 +192,24 @@ async def test_a_turn_from_question_to_reply(tmp_path: Path) -> None:
     assert run.end_reason == "completed"
 
 
+async def test_a_failed_preparation_stops_the_candidate(tmp_path: Path) -> None:
+    run = make_run(tmp_path, FixedAnswers("Mai usata."))
+    ws = FakeSocket()
+    failure = {
+        "type": "error",
+        "code": "preparation_failed",
+        "message": "the speech synthesis service could not use the voice",
+    }
+    async with piper() as tts:
+        assert await handle(run, ws, tts, failure, lambda c: None) is False  # type: ignore[arg-type]
+        # Other errors are recorded and the call goes on.
+        other = {"type": "error", "code": "stt_failed", "message": "part of the answer"}
+        assert await handle(run, ws, tts, other, lambda c: None) is True  # type: ignore[arg-type]
+    assert run.end_reason is not None
+    assert run.end_reason.startswith("preparation_failed")
+    assert run.answering is None
+
+
 async def test_no_answer_ends_the_call(tmp_path: Path) -> None:
     run = make_run(tmp_path, FixedAnswers(None))
     ws = FakeSocket()

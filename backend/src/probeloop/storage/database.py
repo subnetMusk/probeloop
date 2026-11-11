@@ -79,6 +79,7 @@ class TurnRow(Base):
     at: Mapped[float] = mapped_column(Float)
     elapsed_s: Mapped[float] = mapped_column(Float)
     move: Mapped[dict[str, Any] | None]
+    issues: Mapped[list[Any]] = mapped_column(default=list)  # answers: TranscriptIssue values
 
     revisions: Mapped[list[RevisionRow]] = relationship(
         order_by="RevisionRow.number", cascade="all, delete-orphan", passive_deletes=True

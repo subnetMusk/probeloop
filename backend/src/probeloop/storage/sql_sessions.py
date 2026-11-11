@@ -35,6 +35,7 @@ from probeloop.interview.domain.model import (
     Speaker,
     Topic,
     TopicCoverage,
+    TranscriptIssue,
     TranscriptRevision,
     TranscriptWord,
     Turn,
@@ -89,6 +90,9 @@ class SqlSessionStore:
                     turn_row = _turn_row(session.id, turn)
                     row.turns.append(turn_row)
                 if isinstance(turn, CandidateTurn):
+                    issues = [issue.value for issue in turn.issues]
+                    if turn_row.issues != issues:  # issues are added while the next move runs
+                        turn_row.issues = issues
                     numbers = {r.number for r in turn_row.revisions}
                     turn_row.revisions.extend(
                         _revision_row(session.id, turn.seq, r)
@@ -250,6 +254,7 @@ def _turn_row(session_id: str, turn: Turn) -> TurnRow:
         at=turn.at,
         elapsed_s=turn.elapsed_s,
         move=move,
+        issues=[issue.value for issue in turn.issues] if isinstance(turn, CandidateTurn) else [],
         revisions=[],
     )
 
@@ -326,6 +331,7 @@ def _turn(row: TurnRow) -> Turn:
             at=row.at,
             elapsed_s=row.elapsed_s,
             revisions=tuple(_revision(r) for r in row.revisions),
+            issues=tuple(TranscriptIssue(issue) for issue in row.issues or ()),
         )
     m = row.move
     assert m is not None

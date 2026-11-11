@@ -39,7 +39,7 @@ export interface PreparingMessage {
 }
 export interface PreparationStepView {
   detail: string | null;
-  name: "language_model" | "speech_recognition" | "speech_synthesis";
+  name: "language_model" | "stated_limits" | "speech_recognition" | "speech_synthesis";
   state: "loading" | "ready" | "failed";
 }
 export interface TextDeltaMessage {

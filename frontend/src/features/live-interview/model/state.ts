@@ -165,6 +165,7 @@ export const PHASE_TEXT: Record<Phase, string> = {
 
 export const STEP_TEXT: Record<PreparingMessage['steps'][number]['name'], string> = {
   language_model: 'Language model',
+  stated_limits: 'Stated limits',
   speech_recognition: 'Speech recognition',
   speech_synthesis: "Interviewer's voice",
 }

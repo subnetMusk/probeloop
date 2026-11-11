@@ -1,6 +1,7 @@
-"""Exercise the real classifier through an isolated running app with scripted LLMs.
+"""Exercise a real stated-limit reader through an isolated running app with scripted LLMs.
 
-Requires LLM_FAKE=true, an installed Laya model, and a disposable data directory. It refuses
+Requires LLM_FAKE=true and a disposable data directory, plus an installed Laya model or, with
+`--reader jev`, a Jev API key already saved in that application's Settings. It refuses
 non-scripted model roles. No primary interview data or account settings should be used.
 """
 
@@ -15,8 +16,10 @@ from typing import Any
 import httpx
 from websockets.asyncio.client import connect
 
+PROVENANCE = {"laya": "laya-stated-limits-v1@", "jev": "typesafe:jev-1.14.0:limits.v2"}
 
-async def smoke(url: str) -> dict[str, Any]:
+
+async def smoke(url: str, reader: str = "laya") -> dict[str, Any]:
     async with httpx.AsyncClient(base_url=url, timeout=30) as client:
 
         async def request(method: str, path: str, body: object | None = None) -> Any:
@@ -34,13 +37,13 @@ async def smoke(url: str) -> dict[str, Any]:
         for _ in range(120):
             view = await request("GET", "/api/settings/execution")
             role = next(role for role in view["tools"] if role["id"] == "limits")
-            option = next(option for option in role["options"] if option["id"] == "laya")
+            option = next(option for option in role["options"] if option["id"] == reader)
             if option["available"]:
                 break
             await asyncio.sleep(1)
         else:
-            raise RuntimeError("classifier did not become available")
-        await request("PUT", "/api/settings/execution", {"tools": {"limits": "laya"}})
+            raise RuntimeError(f"{reader} did not become available")
+        await request("PUT", "/api/settings/execution", {"tools": {"limits": reader}})
         document = await request(
             "POST",
             "/api/documents/text",
@@ -138,9 +141,10 @@ async def smoke(url: str) -> dict[str, Any]:
             if row["session_id"] == session_id and row["seq"] == last["seq"]
         )
         prompt_ref = turn["move"]["prompt_ref"]
-        assert "laya-stated-limits-v1@" in prompt_ref
+        assert PROVENANCE[reader] in prompt_ref
         return {
             "session_id": session_id,
+            "reader": reader,
             "classifier_used": True,
             "tools_locked_during_interview": True,
             "move_ms_with_scripted_llm": round(elapsed * 1000, 1),
@@ -151,8 +155,9 @@ async def smoke(url: str) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8003")
+    parser.add_argument("--reader", choices=sorted(PROVENANCE), default="laya")
     args = parser.parse_args()
-    print(json.dumps(asyncio.run(smoke(args.url)), indent=2))
+    print(json.dumps(asyncio.run(smoke(args.url, args.reader)), indent=2))
 
 
 if __name__ == "__main__":

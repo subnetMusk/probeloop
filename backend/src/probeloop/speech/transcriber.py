@@ -4,6 +4,11 @@ Audio frames arrive while the candidate speaks. The voice activity detector cuts
 segments, and each segment is transcribed as soon as it closes, one at a time and in order, so
 the partial transcript grows during the answer. "End of answer" closes the last segment; the
 final transcript is ready once that segment is transcribed (the tail measured in M1).
+
+A segment whose calls all fail is set aside rather than lost. It is tried again as soon as the
+recogniser answers another segment, and once more before the final transcript; only then is it
+reported as failed. A recogniser that was slow to load, for example, recovers the start of the
+answer this way.
 """
 
 from __future__ import annotations
@@ -47,7 +52,7 @@ class PartialTranscript:
 
 @dataclass(frozen=True, slots=True)
 class SegmentFailed:
-    """The recogniser failed on a segment, retries included. Its audio is still stored."""
+    """The recogniser failed on a segment, later retries included. Its audio is still stored."""
 
     index: int
     start_s: float
@@ -124,14 +129,15 @@ class TurnTranscriber:
         self._recognised: list[TranscriptSegment] = []
         self._dropped: list[DroppedSegment] = []
         self._failed: list[SegmentFailed] = []
+        self._deferred: list[SpeechSegment] = []  # failed once, to be tried again
         self._engine_ref: str | None = None  # as reported by the recogniser's results
 
     # ------------------------------------------------------------------ public API
 
     @property
     def text(self) -> str:
-        """The answer recognised so far."""
-        return " ".join(s.text for s in self._recognised)
+        """The answer recognised so far, in the order it was spoken."""
+        return " ".join(s.text for s in self._in_order())
 
     @property
     def audio(self) -> PcmAudio:
@@ -176,7 +182,7 @@ class TurnTranscriber:
             await self._stop()
         return TurnTranscript(
             text=self.text,
-            segments=tuple(self._recognised),
+            segments=self._in_order(),
             dropped=tuple(self._dropped),
             failed=tuple(self._failed),
             audio=self.audio,
@@ -213,17 +219,33 @@ class TurnTranscriber:
 
     async def _recognise(self) -> None:
         while (segment := await self._segments.get()) is not None:
-            await self._transcribe(segment)
+            result = await self._call_engine(segment, self._attempts)
+            if result is None:
+                self._deferred.append(segment)
+                continue
+            await self._accept(segment, result)
+            if self._deferred:  # the recogniser answers again: retry what it missed
+                await self._retry_deferred(final=False)
+        await self._retry_deferred(final=True)
 
-    async def _transcribe(self, segment: SpeechSegment) -> None:
-        result = await self._call_engine(segment)
-        if result is None:
-            failed = SegmentFailed(
-                segment.index, segment.start_s, segment.end_s, "speech recognition failed"
-            )
-            self._failed.append(failed)
-            await self._notify(failed)
-            return
+    async def _retry_deferred(self, *, final: bool) -> None:
+        deferred, self._deferred = self._deferred, []
+        for n, segment in enumerate(deferred):
+            # One call each: these segments already used their attempts.
+            result = await self._call_engine(segment, 1)
+            if result is not None:
+                await self._accept(segment, result)
+            elif final:
+                failed = SegmentFailed(
+                    segment.index, segment.start_s, segment.end_s, "speech recognition failed"
+                )
+                self._failed.append(failed)
+                await self._notify(failed)
+            else:
+                self._deferred = deferred[n:]  # still failing: wait for the next answer
+                return
+
+    async def _accept(self, segment: SpeechSegment, result: Transcription) -> None:
         self._engine_ref = result.engine_ref
         text = result.text
         reason = rejection_reason(text, segment.duration_s, self._filters)
@@ -242,8 +264,11 @@ class TurnTranscriber:
         self._recognised.append(recognised)
         await self._notify(PartialTranscript(recognised, self.text))
 
-    async def _call_engine(self, segment: SpeechSegment) -> Transcription | None:
-        for attempt in range(1, self._attempts + 1):
+    def _in_order(self) -> tuple[TranscriptSegment, ...]:
+        return tuple(sorted(self._recognised, key=lambda s: s.index))
+
+    async def _call_engine(self, segment: SpeechSegment, attempts: int) -> Transcription | None:
+        for attempt in range(1, attempts + 1):
             started = self._timer()
             try:
                 result = await self._stt.transcribe(segment.audio, self._options)

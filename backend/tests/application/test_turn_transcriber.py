@@ -104,7 +104,9 @@ async def test_a_failed_call_is_retried() -> None:
 
 
 async def test_a_segment_that_keeps_failing_is_reported_and_the_rest_continues() -> None:
-    stt = FakeSpeechToText([SpeechError("down"), SpeechError("down"), "Dopo il guasto."])
+    down = SpeechError("down")
+    # The first segment fails its two calls, the retry after the second segment and the last one.
+    stt = FakeSpeechToText([down, down, "Dopo il guasto.", down, down])
     events = Events()
     t = transcriber(stt, events)
     await speak(t, tone(1.0) + silence(0.8) + tone(1.0))
@@ -112,8 +114,35 @@ async def test_a_segment_that_keeps_failing_is_reported_and_the_rest_continues()
     assert result.text == "Dopo il guasto."
     assert not result.complete
     assert [f.index for f in result.failed] == [0]
-    assert isinstance(events.items[0], SegmentFailed)
+    assert len(stt.calls) == 5
+    assert [type(e) for e in events.items] == [PartialTranscript, SegmentFailed]
     assert len(result.audio.data) == len(tone(1.0) + silence(0.8) + tone(1.0))
+
+
+async def test_a_segment_missed_by_a_slow_recogniser_is_recovered_in_its_place() -> None:
+    timeout = SpeechError("timeout")
+    stt = FakeSpeechToText([timeout, timeout, "Seconda parte.", "Prima parte."])
+    events = Events()
+    t = transcriber(stt, events)
+    await speak(t, tone(1.0) + silence(0.8) + tone(1.0))
+    result = await t.finish()
+    assert result.text == "Prima parte. Seconda parte."
+    assert [s.index for s in result.segments] == [0, 1]
+    assert result.complete
+    assert [e.text for e in events.items if isinstance(e, PartialTranscript)] == [
+        "Seconda parte.",
+        "Prima parte. Seconda parte.",
+    ]
+
+
+async def test_the_last_segment_gets_one_more_try_before_the_final_transcript() -> None:
+    timeout = SpeechError("timeout")
+    stt = FakeSpeechToText([timeout, timeout, "Recuperata."])
+    t = transcriber(stt)
+    await speak(t, tone(1.0))
+    result = await t.finish()
+    assert result.text == "Recuperata."
+    assert result.complete
 
 
 async def test_finalisation_waits_for_the_last_segment() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.ai.prompts import PromptRenderer
@@ -11,6 +12,11 @@ from probeloop.interview.application.adaptive_interviewer import StatedLimits
 from probeloop.interview.application.ports import (
     LimitReading,
 )
+
+
+def answer_sentences(answer: str) -> list[str]:
+    """The sentence units that classifiers score: the segmentation of the training labels."""
+    return [s.strip() for s in re.split(r"(?<=[.!?;])\s+", answer) if len(s.strip()) > 3]
 
 
 def grounded_quotes(answer: str, quotes: tuple[str, ...]) -> tuple[str, ...]:

@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import json
 import logging
-import re
 import time
 from dataclasses import dataclass
 from importlib.resources import files
@@ -17,6 +16,7 @@ import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
 
+from probeloop.interview.application.limits import answer_sentences
 from probeloop.interview.application.ports import LimitReaderUnavailable, LimitReading
 
 logger = logging.getLogger(__name__)
@@ -49,9 +49,7 @@ def verify_model(directory: Path, spec: ModelSpec) -> None:
             raise ValueError("stated-limit model checksum mismatch")
 
 
-def answer_sentences(answer: str) -> list[str]:
-    # This is the segmentation used to construct the training labels and the ONNX pilot.
-    return [s.strip() for s in re.split(r"(?<=[.!?;])\s+", answer) if len(s.strip()) > 3]
+__all__ = ["OnnxStatedLimitReader", "answer_sentences", "model_spec", "verify_model"]
 
 
 class OnnxStatedLimitReader:
@@ -174,6 +172,10 @@ class OnnxStatedLimitReader:
             return result
 
     async def check(self) -> None:
+        task = self._task
+        if self._state == "loading" and task is not None:
+            # An interview starting right after the backend waits for the load in progress.
+            await asyncio.gather(asyncio.shield(task), return_exceptions=True)
         if self._state != "ready":
             raise LimitReaderUnavailable("Laya is unavailable; check its model in Settings")
 

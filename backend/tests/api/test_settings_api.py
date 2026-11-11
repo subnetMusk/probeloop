@@ -5,14 +5,17 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from probeloop.ai.fake import FakeChatGptAccount, FakeChatModel
 from probeloop.api.app import create_app
 from probeloop.bootstrap import build
+from probeloop.interview.infrastructure.jev_limits import JevKeyFile, JevStatedLimitReader
 from probeloop.logging_setup import RedactSignInCallback
 from probeloop.settings import Settings
+from probeloop.storage.data import OWNED_DIRS
 from probeloop.workspace.execution import ToolOption, execution_tools
 from tests.assessment.support import synthetic_session
 
@@ -73,6 +76,25 @@ def test_signing_in_selecting_and_signing_out(
         assert signed_out["profile"] == "local"
         assert signed_out["chatgpt"]["signed_in"] is False
     assert build(settings).profiles.current == "local"
+
+
+def test_answer_reconstruction_is_a_setting_that_needs_the_cloud_interviewer(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(data_dir=tmp_path, llm_fake=True, allowed_hosts=["testserver"])
+    with TestClient(create_app(build(settings))) as client:
+        view = client.get("/api/settings/execution").json()
+        assert view["answer_reconstruction"] == {"enabled": False, "applies": False}
+        refused = client.put("/api/settings/execution", json={})
+        assert refused.status_code == 422
+        enabled = client.put("/api/settings/execution", json={"answer_reconstruction": True})
+        assert enabled.status_code == 200
+        # Saved, but a local interviewer does not write readings.
+        assert enabled.json()["answer_reconstruction"] == {"enabled": True, "applies": False}
+        tools = {"interviewer": "cloud"}
+        cloud = client.put("/api/settings/execution", json={"tools": tools}).json()
+        assert cloud["answer_reconstruction"] == {"enabled": True, "applies": True}
+    assert build(settings).profiles.answer_reconstruction is True
 
 
 def test_a_failed_callback_returns_to_settings_with_the_reason(tmp_path: Path) -> None:
@@ -150,12 +172,19 @@ def test_cloud_work_needs_a_chatgpt_sign_in(tmp_path: Path) -> None:
 
 
 def test_per_role_choices_are_checked_and_frozen_with_new_work(tmp_path: Path) -> None:
-    settings = Settings(data_dir=tmp_path, llm_fake=True, allowed_hosts=["testserver"])
+    # An empty model directory, independent of any classifier installed on this machine.
+    settings = Settings(
+        data_dir=tmp_path,
+        llm_fake=True,
+        allowed_hosts=["testserver"],
+        limits_model_dir=tmp_path / "models",
+    )
     container = build(settings)
     with TestClient(create_app(container)) as client:
         roles = {r["id"]: r for r in client.get("/api/settings/execution").json()["tools"]}
         assert set(roles) == {"interviewer", "analysis", "evaluation", "limits"}
         assert [o["id"] for o in roles["analysis"]["options"]] == ["local", "cloud"]
+        assert [o["id"] for o in roles["limits"]["options"]] == ["local", "cloud", "laya", "jev"]
         laya = next(o for o in roles["limits"]["options"] if o["id"] == "laya")
         assert not laya["available"]
         assert laya["reason"] == "model_missing"
@@ -177,6 +206,66 @@ def test_per_role_choices_are_checked_and_frozen_with_new_work(tmp_path: Path) -
         client.put("/api/settings/execution", json={"tools": {"analysis": "local"}})
         assert client.get(f"/api/sessions/{session['id']}").json()["execution_profile"] == frozen
         assert client.post("/api/sessions", json={"execution_profile": "{bad"}).status_code == 422
+
+
+def test_jev_is_optional_and_needs_a_verified_key(tmp_path: Path) -> None:
+    accepted = "synthetic-jev-key"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.typesafe.ai" and request.url.path == "/v1/models":
+            ok = request.headers.get("authorization") == f"Bearer {accepted}"
+            return httpx.Response(200 if ok else 401, json={"models": []})
+        raise httpx.ConnectError("offline", request=request)
+
+    settings = Settings(data_dir=tmp_path, llm_fake=True, allowed_hosts=["testserver"])
+    keys = JevKeyFile(tmp_path / "typesafe")
+    jev = JevStatedLimitReader(keys, transport=httpx.MockTransport(handler))
+    container = build(settings, jev=jev)
+    with TestClient(create_app(container)) as client:
+        view = client.get("/api/settings/execution").json()
+        assert view["jev"] == {"configured": False}
+        limits = next(r for r in view["tools"] if r["id"] == "limits")
+        option = next(o for o in limits["options"] if o["id"] == "jev")
+        assert (option["available"], option["reason"]) == (False, "key_missing")
+        assert option["model_ref"] == "typesafe:jev-1.14.0:limits.v2:threshold=0.5"
+        refused = client.put("/api/settings/execution", json={"tools": {"limits": "jev"}})
+        assert refused.status_code == 409
+        elsewhere = client.put("/api/settings/execution", json={"tools": {"analysis": "jev"}})
+        assert elsewhere.status_code == 422
+
+        rejected = client.put("/api/settings/jev/key", json={"key": "wrong-key"})
+        assert (rejected.status_code, rejected.json()["detail"]) == (
+            422,
+            "the Jev API key was rejected; check it in Settings",
+        )
+        assert "wrong-key" not in rejected.text
+        spaced = client.put("/api/settings/jev/key", json={"key": "two words"})
+        assert spaced.status_code == 422
+        assert "two words" not in spaced.text
+        assert not keys.configured
+
+        saved = client.put("/api/settings/jev/key", json={"key": f"  {accepted}\n"})
+        assert saved.status_code == 200
+        assert accepted not in saved.text
+        assert saved.json()["jev"] == {"configured": True}
+        assert keys.read() == accepted
+        selected = client.put("/api/settings/execution", json={"tools": {"limits": "jev"}})
+        assert selected.status_code == 200
+        assert execution_tools(selected.json()["profile"])["limits"] == "jev"
+
+        # The key is machine configuration, never part of a portable backup or data deletion.
+        assert "typesafe" not in OWNED_DIRS
+
+        # A session frozen with this plan reads its limits with Jev, whatever the later default.
+        session = synthetic_session()
+        session.execution_profile = selected.json()["profile"]
+        interviewer = container.sessions._interviewer_for(session)
+        assert interviewer._limit_reader is jev  # type: ignore[attr-defined]
+
+        removed = client.post("/api/settings/jev/remove", json={})
+        assert removed.json()["jev"] == {"configured": False}
+        assert execution_tools(removed.json()["profile"])["limits"] == "local"
+        assert not (tmp_path / "typesafe" / "api-key").exists()
 
 
 def test_an_uninstalled_local_model_cannot_be_selected(tmp_path: Path) -> None:

@@ -4,7 +4,7 @@ from dataclasses import replace
 import pytest
 
 from probeloop.ai.fake import FakeChatModel
-from probeloop.ai.ports import ChatRequest, estimated_tokens
+from probeloop.ai.ports import ChatRequest, ModelCapabilities, estimated_tokens
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import StructuredOutputError
 from probeloop.bootstrap import scripted_moves
@@ -15,6 +15,7 @@ from probeloop.interview.application.adaptive_interviewer import (
     AdaptiveHeader,
     adaptive_request,
     checked_header,
+    plausible_transcript,
     selected_facts,
     two_step_reserve,
     validate_header,
@@ -36,6 +37,7 @@ from probeloop.interview.domain.model import (
     InterviewerMove,
     InterviewerTurn,
     InterviewSession,
+    Modality,
     MoveAction,
     MovePurpose,
     RevisionSource,
@@ -535,6 +537,30 @@ async def test_a_malformed_limits_reply_leaves_the_turn_to_the_decision() -> Non
     assert done.move.intent.answer_limit is None
 
 
+async def test_a_reconstructing_question_step_fits_the_reserved_window() -> None:
+    from probeloop.interview.application.adaptive_interviewer import RECONSTRUCTION_RESERVE
+
+    req = spoken(recalled("I cannot recall the exact error rates. I planned two waves."))
+    asks = []
+    for reconstruct in (False, True):
+        reading = {"answer_transcript": "x " * 9} if reconstruct else {}
+        model = FakeChatModel(
+            [
+                json.dumps({"quotes": ["I cannot recall the exact error rates."]}),
+                decision(purpose="reasoning_probe"),
+                json.dumps({"utterance": "What would you check?", **reading}),
+            ]
+        )
+        interviewer = LlmInterviewer(model, two_step=True, reconstruct_answers=reconstruct)
+        events = [e async for e in interviewer.next_move(req)]
+        assert isinstance(events[-1], MoveDone)
+        asks.append(model.requests[-1])
+    # The fitted prompt leaves RECONSTRUCTION_RESERVE free: the instruction and the longer
+    # output must both fit in it, or a small local window overflows.
+    added = estimated_tokens(asks[1]) - estimated_tokens(asks[0])
+    assert 2500 < added <= RECONSTRUCTION_RESERVE
+
+
 async def test_both_steps_fit_the_reserve_when_every_field_has_its_maximum_length() -> None:
     quotes = [(f"I cannot recall detail {n}" + " and its value" * 22)[:300] for n in range(5)]
     req = recalled(" ".join(f"{quote}." for quote in quotes))
@@ -637,6 +663,205 @@ async def test_code_decides_a_closing_that_is_the_only_legal_move() -> None:
     assert isinstance(done, MoveDone)
     assert done.move.action is MoveAction.END
     assert "supplied documents" in model.requests[0].messages[-1].content
+
+
+def single(**changes: object) -> str:
+    """A single-call move: the decision fields, then the question."""
+    values = json.loads(decision(**changes))
+    del values["focus"]
+    return json.dumps({**values, "utterance": changes.get("utterance", "What would you check?")})
+
+
+async def test_single_call_decodes_only_legal_choices_and_repairs_a_misnamed_topic_change() -> None:
+    req = request()
+    extra = Topic("t3", "Evidence checks", rubric_kind="technical", criteria=("reasoning",))
+    context = replace(req.context, topics=(req.context.topics[0], extra, req.context.topics[1]))
+    req = replace(req, context=context, topic_engagement_s={"t1": 241})
+    model = FakeChatModel([single(topic_id="t3", purpose="reasoning_probe")], chunk_size=6)
+    events = [e async for e in LlmInterviewer(model).next_move(req)]
+    assert len(model.requests) == 1
+    schema = model.requests[0].response_schema
+    assert schema is not None
+    assert schema["properties"]["topic_id"]["enum"] == ["t3"]
+    assert "closing" not in schema["properties"]["purpose"]["enum"]
+    # The decision is complete and validated before the streamed question begins.
+    assert list(schema["properties"])[-1] == "utterance"
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert (done.move.action, done.move.topic_id) == (MoveAction.NEW_TOPIC, "t3")
+    assert done.move.intent is not None
+    assert done.move.intent.purpose is MovePurpose.NEW_TOPIC
+    assert "two_step" not in str(done.move.prompt_ref)
+
+
+async def test_single_call_returns_a_rejected_move_once_with_its_reason() -> None:
+    model = FakeChatModel([single(fact_ids=["invented-cv-fact"]), single()])
+    events = [e async for e in LlmInterviewer(model).next_move(request())]
+    assert len(model.requests) == 2
+    retry = model.requests[1].messages
+    assert retry[-2].role == "assistant"
+    assert "invented-cv-fact" in retry[-2].content
+    assert "unavailable documentary reference" in retry[-1].content
+    assert isinstance(events[-1], MoveDone)
+    # Nothing of the rejected move was spoken.
+    assert "".join(e.text for e in events if isinstance(e, MoveDelta)).endswith(
+        "What would you check?"
+    )
+
+
+async def test_single_call_lets_code_decide_a_closing_that_is_the_only_legal_move() -> None:
+    req = replace(request(), directive=TimeDirective.FINAL_QUESTION, turns=(asked("t1"), answer(1)))
+    model = FakeChatModel([json.dumps({"utterance": "Do you have any questions for us?"})])
+    events = [e async for e in LlmInterviewer(model).next_move(req)]
+    assert len(model.requests) == 1
+    assert "purpose" not in model.requests[0].response_schema["properties"]  # type: ignore[index]
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert (done.move.action, done.move.topic_id) == (MoveAction.WRAP_UP, "t2")
+    assert done.move.intent is not None
+    assert done.move.intent.focus is None
+    assert "code_closing" in str(done.move.prompt_ref)
+
+
+async def test_single_call_states_the_limits_read_before_the_move() -> None:
+    from probeloop.interview.application.ports import LimitReading
+
+    req = recalled("I cannot recall the exact error rates. I planned two waves.")
+
+    class Reader:
+        async def check(self) -> None:
+            pass
+
+        async def read(self, question: str, answer: str) -> LimitReading:
+            return LimitReading(("I cannot recall the exact error rates.",), "laya-test@v1")
+
+    model = FakeChatModel(
+        [single(purpose="reasoning_probe", utterance="How would you estimate the error rates?")]
+    )
+    interviewer = LlmInterviewer(model, limit_reader=Reader())
+    events = [e async for e in interviewer.next_move(req)]
+    assert len(model.requests) == 1
+    last = model.requests[0].messages[-1].content
+    assert "exact error rates" in last
+    assert "Do not ask for that detail again" in last
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.move.intent is not None
+    assert done.move.intent.answer_limit == "stated_limit"
+    assert "laya-test@v1" in str(done.move.prompt_ref)
+
+
+async def test_a_frame_the_model_already_wrote_is_spoken_once() -> None:
+    utterance = "Consideriamo uno scenario ipotetico: la stima è incerta. Che cosa controlla?"
+    model = FakeChatModel([single(utterance=utterance)], chunk_size=4)
+    events = [e async for e in LlmInterviewer(model).next_move(request())]
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.move.utterance == f"Buongiorno. {utterance}"
+    assert "".join(e.text for e in events if isinstance(e, MoveDelta)) == done.move.utterance
+
+
+MISHEARD = (
+    "Per la pressione abbiamo fatto tre campagne in invelo e primavera, con logger su punti "
+    "scelti lontano dalle valvole."
+)
+
+
+def spoken(req: MoveRequest) -> MoveRequest:
+    return replace(req, config=replace(req.config, modality=Modality.VOICE))
+
+
+async def test_a_voice_move_returns_its_reading_of_the_answer_after_the_question() -> None:
+    req = spoken(recalled(MISHEARD))
+    reading = MISHEARD.replace("invelo", "inverno")
+    model = FakeChatModel(
+        [
+            json.dumps(
+                {
+                    **json.loads(single(purpose="reasoning_probe")),
+                    "answer_transcript": reading,
+                }
+            )
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, reconstruct_answers=True).next_move(req)]
+    # The model limits reader runs first; the move is the last call.
+    schema = model.requests[-1].response_schema
+    assert schema is not None
+    assert list(schema["properties"])[-2:] == ["utterance", "answer_transcript"]
+    assert "answer_transcript" in model.requests[-1].messages[-1].content
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.answer_transcript == reading
+    assert "answer_reconstruction.v1" in str(done.move.prompt_ref)
+    # Only the question is spoken.
+    assert reading not in "".join(e.text for e in events if isinstance(e, MoveDelta))
+
+
+@pytest.mark.parametrize(
+    "reading", ["Tre campagne.", " ".join(["parola"] * 40)], ids=["summary", "addition"]
+)
+async def test_a_reading_far_from_the_answer_length_is_discarded(reading: str) -> None:
+    req = spoken(recalled(MISHEARD))
+    model = FakeChatModel(
+        [
+            json.dumps(
+                {**json.loads(single(purpose="reasoning_probe")), "answer_transcript": reading}
+            )
+        ]
+    )
+    events = [e async for e in LlmInterviewer(model, reconstruct_answers=True).next_move(req)]
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.answer_transcript is None
+    assert done.reading_missing  # the answer is flagged for review
+
+
+async def test_a_reading_that_replaces_the_answer_is_discarded() -> None:
+    live = MISHEARD
+    other = "Abbiamo scelto un risolutore di vincoli già pronto per le rotte notturne."
+    assert plausible_transcript(other, live) is None
+    assert plausible_transcript(live.replace("invelo", "inverno"), live)
+
+
+async def test_a_window_without_room_for_the_reading_keeps_the_live_transcript() -> None:
+    req = spoken(recalled(MISHEARD))
+    probe = LlmInterviewer(FakeChatModel(["{}"]), two_step=True)
+    base, _ = probe.build_request(req, None)
+    window = round(estimated_tokens(base)) + two_step_reserve(()) + 50
+
+    class Small(FakeChatModel):
+        async def capabilities(self) -> ModelCapabilities:
+            return ModelCapabilities(context_window=window, structured_output="json_schema")
+
+    model = Small(
+        [
+            json.dumps({"quotes": []}),
+            decision(purpose="reasoning_probe"),
+            json.dumps({"utterance": "What would you check?"}),
+        ]
+    )
+    events = [
+        e
+        async for e in LlmInterviewer(model, two_step=True, reconstruct_answers=True).next_move(req)
+    ]
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.answer_transcript is None
+    assert done.reading_missing
+    assert "answer_transcript" not in json.dumps(model.requests[-1].response_schema)
+    assert all(estimated_tokens(r) <= window for r in model.requests[1:])
+
+
+async def test_typed_answers_are_not_reconstructed() -> None:
+    req = recalled("I planned two waves.")
+    model = FakeChatModel([single(purpose="reasoning_probe")])
+    events = [e async for e in LlmInterviewer(model, reconstruct_answers=True).next_move(req)]
+    assert "answer_transcript" not in json.dumps(model.requests[-1].response_schema)
+    done = events[-1]
+    assert isinstance(done, MoveDone)
+    assert done.answer_transcript is None
+    assert not done.reading_missing  # nothing was expected
 
 
 def test_a_started_closing_ends_and_an_early_one_waits_for_the_objectives() -> None:

@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 
 from probeloop.interview.domain.model import Language
+from probeloop.speech.audio import SAMPLE_RATE, SAMPLE_WIDTH, PcmAudio
 from probeloop.speech.ports import (
     ServiceStatus,
     SpeechToText,
@@ -24,6 +25,8 @@ type RecognitionStatus = Callable[[], Awaitable[ServiceStatus]]
 type SynthesisStatus = Callable[[str], Awaitable[ServiceStatus]]  # takes the voice
 
 READY = ServiceStatus("ready")
+# Two seconds of silence: enough for the recogniser to run every layer of its model once.
+RECOGNITION_WARM_UP = PcmAudio(bytes(2 * SAMPLE_RATE * SAMPLE_WIDTH))
 
 
 async def _always_ready(*_: object) -> ServiceStatus:
@@ -59,6 +62,11 @@ class VoiceServices:
 
     async def synthesis_status(self, voice: str) -> ServiceStatus:
         return await self._safely(lambda: self.tts_status(voice))
+
+    async def warm_recognition(self, language: Language) -> None:
+        """Transcribe silence once, so the recogniser's model is in memory before the first
+        answer. Raises `SpeechError` like any transcription."""
+        await self.stt.transcribe(RECOGNITION_WARM_UP, TranscribeOptions(language=language.value))
 
     def transcriber(self, language: Language, sink: TranscriberSink) -> TurnTranscriber:
         transcriber = TurnTranscriber(

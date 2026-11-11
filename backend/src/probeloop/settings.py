@@ -32,9 +32,10 @@ class Settings(BaseSettings):
     evaluation_judge_reasoning: Literal["off", "default"] = "off"
     keep_alive: str = "30m"
     # Adaptive interviewer turns: a validated decision followed by the question that implements
-    # it (calls sharing the prompt prefix), or one structured generation. See
+    # it (calls sharing the prompt prefix), or one constrained structured generation. "auto" uses
+    # one call with the cloud interviewer and two steps with the local one. See
     # docs/research/adaptive-interview-validation.md before changing the default.
-    interviewer_turn: Literal["single", "two_step"] = "two_step"
+    interviewer_turn: Literal["single", "two_step", "auto"] = "auto"
     limits_model_dir: Path = Path("/models/stated-limits/v1")
     limits_threads: int = 2
     provisioner_url: str | None = None

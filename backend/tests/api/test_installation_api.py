@@ -81,6 +81,14 @@ def test_installation_changes_are_locked_while_interview_active(
         )
 
 
+def test_base_installation_leaves_laya_optional(tmp_path: Path) -> None:
+    container = build(Settings(data_dir=tmp_path, llm_fake=True))
+    with TestClient(create_app(container), base_url="http://localhost") as client:
+        assert container.installation.config.limits_url  # Laya can still be installed alone
+        jobs = client.post("/api/installation/base", json={}).json()
+        assert [job["subject_id"] for job in jobs] == ["parakeet", "piper-it"]
+
+
 def test_configuration_is_persisted_but_does_not_complete_setup(tmp_path: Path) -> None:
     container = build(Settings(data_dir=tmp_path, llm_fake=True))
     with TestClient(create_app(container), base_url="http://localhost") as client:

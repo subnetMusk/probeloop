@@ -7,7 +7,7 @@ complete.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -59,7 +59,7 @@ async def stream_structured[T: BaseModel](
     output: type[T],
     *,
     stream_field: str,
-) -> AsyncIterator[FieldDelta | StructuredResult[T]]:
+) -> AsyncGenerator[FieldDelta | StructuredResult[T]]:
     """Yield `FieldDelta`s for `stream_field`, then one final `StructuredResult`.
 
     The field should come early in the schema's property order. Constrained decoding in Ollama

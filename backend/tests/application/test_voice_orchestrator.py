@@ -30,6 +30,7 @@ from probeloop.interview.domain.model import (
     MoveAction,
     Phase,
     SessionStatus,
+    TranscriptIssue,
 )
 from probeloop.speech.fake import EnergyVad, FakeSpeechToText, FakeTextToSpeech, SttScript
 from probeloop.speech.ports import ServiceStatus, SpeechError
@@ -47,7 +48,8 @@ def voice_services(
     **limits: float,
 ) -> VoiceServices:
     voice = VoiceServices(
-        stt=FakeSpeechToText(stt_script),
+        # The first transcription is the recogniser's warm-up during the start.
+        stt=FakeSpeechToText(["", *stt_script]),
         tts=FakeTextToSpeech(script=tts_script),
         vad=EnergyVad,
         voices={Language.ITALIAN: VOICE},
@@ -216,6 +218,46 @@ async def test_a_service_still_starting_after_the_timeout_fails_the_start(
     assert o.session.status is SessionStatus.READY
 
 
+async def test_a_cold_recogniser_and_voice_are_warmed_before_the_first_question(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    # The first uses outlast a request's timeout; the services keep loading meanwhile.
+    stt = FakeSpeechToText([SpeechError("timeout"), SpeechError("timeout"), ""])
+    tts = FakeTextToSpeech(script=[SpeechError("timeout")])
+    voice = VoiceServices(
+        stt=stt, tts=tts, vad=EnergyVad, voices={Language.ITALIAN: VOICE}, poll_s=0.01
+    )
+    o = voice_session(clock, store, recorder, voice)
+    await o.start()
+    await o.wait_for_move()
+    assert len(stt.calls) == 3
+    assert all(not any(audio.data) and audio.duration_s >= 1.0 for audio, _ in stt.calls)
+    assert [text for text, _ in tts.calls[:2]] == ["Ok.", "Ok."]
+    assert recorder.of(ErrorRaised) == []
+    assert o.session.status is SessionStatus.IN_PROGRESS
+
+
+async def test_a_recogniser_that_never_answers_fails_the_start(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    voice = VoiceServices(
+        stt=FakeSpeechToText(default=lambda _audio: "", script=[SpeechError("timeout")] * 50),
+        tts=FakeTextToSpeech(),
+        vad=EnergyVad,
+        voices={Language.ITALIAN: VOICE},
+        poll_s=0.01,
+        ready_timeout_s=0.05,
+    )
+    o = voice_session(clock, store, recorder, voice)
+    await o.start()
+    await o.wait_for_move()
+    steps = {s.name: s for s in recorder.of(Preparing)[-1].steps}
+    assert steps["speech_recognition"].state == "failed"
+    assert steps["speech_synthesis"].state == "ready"
+    assert "did not answer in time" in recorder.of(ErrorRaised)[0].message
+    assert o.session.status is SessionStatus.READY
+
+
 async def test_without_speech_services_a_voice_interview_cannot_start(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
@@ -298,7 +340,9 @@ async def test_a_sentence_that_cannot_be_spoken_is_reported(
 async def test_an_answer_that_cannot_be_transcribed_is_kept_as_incomplete(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
-    voice = voice_services(stt_script=[SpeechError("down"), SpeechError("down"), "Seconda."])
+    down = SpeechError("down")
+    # Two calls, the retry after the second segment and the last retry all fail.
+    voice = voice_services(stt_script=[down, down, "Seconda.", down, down])
     o = voice_session(clock, store, recorder, voice)
     await open_and_listen(o)
     await o.start_answer()
@@ -309,6 +353,7 @@ async def test_an_answer_that_cannot_be_transcribed_is_kept_as_incomplete(
         AnswerRecorded(turn_seq=1, text="Seconda.", complete=False)
     ]
     assert store.audio[(o.session.id, 1)].data == ANSWER
+    assert o.session.candidate_turns()[-1].issues == (TranscriptIssue.LIVE_INCOMPLETE,)
 
 
 async def test_answers_must_match_the_modality(

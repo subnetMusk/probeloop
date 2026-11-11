@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 
 import pytest
 
@@ -247,6 +248,28 @@ async def test_start_loads_the_model_before_the_first_question(
     assert o.session.status is SessionStatus.IN_PROGRESS
 
 
+async def test_an_adaptive_start_shows_and_waits_for_the_limit_reader(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    interviewer = ScriptedInterviewer(limit_errors=[LimitReaderUnavailable("Jev key missing")])
+    session = make_session()
+    session = replace(session, context=replace(session.context, policy_version="adaptive.v1"))
+    o = SessionOrchestrator(
+        session, interviewer=interviewer, store=store, clock=clock, sink=recorder
+    )
+    await o.start()
+    await o.wait_for_move()
+    steps = {s.name: s for s in recorder.of(Preparing)[-1].steps}
+    assert steps["stated_limits"].state == "failed"
+    assert steps["stated_limits"].detail == "Jev key missing"
+    assert steps["language_model"].state == "ready"
+    assert o.session.status is SessionStatus.READY
+
+    await o.start()  # the reader is available again
+    await o.wait_for_move()
+    assert o.session.status is SessionStatus.IN_PROGRESS
+
+
 async def test_a_model_that_cannot_load_keeps_the_session_ready(
     clock: FakeClock, store: MemoryStore, recorder: EventRecorder
 ) -> None:
@@ -313,3 +336,62 @@ async def test_resuming_waits_until_the_interviewer_can_be_used(
     assert recorder.of(ErrorRaised)[-1].message == "sign in with ChatGPT again"
     await o.resume()
     assert o.session.status is SessionStatus.IN_PROGRESS
+
+
+async def test_a_reading_returned_with_the_move_becomes_the_answers_latest_revision(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    from probeloop.interview.application.ports import MoveDone
+    from probeloop.interview.domain.model import RevisionSource
+
+    class Reading(ScriptedInterviewer):
+        async def next_move(self, request: MoveRequest):  # type: ignore[no-untyped-def,override]
+            async for item in super().next_move(request):
+                if isinstance(item, MoveDone) and request.turns:
+                    yield MoveDone(item.move, "Tre campagne in inverno, primavera ed estate.")
+                else:
+                    yield item
+
+    o, _ = orchestrator(clock, store, recorder, Reading())
+    await o.start()
+    await o.wait_for_move()
+    await answer(o, clock, "Tre campagne in invelo e marera e vestate.", 10)
+    latest = o.session.candidate_turns()[-1]
+    assert [r.source for r in latest.revisions] == [
+        RevisionSource.STT,
+        RevisionSource.RECONSTRUCTION,
+    ]
+    assert latest.revisions[0].text == "Tre campagne in invelo e marera e vestate."
+    assert latest.text == "Tre campagne in inverno, primavera ed estate."
+    assert latest.current.engine_ref is not None
+    assert latest.current.engine_ref.endswith("answer_reconstruction.v1")
+    # The event of the recorded answer still reports what was recognised live.
+    assert recorder.of(AnswerRecorded)[-1].text == "Tre campagne in invelo e marera e vestate."
+    assert latest.issues == ()
+
+
+async def test_a_missing_reading_flags_the_answer_for_review(
+    clock: FakeClock, store: MemoryStore, recorder: EventRecorder
+) -> None:
+    from probeloop.interview.application.ports import MoveDone
+    from probeloop.interview.domain.model import TranscriptIssue
+
+    class NoReading(ScriptedInterviewer):
+        async def next_move(self, request: MoveRequest):  # type: ignore[no-untyped-def,override]
+            async for item in super().next_move(request):
+                if isinstance(item, MoveDone) and request.turns:
+                    yield MoveDone(item.move, reading_missing=True)
+                else:
+                    yield item
+
+    o, _ = orchestrator(clock, store, recorder, NoReading())
+    await o.start()
+    await o.wait_for_move()
+    await answer(o, clock, "Tre campagne in invelo.", 10)
+    await o.wait_for_move()
+    latest = o.session.candidate_turns()[-1]
+    assert latest.issues == (TranscriptIssue.READING_MISSING,)
+    assert latest.text == "Tre campagne in invelo."  # the live transcript stays current
+    stored = await store.load(o.session.id)
+    assert stored is not None
+    assert stored.candidate_turns()[-1].issues == (TranscriptIssue.READING_MISSING,)

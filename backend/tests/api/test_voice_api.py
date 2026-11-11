@@ -42,7 +42,7 @@ def make_client(tmp_path: Path, voice: VoiceServices | None) -> TestClient:
 
 def fake_voice() -> VoiceServices:
     return VoiceServices(
-        stt=FakeSpeechToText(["Sono uno sviluppatore backend."]),
+        stt=FakeSpeechToText(["", "Sono uno sviluppatore backend."]),  # warm-up, answer
         tts=FakeTextToSpeech(),
         vad=EnergyVad,
         voices={Language.ITALIAN: "it_IT-test"},

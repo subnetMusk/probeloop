@@ -155,12 +155,11 @@ def installation_router(container: Container) -> APIRouter:
 
     @router.post("/base", status_code=202, dependencies=[Depends(require_json)])
     async def install_base() -> list[JobView]:
+        """The speech components. Laya and Whisper are optional and installed one by one."""
         await idle()
-        identities = ["parakeet", "piper-it"]
-        if service.config.limits_url:
-            identities.append("laya")
         return [
-            JobView.of(await container.jobs.submit(INSTALL_MODEL_JOB, name)) for name in identities
+            JobView.of(await container.jobs.submit(INSTALL_MODEL_JOB, name))
+            for name in ("parakeet", "piper-it")
         ]
 
     @router.post("/ollama/{role}", status_code=202, dependencies=[Depends(require_json)])

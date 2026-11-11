@@ -1,7 +1,8 @@
 """Drives one live interview session: interviewer moves, answers, pauses and limits.
 
 "Start" first loads what the interview needs, in parallel: the language model (with its prompt
-cache), and in a voice session the speech recogniser and the voice. The client shows the
+cache), the stated-limit reader of an adaptive interview, and in a voice session the speech
+recogniser and the voice, each used once so that its model is in memory. The client shows the
 progress; the first question is generated only once everything is ready.
 
 In a voice session the orchestrator also runs the speech path. The interviewer's utterance is
@@ -21,6 +22,7 @@ from dataclasses import dataclass, replace
 
 from probeloop.ai.ports import LlmError, UserActionRequiredError
 from probeloop.ai.structured import StructuredOutputError
+from probeloop.interview.application.adaptive_interviewer import RECONSTRUCTION_REF
 from probeloop.interview.application.events import (
     AnswerRecorded,
     AnswerTimeWarning,
@@ -72,6 +74,7 @@ from probeloop.interview.domain.model import (
     Phase,
     SessionStatus,
     Speaker,
+    TranscriptIssue,
 )
 from probeloop.interview.domain.time_policy import TimeDirective, remaining_s, time_directive
 from probeloop.speech.audio import PcmAudio
@@ -136,6 +139,8 @@ class SessionOrchestrator:
         self._move_task: asyncio.Task[None] | None = None
         self._partial: MoveDelta | None = None
         self._partial_text = ""
+        self._reconstruction: str | None = None
+        self._reading_missing = False
         self._transcriber: TurnTranscriber | None = None
         self._answer_seq = 0
         self._answer_warned = False
@@ -234,7 +239,9 @@ class SessionOrchestrator:
                 engine_ref = timing.transcript.engine_ref
             else:
                 text, complete = text.strip(), True
-            self.session.record_answer(text, self._clock.now(), engine_ref=engine_ref)
+            self.session.record_answer(
+                text, self._clock.now(), engine_ref=engine_ref, complete=complete
+            )
             turn = self.session.turns[-1]
             await self._emit(AnswerRecorded(turn_seq=turn.seq, text=text, complete=complete))
             await self._commit()
@@ -371,6 +378,8 @@ class SessionOrchestrator:
         loaders: dict[PreparationStepName, Callable[[], Awaitable[str | None]]] = {
             "language_model": self._load_language_model
         }
+        if self.session.context.policy_version:
+            loaders["stated_limits"] = self._load_limit_reader
         if self.is_voice:
             loaders["speech_recognition"] = self._wait_for_recognition
             loaders["speech_synthesis"] = self._load_voice
@@ -399,7 +408,7 @@ class SessionOrchestrator:
         """Load the model and fill its prompt cache with the stable part of the prompt."""
         try:
             await self._interviewer.prepare(self._request(TimeDirective.NORMAL, 0.0))
-        except (UserActionRequiredError, LimitReaderUnavailable) as exc:
+        except UserActionRequiredError as exc:
             return str(exc)
         except LlmError as exc:
             logger.warning(
@@ -408,11 +417,34 @@ class SessionOrchestrator:
             return "the language model is not reachable or could not be loaded"
         return None
 
+    async def _load_limit_reader(self) -> str | None:
+        try:
+            await self._interviewer.prepare_limits()
+        except LimitReaderUnavailable as exc:
+            return str(exc)
+        except LlmError as exc:
+            logger.warning(
+                "stated-limit reader check failed",
+                extra={"session_id": self.session.id, "error": str(exc)},
+            )
+            return "the stated-limit reader is not reachable"
+        return None
+
     async def _wait_for_recognition(self) -> str | None:
         voice = self._voice
         if voice is None:
             return "the speech services are not configured"
-        return await self._wait_until_ready(voice.recognition_status, voice)
+        problem = await self._wait_until_ready(voice.recognition_status, voice)
+        if problem is not None:
+            return problem
+        # A recogniser that has been idle for a long time can need far more than one request's
+        # timeout on its first audio. That wait belongs here, not in the candidate's first answer.
+        language = self.session.config.language
+        return await self._first_use(
+            lambda: voice.warm_recognition(language),
+            voice,
+            "the speech recognition service did not answer in time",
+        )
 
     async def _load_voice(self) -> str | None:
         services = self._voice
@@ -425,11 +457,34 @@ class SessionOrchestrator:
         problem = await self._wait_until_ready(lambda: services.synthesis_status(voice), services)
         if problem is not None:
             return problem
-        try:
-            await services.tts.synthesize(VOICE_WARM_UP, voice)
-        except SpeechError:
-            return "the speech synthesis service could not use the voice"
-        return None
+        return await self._first_use(
+            lambda: services.tts.synthesize(VOICE_WARM_UP, voice),
+            services,
+            "the speech synthesis service could not use the voice",
+        )
+
+    async def _first_use(
+        self, use: Callable[[], Awaitable[object]], services: VoiceServices, problem: str
+    ) -> str | None:
+        """Repeat a service's first use until it succeeds or the start gives up.
+
+        Loading a cold model can outlast a request's timeout. The service keeps loading after the
+        request is abandoned, so a later attempt finds it ready.
+        """
+        deadline = self._timer() + services.ready_timeout_s
+        while True:
+            try:
+                await use()
+            except SpeechError as exc:
+                if self._timer() >= deadline:
+                    logger.warning(
+                        "speech warm-up failed",
+                        extra={"session_id": self.session.id, "error": str(exc)},
+                    )
+                    return problem
+                await asyncio.sleep(services.poll_s)
+            else:
+                return None
 
     async def _wait_until_ready(
         self, status: Callable[[], Awaitable[ServiceStatus]], services: VoiceServices
@@ -536,11 +591,24 @@ class SessionOrchestrator:
             )
 
         move = self._normalise(move, directive)
+        reconstruction, self._reconstruction = self._reconstruction, None
+        reading_missing, self._reading_missing = self._reading_missing, False
         async with self._lock:
             if session.status is not SessionStatus.IN_PROGRESS:
                 return False
             if session.phase is not Phase.INTERVIEWER_THINKING:
                 return False
+            if reconstruction and not move.fallback:
+                # A new revision of the answer just replied to; its live transcript stays the
+                # first revision, with its recording.
+                session.reconstruct_latest_answer(
+                    reconstruction,
+                    self._clock.now(),
+                    engine_ref=f"{move.model_ref}+{RECONSTRUCTION_REF}",
+                )
+            elif reading_missing and not move.fallback:
+                # The live transcript stays current; the review before the report points to it.
+                session.flag_latest_answer(TranscriptIssue.READING_MISSING)
             session.record_move(
                 move, self._clock.now(), final_question=directive is TimeDirective.FINAL_QUESTION
             )
@@ -575,6 +643,8 @@ class SessionOrchestrator:
                         self._partial_text += item.text
                         await self._say(turn_seq, item.text, speaker, timing)
                     elif isinstance(item, MoveDone):
+                        self._reconstruction = item.answer_transcript
+                        self._reading_missing = item.reading_missing
                         return item.move
                 raise LlmError("interviewer stream ended without a move")
             except LlmError as exc:

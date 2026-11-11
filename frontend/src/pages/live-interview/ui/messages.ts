@@ -9,6 +9,7 @@ export const callMessages = defineMessages({
     loading: 'Loading the language model can take a minute the first time.',
     steps: {
       language_model: 'Language model',
+      stated_limits: 'Stated limits',
       speech_recognition: 'Speech recognition',
       speech_synthesis: 'Interviewer’s voice',
     },
@@ -43,6 +44,7 @@ export const callMessages = defineMessages({
     loading: 'Il primo caricamento del modello può richiedere un minuto.',
     steps: {
       language_model: 'Modello linguistico',
+      stated_limits: 'Limiti dichiarati',
       speech_recognition: 'Riconoscimento vocale',
       speech_synthesis: 'Voce dell’intervistatore',
     },

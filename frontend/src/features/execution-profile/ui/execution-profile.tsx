@@ -48,7 +48,7 @@ const DESCRIPTIONS = {
 } as const
 
 const toolName = (tool: Tool, it: boolean) =>
-  ({ local: it ? 'LLM locale' : 'Local LLM', cloud: 'ChatGPT', laya: 'Laya' })[tool]
+  ({ local: it ? 'LLM locale' : 'Local LLM', cloud: 'ChatGPT', laya: 'Laya', jev: 'Jev' })[tool]
 
 function ToolIcon({ tool }: { tool: Tool }) {
   const Icon = tool === 'local' ? CpuIcon : tool === 'cloud' ? CloudIcon : SparklesIcon

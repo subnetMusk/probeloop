@@ -2,7 +2,9 @@
 
 import json
 import math
+import re
 from collections.abc import AsyncIterator, Sequence
+from contextlib import aclosing
 from dataclasses import asdict, replace
 from typing import Annotated, Any, Literal
 
@@ -557,61 +559,259 @@ def validate_header(header: AdaptiveHeader, request: MoveRequest) -> None:
         raise StructuredOutputError("only an actual hint can record a hint level")
 
 
+def _choice(values: dict[str, object], request: MoveRequest) -> AdaptiveChoice:
+    """The decision fields of a move, with the contradictions that have one reading repaired."""
+    return coerced(
+        AdaptiveChoice.model_validate(
+            {k: v for k, v in values.items() if k in AdaptiveChoice.model_fields}
+        ),
+        request,
+    )
+
+
+RECONSTRUCTION_REF = "answer_reconstruction.v1"
+# Output tokens for an answer of the longest allowed duration reproduced after the question.
+RECONSTRUCTION_TOKENS = 2500
+_RECONSTRUCTION_RULES = (
+    "\n[Transcript] The candidate's latest answer above was transcribed automatically from "
+    "speech while they spoke. It may contain recognition errors: misheard words, wrong word "
+    "boundaries, numbers written as misheard digits, missing or wrong punctuation, and missing "
+    "passages. After the question, write `answer_transcript`: the candidate's latest answer as "
+    "they most likely said it, in the same language. Correct only recognition errors, using how "
+    "the recognised words sound and the conversation context. Never correct what the candidate "
+    "meant: keep factual mistakes, wrong or approximate figures, imprecise terms, unfinished "
+    "sentences and claims you consider wrong exactly as said. Do not add, remove, summarise or "
+    "reorder content; where a passage cannot be reconstructed, keep the recognised words."
+)
+# Prompt tokens to leave free when reconstructing: the instruction and the longer output.
+RECONSTRUCTION_RESERVE = RECONSTRUCTION_TOKENS + math.ceil(
+    len(_RECONSTRUCTION_RULES) / CHARS_PER_TOKEN
+)
+
+
+def with_transcript[O: BaseModel](output: type[O]) -> type[O]:
+    """The output with `answer_transcript` after every other field, the question included."""
+    return create_model(
+        output.__name__,
+        __base__=output,
+        answer_transcript=(str, Field(min_length=1, max_length=8000)),
+    )
+
+
+# Share of the live transcript's longer words a reconstruction must keep. Cloud readings kept at
+# least 0.67 of them on the synthetic voice answers; readings that rewrote or replaced an answer
+# kept far fewer.
+MIN_SHARED_WORDS = 0.6
+
+
+def _content_words(text: str) -> list[str]:
+    return [w for w in re.sub(r"[^\w]+", " ", text.casefold()).split() if len(w) > 3]
+
+
+def plausible_transcript(text: object, answer: str) -> str | None:
+    """A reconstruction that reads the same words as the live transcript, or None.
+
+    A much shorter or longer text is a summary or an addition, and one that shares few words
+    with the live transcript is a paraphrase or another answer; the live transcript then stays
+    current.
+    """
+    if not isinstance(text, str):
+        return None
+    words, live = len(text.split()), len(answer.split())
+    if not live or not 0.5 * live <= words <= 1.5 * live:
+        return None
+    heard = _content_words(answer)
+    kept = set(_content_words(text))
+    if heard and sum(w in kept for w in heard) < MIN_SHARED_WORDS * len(heard):
+        return None
+    return " ".join(text.split())
+
+
+_GREETINGS = ("Buongiorno. ", "Hello. ")
+
+
+def _frame_core(frame: str) -> str:
+    body = frame
+    for greeting in _GREETINGS:
+        body = body.removeprefix(greeting)
+    return " ".join(body.split()).rstrip(".;:, ").casefold()
+
+
+def _framed(frame: str, text: str) -> str:
+    """The code frame before the question, unless the model already wrote it.
+
+    Earlier questions in the conversation carry their frames, so a model may repeat one; the
+    application's greeting is kept either way.
+    """
+    core = _frame_core(frame)
+    if core and " ".join(text.split()).casefold().startswith(core):
+        return next((g for g in _GREETINGS if frame.startswith(g)), "") + text
+    return frame + text
+
+
+def _undecided(frame: str, text: str) -> bool:
+    """Whether the streamed start of the question could still be the frame itself."""
+    core = _frame_core(frame)
+    head = " ".join(text.split()).casefold()
+    return bool(core) and len(head) < len(core) and core.startswith(head)
+
+
+def _latest_answer(request: MoveRequest) -> str:
+    latest = request.turns[-1] if request.turns else None
+    return latest.text if isinstance(latest, CandidateTurn) else ""
+
+
+def _with_limits(intent: TurnIntent, limits: tuple[str, ...]) -> TurnIntent:
+    if intent.answer_limit is None and limits:
+        return replace(intent, answer_limit="stated_limit")
+    return intent
+
+
 async def stream_adaptive_move(
     model: ChatModel,
     chat_request: ChatRequest,
     request: MoveRequest,
     prompt_ref: str,
+    limits: tuple[str, ...] = (),
+    *,
+    reconstruct: bool = False,
 ) -> AsyncIterator[MoveDelta | MoveDone]:
-    header: AdaptiveHeader | None = None
-    buffered = ""
-    spoken = ""
-    async for item in stream_structured(
-        model, chat_request, AdaptiveMoveOutput, stream_field="utterance"
-    ):
-        if isinstance(item, FieldDelta):
-            buffered += item.text
-            if header is None:
-                if any(key not in item.partial for key in AdaptiveChoice.model_fields):
-                    continue
-                try:
-                    choice = AdaptiveChoice.model_validate(
-                        {k: v for k, v in item.partial.items() if k in AdaptiveChoice.model_fields}
-                    )
-                except ValidationError:
-                    # Providers may order JSON differently; wait for complete metadata.
-                    continue
-                header = checked_header(choice, request)
-            text = _speakable(buffered, header.action, spoken)
-            buffered = ""
-            if text:
-                if not spoken:
-                    text = question_frame(request, header) + text
-                spoken += text
-                yield MoveDelta(text, MoveAction(header.action), header.topic_id, header.intent())
-        else:
-            final = checked_header(
-                AdaptiveChoice.model_validate(item.value.model_dump(exclude={"utterance"})), request
-            )
-            if header is not None and header != final:
-                raise StructuredOutputError("essential question metadata changed after emission")
-            utterance = (
-                question_frame(request, final)
-                + _speakable(item.value.utterance, final.action, "").strip()
-            )
-            if not spoken:
-                yield MoveDelta(utterance, MoveAction(final.action), final.topic_id, final.intent())
-            yield MoveDone(
-                InterviewerMove(
-                    MoveAction(final.action),
-                    final.topic_id,
-                    utterance,
-                    tuple(final.covered_topic_ids),
-                    model_ref=model.model_ref,
-                    prompt_ref=prompt_ref,
-                    intent=final.intent(),
+    """One structured call that decides and asks, with the safeguards of the two-step turn.
+
+    Decoding is constrained to the legal objectives and purposes, code makes a closing decision
+    that is the only legal move, and contradictions with one reading are repaired. A decision
+    rejected before any text is spoken is returned once with its reason. Stated limits read
+    beforehand (see stated_limits) reach the call as data and as a rule; the shared prompt must
+    leave single_reserve(limits) tokens free. With `reconstruct`, the reading of the latest
+    answer follows the question, so it never delays the question's audio.
+    """
+    legal = legal_topic_ids(request)
+    closing = next(t.id for t in request.context.topics if t.rubric_kind == "logistics")
+    if legal == (closing,):
+        decision = closing_decision(request, closing)
+        closing_header = checked_header(
+            AdaptiveChoice.model_validate(decision.model_dump(exclude={"focus"})),
+            request,
+            frame_from_objective=False,
+        )
+        async for event in _stream_question(
+            model,
+            chat_request,
+            request,
+            closing_header,
+            decision,
+            limits_note(limits),
+            limits,
+            prompt_ref + "+code_closing",
+            generated=False,
+            reconstruct=reconstruct,
+        ):
+            yield event
+        return
+    *history, last = chat_request.messages
+    note = limits_note(limits) + (f"\n{limits_rule(limits)}" if limits else "")
+    if reconstruct:
+        note += _RECONSTRUCTION_RULES
+    base = (*history, ChatMessage("user", last.content + note))
+    output = move_output(legal, closing)
+    if reconstruct:
+        output = with_transcript(output)
+    rejected: list[tuple[str, str]] = []
+    for _ in range(2):
+        messages = list(base)
+        for raw, reason in rejected:
+            messages += [
+                ChatMessage("assistant", raw),
+                ChatMessage(
+                    "user", f"The application rejected this move: {reason}. Decide and ask again."
+                ),
+            ]
+        header: AdaptiveHeader | None = None
+        partial: dict[str, object] = {}
+        buffered = ""
+        spoken = ""
+        try:
+            async with aclosing(
+                stream_structured(
+                    model,
+                    replace(chat_request, messages=tuple(messages)),
+                    output,
+                    stream_field="utterance",
                 )
-            )
+            ) as stream:
+                async for item in stream:
+                    if isinstance(item, FieldDelta):
+                        partial = dict(item.partial)
+                        buffered += item.text
+                        if header is None:
+                            if any(key not in partial for key in AdaptiveChoice.model_fields):
+                                continue
+                            try:
+                                choice = _choice(partial, request)
+                            except ValidationError:
+                                # Providers may order JSON differently; wait for the metadata.
+                                continue
+                            header = checked_header(choice, request)
+                        frame = question_frame(request, header) if not spoken else ""
+                        if frame and _undecided(frame, buffered):
+                            continue  # wait until the question's start shows a repeated frame
+                        text = _speakable(buffered, header.action, spoken)
+                        buffered = ""
+                        if text:
+                            if not spoken:
+                                text = _framed(frame, text)
+                            spoken += text
+                            yield MoveDelta(
+                                text,
+                                MoveAction(header.action),
+                                header.topic_id,
+                                _with_limits(header.intent(), limits),
+                            )
+                    else:
+                        final = checked_header(
+                            _choice(
+                                item.value.model_dump(exclude={"utterance", "answer_transcript"}),
+                                request,
+                            ),
+                            request,
+                        )
+                        if header is not None and header != final:
+                            raise StructuredOutputError(
+                                "essential question metadata changed after emission"
+                            )
+                        intent = _with_limits(final.intent(), limits)
+                        utterance = _framed(
+                            question_frame(request, final),
+                            _speakable(item.value.utterance, final.action, "").strip(),
+                        )
+                        if not spoken:
+                            yield MoveDelta(
+                                utterance, MoveAction(final.action), final.topic_id, intent
+                            )
+                        yield MoveDone(
+                            InterviewerMove(
+                                MoveAction(final.action),
+                                final.topic_id,
+                                utterance,
+                                tuple(final.covered_topic_ids),
+                                model_ref=model.model_ref,
+                                prompt_ref=prompt_ref,
+                                intent=intent,
+                            ),
+                            plausible_transcript(
+                                getattr(item.value, "answer_transcript", None),
+                                _latest_answer(request),
+                            )
+                            if reconstruct
+                            else None,
+                        )
+                        return
+        except StructuredOutputError as exc:
+            if spoken:
+                raise
+            metadata = {k: v for k, v in partial.items() if k in AdaptiveChoice.model_fields}
+            rejected.append((json.dumps(metadata, ensure_ascii=False), str(exc)))
+    raise StructuredOutputError(f"move rejected: {rejected[-1][1]}")
 
 
 DECIDE = (
@@ -695,6 +895,17 @@ def two_step_reserve(limits: tuple[str, ...]) -> int:
     return QUESTION_STEP_TOKENS + math.ceil(quoted / CHARS_PER_TOKEN)
 
 
+# Upper bound, in prompt tokens, of one rejected single-call move returned with its reason: the
+# metadata with every field at its maximum length and the rejection message.
+REJECTED_MOVE_TOKENS = 500
+
+
+def single_reserve(limits: tuple[str, ...]) -> int:
+    """Prompt tokens to leave free for a single-call move: its stated limits and one retry."""
+    quoted = len(limits_note(limits)) + len(limits_rule(limits)) + 1
+    return REJECTED_MOVE_TOKENS + math.ceil(quoted / CHARS_PER_TOKEN)
+
+
 def decision_request(
     chat: ChatRequest, rejected: list[tuple[str, str]], decide: str = DECIDE
 ) -> ChatRequest:
@@ -739,10 +950,13 @@ def closing_only(request: MoveRequest) -> bool:
     return legal_topic_ids(request) == (closing,)
 
 
-def decision_output(topic_ids: tuple[str, ...], closing: str) -> type[AdaptiveDecision]:
+def _legal_output[O: AdaptiveChoice](
+    base: type[O], topic_ids: tuple[str, ...], closing: str
+) -> type[O]:
     """Constrain decoding to the legal objectives and purposes; validation still checks them.
 
-    The closing purpose is offered only while the closing objective is legal.
+    The closing purpose is offered only while the closing objective is legal. Overridden fields
+    keep their position, so the metadata still precedes any streamed field.
     """
     purposes = [
         p.value for p in MovePurpose if p is not MovePurpose.CLOSING or closing in topic_ids
@@ -754,14 +968,22 @@ def decision_output(topic_ids: tuple[str, ...], closing: str) -> type[AdaptiveDe
         schema.update({"type": "string", "enum": purposes})
 
     return create_model(
-        "AdaptiveDecision",
-        __base__=AdaptiveDecision,
+        base.__name__,
+        __base__=base,
         topic_id=(str, Field(max_length=32, json_schema_extra={"enum": list(topic_ids)})),
         purpose=(MovePurpose, Field(json_schema_extra=legal_purposes)),
     )
 
 
-def coerced(decision: AdaptiveDecision, request: MoveRequest) -> AdaptiveDecision:
+def decision_output(topic_ids: tuple[str, ...], closing: str) -> type[AdaptiveDecision]:
+    return _legal_output(AdaptiveDecision, topic_ids, closing)
+
+
+def move_output(topic_ids: tuple[str, ...], closing: str) -> type[AdaptiveMoveOutput]:
+    return _legal_output(AdaptiveMoveOutput, topic_ids, closing)
+
+
+def coerced[C: AdaptiveChoice](decision: C, request: MoveRequest) -> C:
     """Repair purpose/objective contradictions that have only one reading.
 
     No question text exists yet, so the question step implements the repaired decision. The
@@ -868,6 +1090,8 @@ async def stream_two_step_move(
     request: MoveRequest,
     prompt_ref: str,
     limits: tuple[str, ...] = (),
+    *,
+    reconstruct: bool = False,
 ) -> AsyncIterator[MoveDelta | MoveDone]:
     """Decide and validate first, then write the question that implements the decision.
 
@@ -905,26 +1129,57 @@ async def stream_two_step_move(
             rejected.append((raw, str(exc)))
     if header is None or decision is None:
         raise StructuredOutputError(f"decision rejected: {rejected[-1][1]}")
+    async for event in _stream_question(
+        model,
+        chat_request,
+        request,
+        header,
+        decision,
+        decide,
+        limits,
+        prompt_ref.replace("+adaptive.v1", "+adaptive.two_step.v1"),
+        generated=bool(raw),
+        reconstruct=reconstruct,
+    ):
+        yield event
+
+
+async def _stream_question(
+    model: ChatModel,
+    chat_request: ChatRequest,
+    request: MoveRequest,
+    header: AdaptiveHeader,
+    decision: AdaptiveDecision,
+    decide: str,
+    limits: tuple[str, ...],
+    prompt_ref: str,
+    *,
+    generated: bool,
+    reconstruct: bool = False,
+) -> AsyncIterator[MoveDelta | MoveDone]:
+    """Write the question that implements an accepted decision, made by the model or by code."""
     *history, last = chat_request.messages
     accepted = json.dumps(
         {k: v for k, v in decision.model_dump(mode="json").items() if k != "covered_topic_ids"},
         ensure_ascii=False,
     )
+    rules = question_rules(request, header, decision.focus, limits)
     question = replace(
         chat_request,
         messages=(
             *history,
             ChatMessage("user", last.content + decide),
             ChatMessage("assistant", accepted),
-            ChatMessage("user", question_rules(request, header, decision.focus, limits)),
+            ChatMessage("user", rules + (_RECONSTRUCTION_RULES if reconstruct else "")),
         ),
     )
     # A decision made by code is not a model label, so only a generated focus is recorded.
-    intent = replace(header.intent(), focus=decision.focus if raw else None)
-    if intent.answer_limit is None and limits:
-        intent = replace(intent, answer_limit="stated_limit")
+    intent = _with_limits(
+        replace(header.intent(), focus=decision.focus if generated else None), limits
+    )
+    output = with_transcript(QuestionOut) if reconstruct else QuestionOut
     spoken = ""
-    async for item in stream_structured(model, question, QuestionOut, stream_field="utterance"):
+    async for item in stream_structured(model, question, output, stream_field="utterance"):
         if isinstance(item, FieldDelta):
             text = _speakable(item.text, header.action, spoken)
             if text:
@@ -947,9 +1202,14 @@ async def stream_two_step_move(
                     utterance,
                     tuple(header.covered_topic_ids),
                     model_ref=model.model_ref,
-                    prompt_ref=prompt_ref.replace("+adaptive.v1", "+adaptive.two_step.v1"),
+                    prompt_ref=prompt_ref,
                     intent=intent,
+                ),
+                plausible_transcript(
+                    getattr(item.value, "answer_transcript", None), _latest_answer(request)
                 )
+                if reconstruct
+                else None,
             )
 
 

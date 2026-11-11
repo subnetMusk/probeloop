@@ -64,7 +64,7 @@ the supported Compose variables; see `compose.yaml` and `probeloop.settings.Sett
 | `PROBELOOP_CLOUD_ANALYSIS_MODEL` | Configured cloud document-analysis model |
 | `PROBELOOP_CLOUD_EVALUATION_MODEL` | Configured cloud evaluation model |
 | `PROBELOOP_CLOUD_REASONING_OFF` | Reasoning-effort value for calls requesting reasoning off |
-| `PROBELOOP_INTERVIEWER_TURN` | `two_step` default; Laya requires this adaptive mode |
+| `PROBELOOP_INTERVIEWER_TURN` | Adaptive turn: `auto` (default: one call with ChatGPT, two steps with the local interviewer), `single` or `two_step`; every mode reads stated limits first |
 | `PROBELOOP_LIMITS_THREADS` | Classifier CPU threads; default 2, with idle spinning disabled |
 | `PROBELOOP_LIMITS_MODEL_URL` | Initial approved, pinned public HTTPS model directory |
 | `PROBELOOP_STT_THREADS`, `PROBELOOP_STT_CPUS` | Speech worker resource allocation |

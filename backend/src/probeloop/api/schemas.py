@@ -36,6 +36,7 @@ from probeloop.interview.domain.model import (
     MoveAction,
     Phase,
     SessionStatus,
+    TranscriptIssue,
     TurnIntent,
 )
 from probeloop.platform.jobs import Job
@@ -125,6 +126,8 @@ class TurnView(BaseModel):
     revisions: list[RevisionView]
     words: list[WordView]
     audio: str | None  # URL of the turn's audio, when it was kept
+    # Answers only: why the text may need review before the report.
+    issues: list[TranscriptIssue] = []
 
 
 class EditAnswer(Strict):
@@ -227,6 +230,7 @@ class SessionView(BaseModel):
                             )
                             for w in t.current.words
                         ],
+                        issues=list(t.issues),
                         audio=audio(t.seq, "candidate"),
                     )
                 )
@@ -370,7 +374,7 @@ class StateChangedMessage(ServerMessage):
 
 
 class PreparationStepView(BaseModel):
-    name: Literal["language_model", "speech_recognition", "speech_synthesis"]
+    name: Literal["language_model", "stated_limits", "speech_recognition", "speech_synthesis"]
     state: Literal["loading", "ready", "failed"]
     detail: str | None
 

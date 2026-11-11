@@ -21,6 +21,7 @@ from probeloop.interview.domain.model import (
     SessionStatus,
     Topic,
     TopicCoverage,
+    TranscriptIssue,
     TranscriptRevision,
 )
 from tests.conftest import make_config, make_context, make_session
@@ -238,3 +239,48 @@ def test_context_validation() -> None:
     with pytest.raises(InvalidConfigError):
         InterviewContext("c", "j", (Topic("t1", "a"), Topic("t1", "b")))
     assert make_context().has_topic("t2")
+
+
+def test_only_the_answer_being_replied_to_can_be_reconstructed() -> None:
+    s = in_phase(Phase.FINALIZING_TRANSCRIPT)
+    s.record_answer("tre campagne in invelo e marera", 5)
+    revised = s.reconstruct_latest_answer(
+        "tre campagne in inverno e primavera", 6, engine_ref="fake+answer_reconstruction.v1"
+    )
+    assert revised is not None
+    assert [r.source for r in revised.revisions] == [
+        RevisionSource.STT,
+        RevisionSource.RECONSTRUCTION,
+    ]
+    assert revised.revisions[0].text == "tre campagne in invelo e marera"
+    assert s.candidate_turns()[-1].text == "tre campagne in inverno e primavera"
+    # The same words add no revision.
+    assert s.reconstruct_latest_answer("tre campagne  in inverno e primavera", 7) is None
+    s.record_move(MOVE, 8)
+    with pytest.raises(InvalidTransitionError):
+        s.reconstruct_latest_answer("later", 9)
+
+
+def test_a_reconstruction_is_never_added_after_the_interview() -> None:
+    s = in_phase(Phase.FINALIZING_TRANSCRIPT)
+    s.record_answer("risposta", 5)
+    s.record_move(END, 6)
+    s.finish_speaking(7)
+    assert s.is_terminal
+    with pytest.raises(InvalidConfigError, match="only with the next move"):
+        s.revise_answer(1, "ricostruita", RevisionSource.RECONSTRUCTION, 8)
+
+
+def test_answers_needing_review_are_flagged_once_and_only_while_replying() -> None:
+    s = in_phase(Phase.FINALIZING_TRANSCRIPT)
+    s.record_answer("tre campagne", 5, complete=False)
+    assert s.candidate_turns()[-1].issues == (TranscriptIssue.LIVE_INCOMPLETE,)
+    s.flag_latest_answer(TranscriptIssue.READING_MISSING)
+    s.flag_latest_answer(TranscriptIssue.READING_MISSING)
+    assert s.candidate_turns()[-1].issues == (
+        TranscriptIssue.LIVE_INCOMPLETE,
+        TranscriptIssue.READING_MISSING,
+    )
+    s.record_move(MOVE, 6)
+    with pytest.raises(InvalidTransitionError):
+        s.flag_latest_answer(TranscriptIssue.READING_MISSING)

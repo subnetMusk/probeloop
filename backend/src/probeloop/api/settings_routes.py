@@ -14,6 +14,12 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from probeloop.ai.chatgpt_auth import CALLBACK_PATH, ChatGptAccount, SignInError
 from probeloop.ai.profiles import ProfiledChatModel
+from probeloop.interview.infrastructure.jev_limits import (
+    KEY_REJECTED,
+    MAX_KEY_CHARS,
+    UNREACHABLE,
+    JevStatedLimitReader,
+)
 from probeloop.workspace.execution import (
     PROFILES,
     ExecutionProfiles,
@@ -45,12 +51,40 @@ class ChatGptView(BaseModel):
     plan_usage: bool  # the account allowed ProbeLoop to use its ChatGPT plan
 
 
+class JevView(BaseModel):
+    configured: bool  # an API key is stored; the key itself is never returned
+
+
+class ReconstructionView(BaseModel):
+    enabled: bool  # the saved preference
+    applies: bool  # it takes effect: the interviewer of new interviews is ChatGPT
+
+
 class ExecutionView(BaseModel):
     profile: str
     profiles: list[ExecutionProfileView]
     chatgpt: ChatGptView
+    jev: JevView
     tools: list[ToolRoleView]
+    answer_reconstruction: ReconstructionView
     locked: bool
+
+
+class JevKeyIn(BaseModel):
+    # Checked in the route: a schema violation reply would echo the submitted key.
+    model_config = ConfigDict(extra="forbid")
+    key: str
+
+
+def plain_key(value: str) -> str:
+    value = value.strip()
+    if (
+        not value
+        or len(value) > MAX_KEY_CHARS
+        or any(c.isspace() or not c.isprintable() for c in value)
+    ):
+        raise HTTPException(422, "paste the Jev API key without spaces")
+    return value
 
 
 class ToolOptionView(BaseModel):
@@ -70,11 +104,16 @@ class ExecutionChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
     profile: Profile | None = None
     tools: dict[Literal["interviewer", "analysis", "evaluation", "limits"], Tool] | None = None
+    answer_reconstruction: bool | None = None
 
     @model_validator(mode="after")
     def one_choice(self) -> ExecutionChoice:
-        if (self.profile is None) == (self.tools is None) or self.tools == {}:
+        if self.profile is not None and self.tools is not None:
             raise ValueError("choose a profile or tool selections")
+        if self.tools == {} or (
+            self.profile is None and self.tools is None and self.answer_reconstruction is None
+        ):
+            raise ValueError("choose a profile, tool selections or answer reconstruction")
         return self
 
 
@@ -94,6 +133,7 @@ def settings_router(
     account: ChatGptAccount,
     allowed_origins: Sequence[str],
     tool_options: Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]],
+    jev: JevStatedLimitReader,
 ) -> APIRouter:
     router = APIRouter()
     refs = {role: model.model_refs() for role, model in roles.items()}
@@ -126,6 +166,11 @@ def settings_router(
             ],
             chatgpt=ChatGptView(
                 signed_in=status.signed_in, email=status.email, plan_usage=status.plan_usage
+            ),
+            jev=JevView(configured=jev.key.configured),
+            answer_reconstruction=ReconstructionView(
+                enabled=profiles.answer_reconstruction,
+                applies=profiles.answer_reconstruction and selected["interviewer"] == "cloud",
             ),
             tools=[
                 ToolRoleView(
@@ -173,7 +218,11 @@ def settings_router(
         # The default applies to new work only: preparations and interviews keep their own
         # profile (ADR 0015), so changing it needs no idle guard.
         try:
-            await profiles.select_tools(tools)
+            if changes:
+                await profiles.select_tools(tools)
+            if choice.answer_reconstruction is not None:
+                # Read when an interview's interviewer is built: a running one keeps its setting.
+                await profiles.set_answer_reconstruction(choice.answer_reconstruction)
         except ProfileUnavailableError as exc:
             raise HTTPException(409, str(exc)) from exc
         return await view()
@@ -199,6 +248,31 @@ def settings_router(
                 {role: "local" if tool == "cloud" else tool for role, tool in tools.items()}
             )
         await account.sign_out()
+        return await view()
+
+    @router.put("/api/settings/jev/key", dependencies=[Depends(_require_json)])
+    async def save_jev_key(body: JevKeyIn) -> ExecutionView:
+        await ensure_idle()
+        key = plain_key(body.key)
+        # The key is accepted only after the service confirms it; it never appears in a reply.
+        outcome = await jev.verify(key)
+        if outcome == "key_rejected":
+            raise HTTPException(422, KEY_REJECTED)
+        if outcome == "unreachable":
+            raise HTTPException(503, UNREACHABLE)
+        jev.key.save(key)
+        logger.info("Jev API key saved")
+        return await view()
+
+    @router.post("/api/settings/jev/remove", dependencies=[Depends(_require_json)])
+    async def remove_jev_key() -> ExecutionView:
+        await ensure_idle()
+        tools = execution_tools(profiles.current)
+        if tools["limits"] == "jev":
+            # The interviewer's own LLM reads the limits again, as it does without Jev.
+            await profiles.select_tools({**tools, "limits": tools["interviewer"]})
+        jev.key.clear()
+        logger.info("Jev API key removed")
         return await view()
 
     @router.get(CALLBACK_PATH, include_in_schema=False)

@@ -26,6 +26,7 @@ import argparse
 import asyncio
 import json
 import statistics
+import sys
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -309,6 +310,10 @@ async def handle(
         run.log("recognised", turn_seq=message["turn_seq"], text=message["text"])
     elif kind == "error":
         run.log("error", code=message["code"], message=message["message"])
+        if message["code"] == "preparation_failed":
+            # The interview never starts: stop instead of waiting for a question.
+            run.end_reason = f"preparation_failed: {message['message']}"
+            return False
     elif kind == "session.ended":
         run.end_reason = message["reason"] or message["failure"]
         return False
@@ -360,6 +365,9 @@ async def main_async(args: argparse.Namespace) -> int:
     )
     (directory / "report.md").write_text(report_markdown(meta, summary, run.turns), "utf-8")
     print(json.dumps(summary), flush=True)
+    if run.end_reason and run.end_reason.startswith("preparation_failed"):
+        print(run.end_reason, file=sys.stderr, flush=True)
+        return 1
     return 0
 
 

@@ -245,7 +245,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Install Base */
+        /**
+         * Install Base
+         * @description The speech components. Laya and Whisper are optional and installed one by one.
+         */
         post: operations["install_base_api_installation_base_post"];
         delete?: never;
         options?: never;
@@ -853,6 +856,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/jev/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Jev Key */
+        put: operations["save_jev_key_api_settings_jev_key_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/jev/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove Jev Key */
+        post: operations["remove_jev_key_api_settings_jev_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/snapshots/{snapshot_id}": {
         parameters: {
             query?: never;
@@ -1152,6 +1189,8 @@ export interface components {
         };
         /** ExecutionChoice */
         ExecutionChoice: {
+            /** Answer Reconstruction */
+            answer_reconstruction?: boolean | null;
             profile?: components["schemas"]["Profile"] | null;
             /** Tools */
             tools?: {
@@ -1174,7 +1213,9 @@ export interface components {
         };
         /** ExecutionView */
         ExecutionView: {
+            answer_reconstruction: components["schemas"]["ReconstructionView"];
             chatgpt: components["schemas"]["ChatGptView"];
+            jev: components["schemas"]["JevView"];
             /** Locked */
             locked: boolean;
             /** Profile */
@@ -1307,6 +1348,16 @@ export interface components {
          * @enum {string}
          */
         InterviewType: "hr" | "behavioral" | "technical" | "mixed";
+        /** JevKeyIn */
+        JevKeyIn: {
+            /** Key */
+            key: string;
+        };
+        /** JevView */
+        JevView: {
+            /** Configured */
+            configured: boolean;
+        };
         /**
          * JobMode
          * @enum {string}
@@ -1590,6 +1641,13 @@ export interface components {
             text: string;
             /** Topic Id */
             topic_id: string;
+        };
+        /** ReconstructionView */
+        ReconstructionView: {
+            /** Applies */
+            applies: boolean;
+            /** Enabled */
+            enabled: boolean;
         };
         /** ReferenceDocument */
         ReferenceDocument: {
@@ -1945,7 +2003,7 @@ export interface components {
          */
         Subject: "candidate" | "job";
         /** @enum {string} */
-        Tool: "local" | "cloud" | "laya";
+        Tool: "local" | "cloud" | "laya" | "jev";
         /** ToolOptionView */
         ToolOptionView: {
             /** Available */
@@ -2046,6 +2104,12 @@ export interface components {
             title: string;
         };
         /**
+         * TranscriptIssue
+         * @description Why the text of an answer may need the candidate's review before the report.
+         * @enum {string}
+         */
+        TranscriptIssue: "live_incomplete" | "reading_missing";
+        /**
          * TurnIntent
          * @description Validated elicitation and assistance metadata recorded before the question is spoken.
          */
@@ -2089,6 +2153,11 @@ export interface components {
             /** Elapsed S */
             elapsed_s: number;
             intent?: components["schemas"]["TurnIntent"] | null;
+            /**
+             * Issues
+             * @default []
+             */
+            issues?: components["schemas"]["TranscriptIssue"][];
             /** Revisions */
             revisions: components["schemas"]["RevisionView"][];
             /** Seq */
@@ -3756,6 +3825,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_jev_key_api_settings_jev_key_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JevKeyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_jev_key_api_settings_jev_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionView"];
                 };
             };
         };

@@ -47,6 +47,10 @@ class MoveDelta:
 @dataclass(frozen=True, slots=True)
 class MoveDone:
     move: InterviewerMove
+    # The model's reading of the answer this move replies to, when reconstruction is enabled.
+    answer_transcript: str | None = None
+    # Reconstruction was enabled for that answer, but no reading was kept.
+    reading_missing: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +72,11 @@ class StatedLimitReader(Protocol):
 class Interviewer(Protocol):
     async def prepare(self, request: MoveRequest) -> None:
         """Load the model and warm its prompt cache before the interview starts."""
+        ...
+
+    async def prepare_limits(self) -> None:
+        """Make the stated-limit reader of adaptive interviews ready, or raise
+        `LimitReaderUnavailable`."""
         ...
 
     async def check(self) -> None:

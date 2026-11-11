@@ -5,7 +5,8 @@ transcripts and answers they contain, to the configured cloud provider. Speech r
 synthesis are not part of the profile: they always run locally.
 
 The selection is a small JSON file in the data directory. It is configuration, not user data,
-so backups, restores and "delete all my data" leave it alone.
+so backups, restores and "delete all my data" leave it alone. The same file keeps whether the
+cloud interviewer also returns its reading of each spoken answer (answer reconstruction).
 """
 
 from __future__ import annotations
@@ -23,8 +24,16 @@ logger = logging.getLogger(__name__)
 type Profile = Literal["local", "cloud"]
 PROFILES: tuple[Profile, ...] = ("local", "cloud")
 DEFAULT: Profile = "local"
-type Tool = Literal["local", "cloud", "laya"]
+type Tool = Literal["local", "cloud", "laya", "jev"]
 ROLES = ("interviewer", "analysis", "evaluation", "limits")
+# The tools each role accepts. Only stated-limit reading has engines besides the LLMs: the local
+# Laya classifier and the TypeSafe Jev service. Both remain optional.
+ROLE_TOOLS: dict[str, tuple[Tool, ...]] = {
+    "interviewer": ("local", "cloud"),
+    "analysis": ("local", "cloud"),
+    "evaluation": ("local", "cloud"),
+    "limits": ("local", "cloud", "laya", "jev"),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +56,7 @@ def execution_tools(profile: str | None) -> dict[str, Tool]:
     if not isinstance(tools, dict) or set(tools) != set(ROLES):
         raise ValueError("invalid execution tools")
     for role, tool in tools.items():
-        if tool not in ("local", "cloud") and not (role == "limits" and tool == "laya"):
+        if tool not in ROLE_TOOLS[role]:
             raise ValueError("unsupported tool for this role")
     return cast(dict[str, Tool], tools)
 
@@ -76,6 +85,7 @@ class ExecutionProfiles:
         self._path = path
         self._default = default
         self.available: tuple[Profile, ...] = tuple(p for p in PROFILES if p in available)
+        self._reconstruction = False
         self._selected = self._read()
 
     @property
@@ -97,9 +107,26 @@ class ExecutionProfiles:
         await asyncio.to_thread(self._write, plan)
         self._selected = plan
 
+    @property
+    def answer_reconstruction(self) -> bool:
+        """Whether spoken answers get the interviewer's reading. Only a cloud interviewer
+        writes one: the local models measured so far rewrote answers instead of correcting them."""
+        return self._reconstruction
+
+    async def set_answer_reconstruction(self, enabled: bool) -> None:
+        previous = self._reconstruction
+        self._reconstruction = enabled
+        try:
+            await asyncio.to_thread(self._write, self._selected)
+        except OSError:
+            self._reconstruction = previous
+            raise
+
     def _read(self) -> str:
         try:
-            value = json.loads(self._path.read_text(encoding="utf-8")).get("profile")
+            stored = json.loads(self._path.read_text(encoding="utf-8"))
+            value = stored.get("profile")
+            self._reconstruction = stored.get("answer_reconstruction") is True
         except FileNotFoundError:
             # Persist the initial choice too: a restarted first-run installation must not
             # acquire a different default merely because its database now exists.
@@ -120,5 +147,6 @@ class ExecutionProfiles:
     def _write(self, profile: str) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self._path.with_suffix(".tmp")
-        temporary.write_text(json.dumps({"profile": profile}), encoding="utf-8")
+        content = {"profile": profile, "answer_reconstruction": self._reconstruction}
+        temporary.write_text(json.dumps(content), encoding="utf-8")
         temporary.replace(self._path)

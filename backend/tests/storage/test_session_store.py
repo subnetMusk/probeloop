@@ -15,6 +15,7 @@ from probeloop.interview.domain.model import (
     RevisionSource,
     SessionStatus,
     Speaker,
+    TranscriptIssue,
     TranscriptWord,
     TurnIntent,
 )
@@ -79,7 +80,7 @@ async def test_mixed_plans_cannot_be_downgraded_or_lost(
     try:
         with pytest.raises(RuntimeError, match="cannot downgrade"):
             await downgrade(engine, "0006")
-        assert await current_revision(engine) == "0007"
+        assert await current_revision(engine) == "0008"
         assert await store.load(session.id) == session
     finally:
         await store.delete(session.id)
@@ -159,6 +160,25 @@ async def test_revisions_are_appended_and_kept(store: SqlSessionStore) -> None:
     ]
     assert answer.revisions[1].words == words
     assert answer.text == "Un servizio di routing HTTP/2."
+
+
+async def test_review_flags_of_an_answer_are_stored_and_updated(store: SqlSessionStore) -> None:
+    s = played_session()
+    answer = s.candidate_turns()[0]
+    s.turns[answer.seq] = replace(answer, issues=(TranscriptIssue.LIVE_INCOMPLETE,))
+    await store.save(s)
+    # A flag added to a stored answer, as while the next move is generated.
+    s.turns[answer.seq] = replace(
+        answer, issues=(TranscriptIssue.LIVE_INCOMPLETE, TranscriptIssue.READING_MISSING)
+    )
+    await store.save(s)
+    loaded = await store.load(SESSION_ID)
+    assert loaded == s
+    assert loaded is not None
+    assert loaded.candidate_turns()[0].issues == (
+        TranscriptIssue.LIVE_INCOMPLETE,
+        TranscriptIssue.READING_MISSING,
+    )
 
 
 async def test_deleting_a_session_removes_rows_audio_and_metrics(

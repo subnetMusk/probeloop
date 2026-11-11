@@ -37,6 +37,9 @@ test-results/
 *.pem
 *.key
 secrets/
+# Provider API keys kept in plain files, such as jev-api-key.txt
+*api-key*.txt
+*api_key*.txt
 
 # Local Docker Compose overrides
 compose.override.yaml

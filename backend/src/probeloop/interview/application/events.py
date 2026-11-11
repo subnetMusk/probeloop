@@ -18,7 +18,9 @@ class StateChanged:
     remaining_s: float
 
 
-type PreparationStepName = Literal["language_model", "speech_recognition", "speech_synthesis"]
+type PreparationStepName = Literal[
+    "language_model", "stated_limits", "speech_recognition", "speech_synthesis"
+]
 type PreparationState = Literal["loading", "ready", "failed"]
 
 

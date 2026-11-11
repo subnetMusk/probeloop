@@ -118,11 +118,31 @@ async def test_missing_loading_and_invalid_models_are_unavailable(
         await wait_loaded(reader)
         await reader.close()
 
+    # The start of an interview waits for a load in progress instead of failing.
+    reader = onnx_limits.OnnxStatedLimitReader(directory)
+    entered.clear()
+    release.clear()
+    monkeypatch.setattr(reader, "_load_sync", delayed)
+    reader.start()
+    try:
+        await asyncio.to_thread(entered.wait, 5)
+        checking = asyncio.create_task(reader.check())
+        await asyncio.sleep(0.05)
+        assert not checking.done()
+        release.set()
+        await asyncio.wait_for(checking, 5)
+        assert reader.state == "ready"
+    finally:
+        release.set()
+        await reader.close()
+
     (directory / "limits-int8.onnx").write_bytes(b"corrupted")
     reader = onnx_limits.OnnxStatedLimitReader(directory)
     reader.start()
     await wait_loaded(reader)
     assert reader.state == "failed"
+    with pytest.raises(LimitReaderUnavailable, match="Laya is unavailable"):
+        await reader.check()
     with pytest.raises(LimitReaderUnavailable):
         await reader.read("Question?", "I cannot recall the rates.")
     await reader.close()

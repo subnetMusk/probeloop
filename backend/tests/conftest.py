@@ -145,6 +145,7 @@ class ScriptedInterviewer:
     prepared: int = 0
     prepare_errors: list[Exception] = field(default_factory=list)  # raised by the next warm-ups
     check_errors: list[Exception] = field(default_factory=list)  # raised by the next checks
+    limit_errors: list[Exception] = field(default_factory=list)  # raised by the next reader loads
 
     async def check(self) -> None:
         if self.check_errors:
@@ -154,6 +155,10 @@ class ScriptedInterviewer:
         self.prepared += 1
         if self.prepare_errors:
             raise self.prepare_errors.pop(0)
+
+    async def prepare_limits(self) -> None:
+        if self.limit_errors:
+            raise self.limit_errors.pop(0)
 
     async def next_move(self, request: MoveRequest) -> AsyncIterator[MoveDelta | MoveDone]:
         self.requests.append(request)

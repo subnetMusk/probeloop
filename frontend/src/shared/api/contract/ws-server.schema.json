@@ -247,6 +247,7 @@
         "name": {
           "enum": [
             "language_model",
+            "stated_limits",
             "speech_recognition",
             "speech_synthesis"
           ],

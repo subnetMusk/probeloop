@@ -210,6 +210,15 @@ class RevisionSource(StrEnum):
     STT = "stt"  # the live transcript, or the typed answer of a text interview
     RETRANSCRIPTION = "retranscription"  # a later pass over the stored audio
     USER_EDIT = "user_edit"
+    # The interviewer model's reading of the live transcript, written with its next move
+    RECONSTRUCTION = "reconstruction"
+
+
+class TranscriptIssue(StrEnum):
+    """Why the text of an answer may need the candidate's review before the report."""
+
+    LIVE_INCOMPLETE = "live_incomplete"  # part of the audio was not recognised during the call
+    READING_MISSING = "reading_missing"  # the interviewer's reading was expected but not kept
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,6 +248,8 @@ class CandidateTurn:
     elapsed_s: float
     revisions: tuple[TranscriptRevision, ...]
     speaker: Speaker = Speaker.CANDIDATE
+    # Kept after a manual edit, which the revisions record: the review shows both.
+    issues: tuple[TranscriptIssue, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.revisions:
@@ -415,7 +426,9 @@ class InterviewSession:
         *,
         engine_ref: str | None = None,
         words: tuple[TranscriptWord, ...] = (),
+        complete: bool = True,
     ) -> None:
+        """Record the answer. An incomplete one lost part of its audio during recognition."""
         self._require_phase(Phase.FINALIZING_TRANSCRIPT)
         revision = TranscriptRevision(
             number=1,
@@ -427,10 +440,43 @@ class InterviewSession:
         )
         self.turns.append(
             CandidateTurn(
-                seq=len(self.turns), at=now, elapsed_s=self.elapsed_s(now), revisions=(revision,)
+                seq=len(self.turns),
+                at=now,
+                elapsed_s=self.elapsed_s(now),
+                revisions=(revision,),
+                issues=() if complete else (TranscriptIssue.LIVE_INCOMPLETE,),
             )
         )
         self.phase = Phase.INTERVIEWER_THINKING
+
+    def reconstruct_latest_answer(
+        self, text: str, now: float, *, engine_ref: str | None = None
+    ) -> CandidateTurn | None:
+        """Add the interviewer model's reading of the answer it is replying to.
+
+        The only revision made during the interview: on the latest answer, while the next move
+        is being generated. The live transcript stays its first revision.
+        """
+        self._require_phase(Phase.INTERVIEWER_THINKING)
+        turn = self.turns[-1] if self.turns else None
+        if not isinstance(turn, CandidateTurn):
+            raise InvalidConfigError("only the latest answer can be reconstructed")
+        if " ".join(text.split()) == turn.text:
+            return None
+        revised = turn.revised(text, RevisionSource.RECONSTRUCTION, now, engine_ref=engine_ref)
+        self.turns[-1] = revised
+        return revised
+
+    def flag_latest_answer(self, issue: TranscriptIssue) -> CandidateTurn:
+        """Mark the answer the next move replies to as needing review."""
+        self._require_phase(Phase.INTERVIEWER_THINKING)
+        turn = self.turns[-1] if self.turns else None
+        if not isinstance(turn, CandidateTurn):
+            raise InvalidConfigError("only the latest answer can be flagged during the interview")
+        if issue not in turn.issues:
+            turn = replace(turn, issues=(*turn.issues, issue))
+            self.turns[-1] = turn
+        return turn
 
     def revise_answer(
         self,
@@ -447,6 +493,8 @@ class InterviewSession:
             raise InvalidTransitionError("answers can be revised only after the interview")
         if source is RevisionSource.STT:
             raise InvalidConfigError("the live transcript is always the first revision")
+        if source is RevisionSource.RECONSTRUCTION:
+            raise InvalidConfigError("a reconstruction is written only with the next move")
         if not 0 <= seq < len(self.turns) or not isinstance(self.turns[seq], CandidateTurn):
             raise InvalidConfigError(f"turn {seq} is not an answer")
         turn = self.turns[seq]

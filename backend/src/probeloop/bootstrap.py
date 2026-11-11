@@ -48,6 +48,7 @@ from probeloop.interview.application.service import SessionService
 from probeloop.interview.application.transcripts import REFINE_JOB, TranscriptService
 from probeloop.interview.application.voice import VoiceServices
 from probeloop.interview.domain.model import InterviewSession, Language, Modality
+from probeloop.interview.infrastructure.jev_limits import JevKeyFile, JevStatedLimitReader
 from probeloop.interview.infrastructure.onnx_limits import OnnxStatedLimitReader
 from probeloop.platform.jobs import Handler, Job, JobRunner, Progress
 from probeloop.platform.model_access import BackgroundModelAccess
@@ -102,6 +103,7 @@ class Container:
     roles: Mapping[str, ProfiledChatModel]
     account: ChatGptAccount
     limits: OnnxStatedLimitReader
+    jev: JevStatedLimitReader
     tool_options: Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]]
     installation: InstallationService
 
@@ -115,6 +117,7 @@ class Container:
         await self.sessions.shutdown()
         await self.jobs.stop()
         await self.limits.close()
+        await self.jev.aclose()
         await self.data.close()
         await self.engine.dispose()
         self.extractor.close()
@@ -277,6 +280,7 @@ def build(
     analysis_model: ChatModel | None = None,
     assessment_model: ChatModel | None = None,
     voice: VoiceServices | None = None,
+    jev: JevStatedLimitReader | None = None,
 ) -> Container:
     managed = bool(settings.provisioner_url) and not settings.llm_fake
     legacy = (
@@ -335,6 +339,9 @@ def build(
     local["limits"] = local["interviewer"]
     cloud["limits"] = cloud["interviewer"]
     limits = OnnxStatedLimitReader(settings.limits_model_dir, threads=settings.limits_threads)
+    if jev is None:
+        # Machine configuration next to the ChatGPT account, outside portable backups.
+        jev = JevStatedLimitReader(JevKeyFile(settings.data_dir / "typesafe"))
     available: tuple[Profile, ...] = ("local", "cloud")
     profiles = ExecutionProfiles(
         settings.data_dir / "execution-profile.json",
@@ -419,12 +426,18 @@ def build(
             pinned = DebugLogChatModel(pinned, settings.data_dir / "logs" / "llm.jsonl")
         plan = session.execution_profile or profiles.current
         reader: StatedLimitReader
-        if tool_for(plan, "limits") == "laya":
+        tool = tool_for(plan, "limits")
+        if tool == "laya":
             reader = limits
+        elif tool == "jev":
+            reader = jev
         else:
             reader = LlmStatedLimitReader(roles["limits"].pinned(plan))
         return LlmInterviewer(
-            pinned, two_step=settings.interviewer_turn == "two_step", limit_reader=reader
+            pinned,
+            two_step=two_step_turns(settings, plan),
+            limit_reader=reader,
+            reconstruct_answers=reconstructs_answers(profiles, plan),
         )
 
     sessions = SessionService(
@@ -506,7 +519,8 @@ def build(
         roles=roles,
         account=account,
         limits=limits,
-        tool_options=build_tool_options(settings, local, cloud, account, limits),
+        jev=jev,
+        tool_options=build_tool_options(settings, local, cloud, account, limits, jev),
         installation=installation,
     )
 
@@ -517,6 +531,7 @@ def build_tool_options(
     cloud: Mapping[str, ChatModel],
     account: ChatGptAccount,
     limits: OnnxStatedLimitReader,
+    jev: JevStatedLimitReader,
 ) -> Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]]:
     async def local_ready(model: ChatModel) -> bool:
         if isinstance(model, OllamaChatModel):
@@ -545,18 +560,38 @@ def build_tool_options(
                 ),
             )
             if role == "limits":
+                # Both turn modes read stated limits before the move.
                 reason = {
                     "missing": "model_missing",
                     "failed": "model_invalid",
                     "closed": "model_missing",
                 }.get(limits.state, limits.state)
-                if settings.interviewer_turn != "two_step":
-                    reason = "two_step_required"
                 choices += (ToolOption("laya", reason == "ready", limits.model_ref, reason),)
+                # A configured key is enough to offer Jev; the key itself is checked when it is
+                # saved and again before every interview starts or resumes.
+                reason = "ready" if jev.key.configured else "key_missing"
+                choices += (ToolOption("jev", reason == "ready", jev.model_ref, reason),)
             result[role] = choices
         return result
 
     return options
+
+
+def reconstructs_answers(profiles: ExecutionProfiles, plan: str) -> bool:
+    """The interviewer's reading of spoken answers, when enabled, comes from the cloud model
+    only: local models rewrote answers and invented figures in the transcript evaluation."""
+    return profiles.answer_reconstruction and tool_for(plan, "interviewer") == "cloud"
+
+
+def two_step_turns(settings: Settings, plan: str) -> bool:
+    """Whether adaptive turns of a session with this frozen plan decide in a separate call.
+
+    "auto" keeps two steps for the local interviewer, whose single-call turns recorded the
+    question type poorly, and uses one call with the cloud interviewer.
+    """
+    if settings.interviewer_turn == "auto":
+        return tool_for(plan, "interviewer") != "cloud"
+    return settings.interviewer_turn == "two_step"
 
 
 def build_cloud(
