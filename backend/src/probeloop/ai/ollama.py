@@ -63,14 +63,14 @@ class OllamaChatModel:
             async with asyncio.timeout(2.0):
                 info = await self._client.show(self._model)
             return not info.capabilities or "completion" in info.capabilities
-        except (ollama.ResponseError, httpx.HTTPError, TimeoutError):
+        except (ollama.ResponseError, httpx.HTTPError, ConnectionError, TimeoutError):
             return False
 
     async def capabilities(self) -> ModelCapabilities:
         if self._capabilities is None:
             try:
                 info = await self._client.show(self._model)
-            except (ollama.ResponseError, httpx.HTTPError) as exc:
+            except (ollama.ResponseError, httpx.HTTPError, ConnectionError) as exc:
                 raise LlmError(f"cannot describe model {self._model}: {exc}") from exc
             caps = set(info.capabilities or [])
             self._capabilities = ModelCapabilities(
@@ -115,7 +115,7 @@ class OllamaChatModel:
                     yield ChatChunk(text=text, done=True, usage=usage)
                 elif text:
                     yield ChatChunk(text=text)
-        except (ollama.ResponseError, httpx.HTTPError) as exc:
+        except (ollama.ResponseError, httpx.HTTPError, ConnectionError) as exc:
             raise LlmError(f"{self.model_ref} request failed: {exc}") from exc
 
     async def preload(self) -> None:
@@ -126,7 +126,7 @@ class OllamaChatModel:
                 keep_alive=self._keep_alive,
                 options={"num_ctx": self._context_window},
             )
-        except (ollama.ResponseError, httpx.HTTPError) as exc:
+        except (ollama.ResponseError, httpx.HTTPError, ConnectionError) as exc:
             raise LlmError(f"cannot load {self.model_ref}: {exc}") from exc
 
     def _options(self, request: ChatRequest) -> dict[str, Any]:

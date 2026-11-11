@@ -16,7 +16,12 @@ from probeloop.settings import Settings
 
 def test_new_installation_prefers_cloud_and_disables_whisper(tmp_path: Path) -> None:
     container = build(
-        Settings(data_dir=tmp_path, provisioner_url="http://127.0.0.1:1"), model=FakeChatModel([])
+        Settings(
+            data_dir=tmp_path,
+            provisioner_url="http://127.0.0.1:1",
+            ollama_base_url="http://127.0.0.1:1",
+        ),
+        model=FakeChatModel([]),
     )
     assert container.installation.config.refinement is False
     assert container.profiles.current == "cloud"
@@ -25,6 +30,8 @@ def test_new_installation_prefers_cloud_and_disables_whisper(tmp_path: Path) -> 
         assert status["managed"] is True
         assert status["config"]["completed"] is False
         assert status["provisioning"]["available"] is False
+        choices = client.get("/api/settings/execution").json()["tools"]
+        assert all(not role["options"][0]["available"] for role in choices)
         assert client.post("/api/installation/complete", json={}).status_code == 409
         assert client.post("/api/installation/models/arbitrary", json={}).status_code == 404
     restarted = build(
