@@ -17,6 +17,11 @@ from probeloop.workspace.execution import tool_for
 _scope: ContextVar[str | None] = ContextVar("execution_profile", default=None)
 
 
+def current_profile() -> str | None:
+    """The profile of the innermost scope, if any."""
+    return _scope.get()
+
+
 @contextmanager
 def using_profile(profile: str | None) -> Iterator[None]:
     """Model calls made inside use `profile`; None keeps the enclosing choice."""

@@ -182,6 +182,24 @@ def test_from_documents_to_an_interview_with_its_own_plan(client: TestClient) ->
     )
     assert added.status_code == 201
 
+    # The offer's heading and the model disagree on Kafka: the cue wins until the user decides.
+    kafka = next(
+        f
+        for f in view["facts"]
+        if f["statement"] == "Esperienza con Kafka e architetture a eventi."
+    )
+    assert (kafka["kind"], kafka["requirement"]["obligation"]) == ("requirement", "must")
+    assert kafka["requirement"]["disputed"] is True
+    assert {r["source"] for r in kafka["requirement"]["readings"]} == {"cue", "model"}
+    settled = client.put(f"{base}/facts/{kafka['id']}/obligation", json={"obligation": "preferred"})
+    assert settled.status_code == 200, settled.text
+    updated = next(f for f in settled.json()["facts"] if f["id"] == kafka["id"])
+    assert (updated["kind"], updated["requirement"]["disputed"]) == ("nice_to_have", False)
+    not_a_requirement = client.put(
+        f"{base}/facts/{inferred['id']}/obligation", json={"obligation": "must"}
+    )
+    assert not_a_requirement.status_code == 422
+
     confirm_role(client, view)
     snapshot = client.post(f"{base}/approve").json()
     assert "Go di base." in snapshot["candidate_brief"]

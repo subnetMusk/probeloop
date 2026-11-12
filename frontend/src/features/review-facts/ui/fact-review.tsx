@@ -17,6 +17,7 @@ import { Textarea } from '@/shared/ui/textarea'
 import { summarise } from '../model/summary'
 import type { RequirementRow } from '../model/summary'
 import { reviewMessages } from './messages'
+import { RequirementDetail } from './requirement-detail'
 
 type Messages = (typeof reviewMessages)['en']
 type Review = 'confirmed' | 'excluded' | 'corrected' | 'pending'
@@ -67,6 +68,15 @@ function FactItem({
         <p className="text-xs text-muted-foreground">
           {kindLabel(t, fact.kind)} · {originLabel(t, fact.origin)}
         </p>
+        {fact.requirement && (
+          <RequirementDetail
+            id={fact.id}
+            detail={fact.requirement}
+            onObligation={(obligation) => {
+              act(() => api.setObligation(preparationId, fact.id, obligation))
+            }}
+          />
+        )}
         {detailed && fact.quote && (
           <blockquote className="rounded-lg bg-muted/70 px-3 py-2 text-sm text-muted-foreground">
             <span className="sr-only">{t.fact.quote}: </span>“{fact.quote}”

@@ -518,6 +518,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/preparations/{preparation_id}/facts/{fact_id}/obligation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Obligation
+         * @description The user's reading of how binding a job requirement is; it overrides every other.
+         */
+        put: operations["set_obligation_api_preparations__preparation_id__facts__fact_id__obligation_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/preparations/{preparation_id}/reopen": {
         parameters: {
             query?: never;
@@ -1016,6 +1036,13 @@ export interface components {
             statement: string;
             subject: components["schemas"]["Subject"];
         };
+        /** AlternativeView */
+        AlternativeView: {
+            /** Open */
+            open: boolean;
+            /** Value */
+            value: string;
+        };
         /** AreaIn */
         AreaIn: {
             /** Area */
@@ -1273,6 +1300,7 @@ export interface components {
             origin: string;
             /** Quote */
             quote: string | null;
+            requirement?: components["schemas"]["RequirementDetailView"] | null;
             /** Review */
             review: string;
             /** Statement */
@@ -1479,6 +1507,27 @@ export interface components {
          * @enum {string}
          */
         MovePurpose: "clarification" | "evidence_probe" | "reasoning_probe" | "hint" | "new_topic" | "closing";
+        /** ObligationIn */
+        ObligationIn: {
+            /**
+             * Obligation
+             * @enum {string}
+             */
+            obligation: "must" | "preferred" | "unclear";
+        };
+        /** ObligationReadingView */
+        ObligationReadingView: {
+            /**
+             * Obligation
+             * @enum {string}
+             */
+            obligation: "must" | "preferred" | "unclear";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "user" | "cue" | "jev" | "model";
+        };
         /** ObservationData */
         ObservationData: {
             /** Criterion Id */
@@ -1786,6 +1835,34 @@ export interface components {
          */
         ReportKind: "cv" | "interview";
         /**
+         * RequirementDetailView
+         * @description How binding a job requirement is, who read it so, and what satisfies it.
+         */
+        RequirementDetailView: {
+            /** Any Of */
+            any_of: components["schemas"]["AlternativeView"][];
+            /** Category */
+            category: string;
+            /** Cue */
+            cue: string | null;
+            /** Disputed */
+            disputed: boolean;
+            /** Equivalents */
+            equivalents: components["schemas"]["RouteView"][];
+            /** Implicit */
+            implicit: boolean;
+            /**
+             * Obligation
+             * @enum {string}
+             */
+            obligation: "must" | "preferred" | "unclear";
+            /** Readings */
+            readings: components["schemas"]["ObligationReadingView"][];
+            /** Refines */
+            refines: string | null;
+            threshold: components["schemas"]["ThresholdView"] | null;
+        };
+        /**
          * RequirementView
          * @description A requirement of the position and how the approved candidate facts cover it.
          */
@@ -1920,6 +1997,13 @@ export interface components {
             seniority: string;
             /** Target Role */
             target_role: string;
+        };
+        /** RouteView */
+        RouteView: {
+            /** Kind */
+            kind: string;
+            /** Value */
+            value: string;
         };
         /** ScoreData */
         ScoreData: {
@@ -2064,8 +2148,17 @@ export interface components {
             /** Target Role */
             target_role: string;
         };
+        /** ThresholdView */
+        ThresholdView: {
+            /** Kind */
+            kind: string;
+            /** Minimum */
+            minimum: string;
+            /** Subject */
+            subject: string;
+        };
         /** @enum {string} */
-        Tool: "local" | "cloud" | "laya" | "jev";
+        Tool: "local" | "cloud" | "laya" | "jev" | "rules";
         /** ToolOptionView */
         ToolOptionView: {
             /** Available */
@@ -2082,7 +2175,7 @@ export interface components {
              * Id
              * @enum {string}
              */
-            id: "interviewer" | "analysis" | "evaluation" | "limits";
+            id: "interviewer" | "analysis" | "evaluation" | "limits" | "classification";
             /** Options */
             options: components["schemas"]["ToolOptionView"][];
             selected: components["schemas"]["Tool"];
@@ -3123,6 +3216,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreparationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_obligation_api_preparations__preparation_id__facts__fact_id__obligation_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preparation_id: string;
+                fact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObligationIn"];
             };
         };
         responses: {

@@ -28,6 +28,7 @@ from probeloop.context.domain.model import (
     FactKind,
     FactOrigin,
     JobMode,
+    Obligation,
     Preparation,
     PreparationStatus,
     Profile,
@@ -322,6 +323,14 @@ class ContextService:
     ) -> Preparation:
         preparation = await self.preparation(preparation_id)
         preparation.review_fact(fact_id, review, corrected)
+        await self._store.save_preparation(preparation)
+        return preparation
+
+    async def set_obligation(
+        self, preparation_id: str, fact_id: str, obligation: Obligation
+    ) -> Preparation:
+        preparation = await self.preparation(preparation_id)
+        preparation.set_obligation(fact_id, obligation)
         await self._store.save_preparation(preparation)
         return preparation
 

@@ -22,7 +22,7 @@ def scripted_analysis(request: ChatRequest) -> str:
                 "rationale": "Synthetic proposal; confirm or correct before starting.",
             }
         )
-    if "requirements" in properties:
+    if "requirements" in properties and "facts" in properties:  # not the offer draft
         text = content.split("<<<\n", 1)[-1].rsplit("\n>>>", 1)[0]
         lines = [line.strip() for line in text.splitlines() if len(line.strip()) >= 8]
         items: list[dict[str, object]] = [

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -142,11 +143,27 @@ async def test_answer_reconstruction_persists_and_applies_to_the_cloud_interview
     assert reconstructs_answers(reread, reread.current) is False
 
 
-def test_jev_is_accepted_only_for_stated_limits() -> None:
-    tools = {**execution_tools("cloud"), "limits": "jev"}
+def test_jev_is_accepted_only_for_stated_limits_and_line_classification() -> None:
+    tools = {**execution_tools("cloud"), "limits": "jev", "classification": "jev"}
     assert execution_tools(execution_plan(tools)) == tools
     with pytest.raises(ValueError, match="unsupported tool"):
         execution_plan({**execution_tools("cloud"), "interviewer": "jev"})
+    with pytest.raises(ValueError, match="unsupported tool"):
+        execution_plan({**execution_tools("cloud"), "classification": "cloud"})
+
+
+def test_line_classification_is_optional_and_its_default_is_never_written() -> None:
+    assert execution_tools("cloud")["classification"] == "rules"
+    assert execution_plan(execution_tools("cloud")) == "cloud"
+    mixed = execution_plan({**execution_tools("local"), "analysis": "cloud"})
+    assert "classification" not in json.loads(mixed)["tools"]
+    # A plan stored before the role existed keeps its exact text and its meaning.
+    stored = (
+        '{"tools": {"analysis": "cloud", "evaluation": "local", "interviewer": "local", '
+        '"limits": "local"}, "version": 1}'
+    )
+    assert execution_tools(stored)["classification"] == "rules"
+    assert execution_plan(execution_tools(stored)) == stored
 
 
 @pytest.mark.parametrize(

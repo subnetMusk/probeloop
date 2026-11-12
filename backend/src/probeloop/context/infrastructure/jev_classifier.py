@@ -204,6 +204,10 @@ class JevTextClassifier:
             key, base_url=base_url, timeout_s=TIMEOUT_S, transport=transport, sleep=sleep
         )
 
+    @property
+    def model_ref(self) -> str:
+        return f"typesafe:{MODEL}"
+
     async def obligations(self, lines: Sequence[OfferLine]) -> Classified[ObligationReading]:
         items = [{"heading": line.heading, "text": line.text} for line in lines]
         scores, model = await self._ask("obligation", "offer_lines", items, (REQUIRED, PREFERRED))

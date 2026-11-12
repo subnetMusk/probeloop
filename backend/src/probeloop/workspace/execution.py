@@ -24,15 +24,20 @@ logger = logging.getLogger(__name__)
 type Profile = Literal["local", "cloud"]
 PROFILES: tuple[Profile, ...] = ("local", "cloud")
 DEFAULT: Profile = "local"
-type Tool = Literal["local", "cloud", "laya", "jev"]
+type Tool = Literal["local", "cloud", "laya", "jev", "rules"]
 ROLES = ("interviewer", "analysis", "evaluation", "limits")
-# The tools each role accepts. Only stated-limit reading has engines besides the LLMs: the local
-# Laya classifier and the TypeSafe Jev service. Both remain optional.
+# Roles added later, with the tool that a plan without them means. A default is never written,
+# so plans stored before such a role existed keep their exact text and meaning.
+OPTIONAL_ROLES: dict[str, Tool] = {"classification": "rules"}
+# The tools each role accepts. Stated-limit reading also has the local Laya classifier and the
+# TypeSafe Jev service; line classification for the CV check (obligation of offer requirements)
+# uses the offer's cues with the analysis model, or Jev. Laya and Jev remain optional.
 ROLE_TOOLS: dict[str, tuple[Tool, ...]] = {
     "interviewer": ("local", "cloud"),
     "analysis": ("local", "cloud"),
     "evaluation": ("local", "cloud"),
     "limits": ("local", "cloud", "laya", "jev"),
+    "classification": ("rules", "jev"),
 }
 
 
@@ -47,26 +52,31 @@ class ToolOption:
 def execution_tools(profile: str | None) -> dict[str, Tool]:
     """Decode a frozen execution plan, including profiles written before per-role settings."""
     if profile is None or profile in PROFILES:
-        provider = profile or DEFAULT
-        return dict.fromkeys(ROLES, provider)
+        provider = cast(Tool, profile or DEFAULT)
+        return dict.fromkeys(ROLES, provider) | OPTIONAL_ROLES
     value = json.loads(profile)
     if not isinstance(value, dict) or value.get("version") != 1:
         raise ValueError("unsupported execution plan")
     tools = value.get("tools")
-    if not isinstance(tools, dict) or set(tools) != set(ROLES):
+    if not isinstance(tools, dict) or not set(ROLES) <= set(tools) <= set(ROLE_TOOLS):
         raise ValueError("invalid execution tools")
     for role, tool in tools.items():
         if tool not in ROLE_TOOLS[role]:
             raise ValueError("unsupported tool for this role")
-    return cast(dict[str, Tool], tools)
+    return OPTIONAL_ROLES | cast(dict[str, Tool], tools)
 
 
 def execution_plan(tools: Mapping[str, Tool]) -> str:
     """Keep legacy uniform profiles readable; mixed plans are self-contained for backups."""
-    encoded = json.dumps({"version": 1, "tools": dict(tools)}, sort_keys=True)
+    stored = {role: tool for role, tool in tools.items() if OPTIONAL_ROLES.get(role) != tool}
+    encoded = json.dumps({"version": 1, "tools": stored}, sort_keys=True)
     execution_tools(encoded)
-    if len(set(tools.values())) == 1 and tools["interviewer"] in PROFILES:
-        return tools["interviewer"]
+    if (
+        len(stored) == len(ROLES)
+        and len(set(stored.values())) == 1
+        and stored["interviewer"] in PROFILES
+    ):
+        return stored["interviewer"]
     return encoded
 
 

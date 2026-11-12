@@ -96,7 +96,7 @@ class ToolOptionView(BaseModel):
 
 
 class ToolRoleView(BaseModel):
-    id: Literal["interviewer", "analysis", "evaluation", "limits"]
+    id: Literal["interviewer", "analysis", "evaluation", "limits", "classification"]
     selected: Tool
     options: list[ToolOptionView]
 
@@ -104,7 +104,10 @@ class ToolRoleView(BaseModel):
 class ExecutionChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
     profile: Profile | None = None
-    tools: dict[Literal["interviewer", "analysis", "evaluation", "limits"], Tool] | None = None
+    tools: (
+        dict[Literal["interviewer", "analysis", "evaluation", "limits", "classification"], Tool]
+        | None
+    ) = None
     answer_reconstruction: bool | None = None
 
     @model_validator(mode="after")
@@ -272,9 +275,13 @@ def settings_router(
     async def remove_jev_key() -> ExecutionView:
         await ensure_idle()
         tools = execution_tools(profiles.current)
-        if tools["limits"] == "jev":
-            # The interviewer's own LLM reads the limits again, as it does without Jev.
-            await profiles.select_tools({**tools, "limits": tools["interviewer"]})
+        if "jev" in (tools["limits"], tools["classification"]):
+            # The interviewer's own LLM reads the limits again, as it does without Jev, and
+            # requirement obligations follow the offer's cues and the analysis model.
+            fallback = {"limits": tools["interviewer"], "classification": "rules"}
+            await profiles.select_tools(
+                {role: fallback[role] if tool == "jev" else tool for role, tool in tools.items()}
+            )
         jev.key.clear()
         logger.info("Jev API key removed")
         return await view()

@@ -34,7 +34,9 @@ def test_new_installation_prefers_cloud_and_disables_whisper(tmp_path: Path) -> 
         assert status["config"]["completed"] is False
         assert status["provisioning"]["available"] is False
         choices = client.get("/api/settings/execution").json()["tools"]
-        assert all(not role["options"][0]["available"] for role in choices)
+        # Line classification by the offer's cues needs nothing installed.
+        installed = [role for role in choices if role["id"] != "classification"]
+        assert all(not role["options"][0]["available"] for role in installed)
         assert client.post("/api/installation/complete", json={}).status_code == 409
         assert client.post("/api/installation/models/arbitrary", json={}).status_code == 404
     restarted = build(
