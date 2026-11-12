@@ -55,9 +55,10 @@ as a prerequisite ("devi aver già gestito...").
 
 1. An inline cue decides. Preferred: "preferibilmente", "preferably", "gradito", "è un plus",
    "a plus", "ideally", "titolo preferenziale", "nice to have". Must: "indispensabile",
-   "obbligatorio", "necessario", "required", "must", "essential".
+   "obbligatorio", "necessario", "required", "must", "essential", "you will need".
 2. Otherwise the section heading decides. Must: "Requisiti", "Requirements", "Cosa cerchiamo",
-   "What we look for", "Must have". Preferred: "Gradito", "Nice to have", "Plus", "Bonus".
+   "What we look for", "Must have". Preferred: "Gradito", "Nice to have", "Plus", "Bonus",
+   "Bonus points", "Preferred", "Costituisce titolo preferenziale".
 3. Otherwise, and for every implicit requirement, `unclear`.
 
 A preference inside a mandatory line gives two requirements: the mandatory part, and the
@@ -85,12 +86,15 @@ For every requirement of the pair's offer:
   ability.
 - `contradicted`: the CV states something incompatible: fewer years than the threshold from its
   own dates, a lower language level, or an explicit limit ("nessuna gestione del cluster" against
-  cluster administration).
+  cluster administration). A limit contradicts only what it excludes: "nessuna gestione del
+  cluster" leaves running services on Kubernetes `partial` or better.
 
 Alternatives take the best member; equivalents take the best route. Overlapping periods count
-once. A years threshold is `contradicted` only when the CV's dates prove fewer years at their
-precision; when the precision does not allow a decision, the coverage is `partial` and the note
-says why.
+once. A role counts towards a years threshold when its described work matches the threshold's
+subject, whatever its title or technology, unless the threshold names a technology (a PHP and
+Laravel role counts as backend development, not as Python). A years threshold is `direct` only
+when the narrowest reading of the dates passes it, and `contradicted` only when the widest
+reading stays below it; in between, the coverage is `partial` and the note says why.
 
 **Evidence.**
 
@@ -109,7 +113,7 @@ For the pair as a whole:
 | Field | Values and rules |
 |---|---|
 | `target_level` | `junior`, `mid`, `senior` or `lead`, from the offer; `null` when the offer does not say |
-| `fit_band` | `strong`: every `must` is `direct`. `partial`: no `must` is `contradicted` and most are `direct` or `partial`. `weak`: a `must` is `contradicted`, or most `must` items are `insufficient` while some evidence exists. `insufficient_evidence`: the CV says too little to judge most `must` items |
+| `fit_band` | The first that applies: `strong` when every `must` is `direct`; `weak` when a `must` is `contradicted`; `partial` when more than half of the `must` items are `direct` or `partial`; `insufficient_evidence` when every `must` is `insufficient`; otherwise `weak` |
 | `rewrite_traps` | Offer terms absent from the CV; a rewrite must not introduce them |
 
 ## CV labels
@@ -123,6 +127,7 @@ For the pair as a whole:
 | `defects` | Document issues, each with `kind` (`impossible_date`, `contradiction`, `vague_wording`, `repetition`, `missing_contact`, `spelling`), a quote and `severity` (`minor`, `major`) |
 
 A gap between periods, a missing introduction, a photo or a template is not a defect.
+`missing_contact` applies only when the CV gives neither an email address nor a phone number.
 
 ## Invariance variants
 

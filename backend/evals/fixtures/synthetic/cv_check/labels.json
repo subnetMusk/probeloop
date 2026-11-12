@@ -1,9 +1,9 @@
 {
-  "version": 1,
-  "status": "draft",
+  "version": 2,
+  "status": "frozen",
   "reference_date": "2026-11-12",
   "labeller": "blind model labeller",
-  "reviewed_by": null,
+  "reviewed_by": "owner, 2026-11-12: the five cases flagged by the labeller (obligation cues outside the guide's lists, the fit band of p23, years counting, missing contact, the Kubernetes limit in c01); every other label accepted as written",
   "offers": {
     "o01-pagafacile": {
       "requirements": [
@@ -5886,7 +5886,7 @@
     },
     "p23": {
       "target_level": null,
-      "fit_band": "partial",
+      "fit_band": "weak",
       "rewrite_traps": [
         "contabilità generale",
         "TeamSystem",
@@ -6666,6 +6666,13 @@
       }
     }
   },
-  "review": [],
+  "review": [
+    {
+      "path": "pairs/p23/fit_band",
+      "before": "partial",
+      "after": "weak",
+      "reason": "No band applied; under the exhaustive rule now in the guide, three of six must items are direct or partial, which is not more than half, and the accounting software requirement has no evidence."
+    }
+  ],
   "changes": []
 }
