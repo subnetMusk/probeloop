@@ -27,10 +27,13 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
   restoring a backup is a [documented command](operations.md#restoring-a-backup).
 - Profiles and CV checks created without an interview; a CV check can be saved as a profile or
   deleted, and deleting either keeps what interviews and other reports still use.
+- Unfinished CV checks reachable from the CV checks page, with their saved preparation state.
+- Structured offer requirements with reviewable obligations, alternatives, equivalents and
+  thresholds; optional Jev obligation classification, with disagreements shown for user review.
 - Score trends with one line per profile, broken only by rubric version changes and marking other
   evaluator changes.
 - First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
-- Evidence-scoped reports with descriptive anchors shown on a 0–100 scale and unassessed criteria.
+- Evidence-scoped reports with descriptive anchors shown on a 0-100 scale and unassessed criteria.
 - Container-based tooling, import contracts, adapter contracts and scripted browser acceptance.
 - Versioned installer packaging for amd64/arm64 images and OS-native shell launchers.
 
@@ -65,6 +68,9 @@ round trip with the documented command reproduced the data summary of a local in
   recordings, including specialist terms and realistic microphone conditions.
 - Independent stated-limit examples and real ASR transcripts. The Laya pilot used synthetic
   development data and label-derived thresholds; it is a provisional model, not a final release.
+- Full CV-check calibration against the frozen reference labels and independent real documents.
+  The Jev line-classifier measurements cover a small synthetic set; heading and quantified-outcome
+  classification remain evaluation helpers outside the application flow.
 - Physical Mac latency, memory use and usability with Docker Desktop. Native ARM64 builds and
   dependency/model smoke tests establish narrower compatibility evidence, not a Mac benchmark.
 - Voice preference/listening acceptance and complete real voice interviews after each relevant
@@ -82,6 +88,11 @@ The provisional full checkpoint, int8 runtime export, tokenizer and model card a
 [submsk/probeloop-laya-stated-limits](https://huggingface.co/submsk/probeloop-laya-stated-limits).
 Installers pin the reviewed revision and hashes; a later fine-tuning needs its own validation and
 manifest update. Laya is not adopted for choosing interview moves.
+
+The [CV check assessment](research/cv-check-assessment-2026-11-12.md) separates the scripted
+pipeline baseline from later Jev line-classification measurements. The reference labels are
+frozen at version 2; classifier results do not establish matching, scoring or feedback quality
+for the full CV check.
 
 The active product work remains the adaptive interview/reporting milestone and its acceptance
 work. Guided installation is an explicitly approved usability addition, and so are standalone

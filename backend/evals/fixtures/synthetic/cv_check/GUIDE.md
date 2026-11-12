@@ -30,6 +30,14 @@ The reference date for open ranges ("oggi", "present") is **2026-11-12**.
 Agreement is reported as Krippendorff's alpha with bootstrap intervals: nominal for obligation,
 category and coverage, ordinal for the fit band.
 
+The checked-in labels are frozen at version 2 after the owner's review on 2026-11-12. The
+`review` and `changes` entries retain the corrections and their reasons. From the repository
+root, validate their structure, quotations and invariance constraints without calling a model:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -e PROBELOOP_PROVISIONER_URL= backend python -m evals.cv_check_labels
+```
+
 ## Offer labels
 
 A **requirement** is the smallest statement of the offer that a candidate can satisfy or fail on

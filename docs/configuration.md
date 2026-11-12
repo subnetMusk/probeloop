@@ -4,13 +4,20 @@
 
 Settings contain independent tool choices for interviewer, document analysis, evaluation and
 stated-limit reading. The first three support ChatGPT or Ollama. The stated-limit reader also
-supports the approved Laya ONNX classifier. Unavailable options are disabled, with a reason:
-missing sign-in, missing model, loading, failed service, or unsupported turn mode.
+supports the approved Laya ONNX classifier and the optional TypeSafe Jev service. A separate
+choice classifies job-offer requirements: the offer's cues with the analysis model (`rules`),
+or Jev. Unavailable options are disabled, with a reason: missing sign-in, missing model, missing
+Jev key, loading, failed service, or unsupported turn mode.
+
+Jev requires an API key added in Settings and an explicit selection for each role that uses it.
+The key is machine configuration, excluded from portable backups. Removing it returns stated-limit
+reading to the interviewer's tool and requirement classification to `rules` where Jev was selected.
 
 The home page displays the current choices. New preparations and interviews retain their own
 execution plan; the interview wizard does not ask for another processing profile. Legacy uniform
 `local` and `cloud` plans remain readable. Mixed plans are versioned, self-contained JSON strings
-inside the existing execution-plan fields; the UI presents names rather than raw JSON.
+inside the existing execution-plan fields; the UI presents names rather than raw JSON. Plans
+without a requirement-classification choice use `rules` and retain their stored encoding.
 
 Tool, installation and account sign-out changes require no active interview or pending background
 job. A selected provider failure pauses the interview without switching tools. Existing bounded
@@ -41,6 +48,8 @@ files. The report uses the current reviewed transcript revisions, including user
 | Cloud interviewer | Approved context, conversation text and state needed for the next move |
 | Cloud evaluation | Transcript revisions and supporting context needed by the report |
 | Cloud stated-limit reader | Latest question and answer text |
+| Jev stated-limit reader | Latest question and answer sentences sent to TypeSafe |
+| Jev requirement classification | Extracted offer requirement text and section headings sent to TypeSafe |
 | Local Ollama | Corresponding text sent to the configured Ollama endpoint |
 | Local Laya | Question/sentence pairs processed in the backend's CPU ONNX session |
 | Local speech services | Audio for recognition; question text for synthesis, over the internal network |
@@ -68,14 +77,14 @@ the supported Compose variables; see `compose.yaml` and `probeloop.settings.Sett
 | `PROBELOOP_LIMITS_THREADS` | Classifier CPU threads; default 2, with idle spinning disabled |
 | `PROBELOOP_LIMITS_MODEL_URL` | Initial approved, pinned public HTTPS model directory |
 | `PROBELOOP_STT_THREADS`, `PROBELOOP_STT_CPUS` | Speech worker resource allocation |
+| `PROBELOOP_TTS_VOICE` | Default Italian Piper voice identifier |
+| `PROBELOOP_DATABASE_URL` | Optional PostgreSQL connection instead of default SQLite |
+| `PROBELOOP_PORT` | Published loopback port in the installer bundle |
 
 Speech recognition uses six engine threads by default, without an explicit container CPU quota.
 This allows the setup page to open when Docker Desktop exposes fewer than six CPUs. An optional
 `PROBELOOP_STT_CPUS` quota must fit Docker's allocation; `0.0` leaves that quota unset, following
 the [Compose CPU setting](https://docs.docker.com/reference/compose-file/services/#cpus).
-| `PROBELOOP_TTS_VOICE` | Default Italian Piper voice identifier |
-| `PROBELOOP_DATABASE_URL` | Optional PostgreSQL connection instead of default SQLite |
-| `PROBELOOP_PORT` | Published loopback port in the installer bundle |
 
 `Settings` does not read a host `.env` file itself. Compose reads `.env` for interpolation, then
 passes only variables declared in its service environment. Settings not forwarded by Compose

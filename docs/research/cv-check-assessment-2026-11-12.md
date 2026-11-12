@@ -1,4 +1,4 @@
-# CV check assessment: current behaviour and literature (2026-11-12)
+# CV check assessment: baseline, literature and classifier measurements (2026-11-12)
 
 > **Research and validation record.** Interpret measurements in their original conditions; they are not current runtime guarantees.
 > Current operational guides: [documentation index](../README.md), [architecture](../architecture.md), and [status](../status.md).
@@ -6,12 +6,13 @@
 The owner reviewed the CV check and raised six points: semantic matching and scoring (P0), evidence
 selection, document analysis and internal consistency (P1), and feedback (P2). This record checks
 each point against the code at commit `81c13e1`, collects published practice for each area and
-assesses a fast classifier layer (Jev now, Laya later). It precedes any change to the pipeline.
+assesses a fast classifier layer (Jev now, Laya later). The baseline precedes changes to the
+pipeline; the Jev section records the later classifier measurements.
 
-No real model was called. A probe feeds synthetic material to the deterministic steps and to the
-reviewer with scripted model outputs; it shows what the code accepts, not how often a real model
-produces such output. No reference judgements exist yet, so none of the six areas has a measured
-error rate.
+The baseline called no real model. A probe feeds synthetic material to the deterministic steps
+and to the reviewer with scripted model outputs; it shows what the code accepts, not how often
+a real model produces such output. At that checkpoint no reference judgements existed, so none
+of the six areas had a measured error rate.
 
 ## Method
 
@@ -33,7 +34,7 @@ error rate.
   page was read) or *snippet* (search summaries only; check the original before relying on a
   number). The three most recent preprints were re-read at abstract level on 2026-11-12.
 
-## Pipeline as implemented
+## Pipeline at the baseline
 
 The analysis splits each document into passages of at most 3,500 characters and asks the model
 for at most 25 facts per passage. Each fact has a subject, a kind, a one-sentence statement and a
@@ -357,10 +358,19 @@ same labels, and the offers state obligation with explicit cues. These results s
 Jev for the three line labels in the CV check; they do not establish its accuracy on real
 documents, which the CV check's own measures will have to watch.
 
+## Integration after the baseline
+
+Offer analysis now extracts structured requirements and lets the user review their obligations.
+Jev can be selected for obligation classification; heading and quantified-outcome classification
+remain evaluation helpers. The [architecture](../architecture.md#preparation-and-interview-flow)
+describes the integrated flow, and [configuration](../configuration.md) describes tool selection
+and the text sent to TypeSafe. Matching, scoring, evidence selection and feedback have not been
+remeasured against the frozen labels by this record.
+
 ## Limits of this record
 
-- The probe uses scripted model outputs; frequencies with real models are unknown until a
-  labelled set exists and a baseline runs on it.
+- The probe uses scripted model outputs. The reference labels now exist, but matching, scoring
+  and feedback error rates remain unmeasured until the full pipeline runs against them.
 - Line references describe commit `81c13e1`.
 - Several sources were read only at abstract or snippet level, as labelled. Evidence is thin for
   obligation classification of job-offer sentences, evidence grading in CVs, seniority-specific

@@ -102,9 +102,13 @@ keep the legacy defaults. Settings changes apply only while idle.
 
 ## Processing tools and failure semantics
 
-Four roles are configured independently: interviewer, analysis, evaluation and stated-limit
-reading. Local and cloud LLMs serve each role. Laya is offered only for stated-limit reading, in
-the default two-step adaptive turn mode, after its model has loaded successfully.
+Interviewer, analysis, evaluation and stated-limit reading are configured independently. Local
+and cloud LLMs serve each role. Laya is offered only for stated-limit reading, in the default
+two-step adaptive turn mode, after its model has loaded successfully. The optional TypeSafe Jev
+service also reads stated limits. A separate requirement-classification choice uses the offer's
+cues with the analysis model (`rules`), or Jev. The two Jev adapters share a transport client;
+each fixes its own question wording and thresholds. Data sent to each tool is described in
+[configuration](configuration.md#data-flow).
 
 Availability checks distinguish configured/installed tools from absent, loading, failed or
 unsigned-in tools. Local checks describe the configured Ollama model without generating or
@@ -112,8 +116,10 @@ loading it. Cloud selection requires the signed-in account's permitted plan usag
 alone is not an entitlement or quality guarantee.
 
 New work snapshots the execution plan. Legacy uniform plans are `local` or `cloud`; mixed plans
-are versioned JSON strings containing all four selections. SQL execution-plan fields are text,
-with migration compatibility for older data. The UI presents tool names, never the raw encoding.
+are versioned JSON strings containing the four core selections and any non-default classification
+choice. A missing classification choice means `rules`; existing plans keep their stored encoding.
+SQL execution-plan fields are text, with migration compatibility for older data. The UI presents
+tool names, never the raw encoding.
 
 Changes to tools, installation and sign-out require no connected/active interview or pending
 background job. API mutations share the existing coordination lock. A selected provider's
@@ -138,6 +144,14 @@ created on its own page, from a CV check or in the interview wizard. A CV check 
 profile or documents added for it, goes through the same review and approval, then reviews the
 CV against the approved snapshot. The wizard and the CV check share the review components; the
 preparation and snapshot ids in the URL hold the state of a standalone CV check.
+
+Offer analysis extracts requirements with an obligation (`must`, `preferred` or `unclear`),
+category, alternatives, equivalent routes, thresholds and links to requirements they refine.
+The offer's verified wording or heading takes precedence over Jev, then the analysis model;
+unclear readings defer to the next source. The review shows disagreements and lets the user
+choose the obligation, overriding those readings. Structured requirements persist in the
+preparation and approved snapshot. Jev heading and quantified-outcome classification have
+evaluation helpers but are not connected to the application flow.
 
 Planning builds objectives from approved context. A session keeps its configuration, execution
 plan, objective state, coverage and conversation. The interviewer reacts to the latest answer,
@@ -190,7 +204,7 @@ and transcript-grounded quotations. Specialist correctness claims need verified 
 evidence or explicit uncertainty. Unknown or insufficient evidence stays unassessed. Successful
 schema validation does not prove that an LLM's specialist judgement is correct.
 
-The public 0–100 score derives from descriptive anchors; it does not imply 101 reliably separable
+The public 0-100 score derives from descriptive anchors; it does not imply 101 reliably separable
 levels of competence or predict hiring outcomes. User-visible reports distinguish the observation,
 evidence, judgement and actionable feedback. Cross-profession acceptance remains an independent
 gate, including tests for invented details, overextended facts and incorrectly endorsed answers.
