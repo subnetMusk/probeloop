@@ -45,6 +45,12 @@ and installation preferences. Restoring user data does not replace the machine's
 configuration. **Delete application data** similarly keeps machine settings, installed models
 and account configuration. Account sign-out is a separate action.
 
+Deleting a single record keeps what other records need. Deleting a CV check removes its report
+versions and, unless an interview or another report uses them, its approved analysis and the
+documents added only for it; a saved profile keeps its documents. Deleting a profile keeps its
+interviews, reports and CV checks with the documents they use. Cached model extractions stay
+until **Delete all my data**.
+
 Backup, restore, deletion and configuration changes are guarded against active interviews and
 background jobs. Make the app idle first. Keep backups outside the running data volume and
 protect them as personal information; they can contain documents, recordings and transcripts.

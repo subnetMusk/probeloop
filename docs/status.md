@@ -23,7 +23,12 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
 - Full-width transcription switches and section navigation aligned with the visible content,
   including short trailing sections and keyboard return to the top.
 - Local Parakeet recognition and Piper synthesis; optional Whisper second transcription.
-- Correctable transcripts with revision history, report exports, history and portable backups.
+- Correctable transcripts with revision history, report exports, history and portable backups;
+  restoring a backup is a [documented command](operations.md#restoring-a-backup).
+- Profiles and CV checks created without an interview; a CV check can be saved as a profile or
+  deleted, and deleting either keeps what interviews and other reports still use.
+- Score trends with one line per profile, broken only by rubric version changes and marking other
+  evaluator changes.
 - First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
 - Evidence-scoped reports with descriptive anchors shown on a 0–100 scale and unassessed criteria.
 - Container-based tooling, import contracts, adapter contracts and scripted browser acceptance.
@@ -71,5 +76,8 @@ Installers pin the reviewed revision and hashes; a later fine-tuning needs its o
 manifest update. Laya is not adopted for choosing interview moves.
 
 The active product work remains the adaptive interview/reporting milestone and its acceptance
-work. Guided installation is an explicitly approved usability addition. Web crawling and later
-roadmap capabilities are not introduced by this release.
+work. Guided installation is an explicitly approved usability addition, and so are standalone
+profiles and CV checks with the M9 history changes
+([ADR 0022](adr/0022-standalone-profiles-and-cv-checks.md),
+[ADR 0023](adr/0023-score-trends-per-profile.md)). Web crawling and later roadmap capabilities
+are not introduced by this release.
