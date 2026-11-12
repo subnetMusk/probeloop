@@ -16,6 +16,13 @@ function point(id: string, at: number, overall: number | null, type: string | nu
     values: {},
     evidence_counts: {},
     interview_type: type,
+    profile_id: null,
+    role: null,
+    rubric_id: 'r',
+    rubric_hash: 'h',
+    model_ref: 'model',
+    prompt_ref: 'p',
+    language: 'it',
   }
 }
 

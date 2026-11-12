@@ -80,7 +80,7 @@ async def test_mixed_plans_cannot_be_downgraded_or_lost(
     try:
         with pytest.raises(RuntimeError, match="cannot downgrade"):
             await downgrade(engine, "0006")
-        assert await current_revision(engine) == "0008"
+        assert await current_revision(engine) == "0009"
         assert await store.load(session.id) == session
     finally:
         await store.delete(session.id)

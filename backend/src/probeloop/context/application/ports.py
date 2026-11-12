@@ -42,7 +42,15 @@ class ContextStore(Protocol):
 
     async def save_profile(self, profile: Profile) -> None: ...
 
-    async def delete_profile(self, profile_id: str) -> bool: ...
+    async def delete_profile(self, profile_id: str) -> bool:
+        """Delete the profile with the preparations, contexts and documents that only it kept.
+        Contexts that an interview, a report or a pending job uses stay, with their documents."""
+        ...
+
+    async def discard_snapshot(self, snapshot_id: str) -> bool:
+        """Delete a context that no interview, report or pending job uses, with the preparations
+        that approved it and the documents nothing else keeps. False when it is still in use."""
+        ...
 
     async def save_preparation(self, preparation: Preparation) -> None: ...
 

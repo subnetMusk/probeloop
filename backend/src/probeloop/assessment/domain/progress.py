@@ -14,6 +14,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from probeloop.assessment.domain.model import Report, ReportKind
+from probeloop.context.domain.model import RoleProfile
+
+
+@dataclass(frozen=True, slots=True)
+class TargetRole:
+    profession: str
+    target_role: str
+    seniority: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +35,15 @@ class ProgressPoint:
     values: dict[str, float | None]
     evidence_counts: dict[str, int]
     interview_type: str | None = None  # interview reports only
+    # Who owns the report and how it was scored, so a chart can follow one profile across
+    # changes of evaluator and say where they happened.
+    profile_id: str | None = None
+    role: TargetRole | None = None
+    rubric_id: str = ""
+    rubric_hash: str = ""
+    model_ref: str = ""
+    prompt_ref: str = ""
+    language: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,13 +93,17 @@ def latest_reports(reports: list[Report]) -> list[Report]:
 
 
 def progress_groups(
-    reports: list[Report], interview_types: Mapping[str, str] | None = None
+    reports: list[Report],
+    interview_types: Mapping[str, str] | None = None,
+    roles: Mapping[str, RoleProfile | None] | None = None,
 ) -> tuple[ProgressGroup, ...]:
     """Groups of the latest reports of interviews and CV checks.
 
-    `interview_types` maps session ids to their interview type.
+    `interview_types` maps session ids to their interview type. `roles` maps subject ids to the
+    confirmed role of reports that do not record one (CV reports take it from their context).
     """
     types = interview_types or {}
+    known = roles or {}
     groups: dict[str, list[Report]] = {}
     for report in latest_reports(reports):
         groups.setdefault(comparison_key(report), []).append(report)
@@ -108,6 +129,13 @@ def progress_groups(
                 types.get(report.session_id)
                 if report.kind is ReportKind.INTERVIEW and report.session_id
                 else None,
+                report.profile_id,
+                _target(report.role_profile or known.get(report.subject_id)),
+                report.rubric_id,
+                report.rubric_hash,
+                report.model_ref,
+                report.prompt_ref,
+                report.language,
             )
             for report in sorted(items, key=lambda r: r.created_at)
         )
@@ -125,3 +153,9 @@ def progress_groups(
             )
         )
     return tuple(result)
+
+
+def _target(role: RoleProfile | None) -> TargetRole | None:
+    if role is None or not role.target_role.strip():
+        return None
+    return TargetRole(role.profession, role.target_role, role.seniority)

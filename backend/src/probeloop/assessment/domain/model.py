@@ -129,6 +129,9 @@ class Report:
     objectives: tuple[Topic, ...] = ()
     question_trace: tuple[QuestionTrace, ...] = ()
     reference_documents: tuple[ReferenceDocument, ...] = ()
+    # The saved profile the report belongs to. It links the report to its owner and is not part
+    # of the assessed content, so it can be set later and may name a deleted profile.
+    profile_id: str | None = None
 
 
 def explored_scores(

@@ -198,9 +198,36 @@ class ContextService:
             raise ContextError(f"document {document_id} is not a {kind.value}")
         return document
 
+    async def profile_from_snapshot(self, snapshot_id: str, name: str) -> Profile:
+        """Save the documents of an approved context as a new profile."""
+        snapshot = await self.snapshot(snapshot_id)
+
+        def first(kind: DocumentKind) -> Document | None:
+            return next((d for d in snapshot.documents if d.kind is kind), None)
+
+        now = self._now()
+        profile = Profile(
+            id=self._new_id(),
+            name=name.strip(),
+            resources=tuple(d for d in snapshot.documents if d.kind is DocumentKind.RESOURCE),
+            created_at=now,
+            updated_at=now,
+            cv=first(DocumentKind.CV),
+            job_offer=first(DocumentKind.JOB_OFFER),
+        )
+        await self._store.save_profile(profile)
+        return profile
+
     async def delete_profile(self, profile_id: str) -> None:
+        """Delete a profile. Its interviews, their reports and its CV checks stay, with the
+        contexts and documents they need; what only the profile kept goes with it."""
         if not await self._store.delete_profile(profile_id):
             raise ContextNotFoundError(profile_id)
+
+    async def discard_snapshot(self, snapshot_id: str) -> bool:
+        """Delete an approved context that nothing uses any more, with the preparations that
+        approved it and the documents only they kept. False when it is still in use."""
+        return await self._store.discard_snapshot(snapshot_id)
 
     # ------------------------------------------------------------------ preparation
 
@@ -215,6 +242,8 @@ class ContextService:
         profile_id: str | None = None,
         execution_profile: str | None = None,
     ) -> Preparation:
+        if profile_id is not None:
+            await self.profile(profile_id)
         documents: list[Document] = []
         for document_id, kind in ((cv_id, DocumentKind.CV), (job_offer_id, DocumentKind.JOB_OFFER)):
             if document_id is None:

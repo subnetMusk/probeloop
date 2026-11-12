@@ -310,6 +310,16 @@
           "latest_report": {
             "$ref": "#/components/schemas/LatestReportView"
           },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileRefView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "snapshot_id": {
             "title": "Snapshot Id",
             "type": "string"
@@ -322,7 +332,8 @@
           "job_mode",
           "cv",
           "job_offer",
-          "latest_report"
+          "latest_report",
+          "profile"
         ],
         "title": "CvCheckHistoryView",
         "type": "object"
@@ -1717,6 +1728,22 @@
         ],
         "type": "string"
       },
+      "ProfileFromCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ProfileFromCheck",
+        "type": "object"
+      },
       "ProfileIn": {
         "additionalProperties": false,
         "properties": {
@@ -1952,6 +1979,14 @@
             ],
             "title": "Interview Type"
           },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "model_ref": {
+            "title": "Model Ref",
+            "type": "string"
+          },
           "overall": {
             "anyOf": [
               {
@@ -1963,8 +1998,41 @@
             ],
             "title": "Overall"
           },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "prompt_ref": {
+            "title": "Prompt Ref",
+            "type": "string"
+          },
           "report_id": {
             "title": "Report Id",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetRoleView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rubric_hash": {
+            "title": "Rubric Hash",
+            "type": "string"
+          },
+          "rubric_id": {
+            "title": "Rubric Id",
             "type": "string"
           },
           "scale": {
@@ -2016,7 +2084,14 @@
           "overall",
           "values",
           "evidence_counts",
-          "interview_type"
+          "interview_type",
+          "profile_id",
+          "role",
+          "rubric_id",
+          "rubric_hash",
+          "model_ref",
+          "prompt_ref",
+          "language"
         ],
         "title": "ProgressPointView",
         "type": "object"
@@ -2284,6 +2359,17 @@
               }
             ],
             "title": "Policy Version"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
           },
           "prompt_ref": {
             "title": "Prompt Ref",
@@ -2558,6 +2644,18 @@
             ],
             "title": "Language",
             "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
           }
         },
         "title": "ReviewRequest",
@@ -3203,6 +3301,29 @@
         ],
         "title": "Subject",
         "type": "string"
+      },
+      "TargetRoleView": {
+        "properties": {
+          "profession": {
+            "title": "Profession",
+            "type": "string"
+          },
+          "seniority": {
+            "title": "Seniority",
+            "type": "string"
+          },
+          "target_role": {
+            "title": "Target Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profession",
+          "target_role",
+          "seniority"
+        ],
+        "title": "TargetRoleView",
+        "type": "object"
       },
       "Tool": {
         "enum": [
@@ -4108,8 +4229,27 @@
     },
     "/api/history/cv-checks": {
       "get": {
-        "description": "Every approved context with a CV review, latest review first.",
+        "description": "Every approved context with a CV review, latest review first; with `profile_id`,\nthose with a version that belongs to that profile.",
         "operationId": "cv_checks_api_history_cv_checks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Profile Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4124,6 +4264,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Cv Checks"
@@ -5796,6 +5946,37 @@
       }
     },
     "/api/snapshots/{snapshot_id}/cv-reviews": {
+      "delete": {
+        "description": "Delete every version of a CV check. The approved context and its documents go too,\nunless a saved profile, an interview or another report still uses them.",
+        "operationId": "delete_cv_check_api_snapshots__snapshot_id__cv_reviews_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Cv Check"
+      },
       "get": {
         "operationId": "cv_reviews_api_snapshots__snapshot_id__cv_reviews_get",
         "parameters": [
@@ -5926,6 +6107,56 @@
           }
         },
         "summary": "Snapshot Jobs"
+      }
+    },
+    "/api/snapshots/{snapshot_id}/profile": {
+      "post": {
+        "description": "Save the documents of a CV check as a new profile, which then owns the check.",
+        "operationId": "profile_from_check_api_snapshots__snapshot_id__profile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileFromCheck"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Profile From Check"
       }
     },
     "/api/speech": {

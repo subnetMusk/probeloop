@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from probeloop.api.context_routes import DocumentView
@@ -96,12 +96,14 @@ class CvCheckHistoryView(BaseModel):
     cv: DocumentView | None
     job_offer: DocumentView | None
     latest_report: LatestReportView
+    profile: ProfileRefView | None  # the owner of the latest version
 
     @classmethod
-    def of(cls, entry: CvCheckEntry) -> CvCheckHistoryView:
+    def of(cls, entry: CvCheckEntry, profile_names: dict[str, str]) -> CvCheckHistoryView:
         s = entry.snapshot
         documents = {d.kind: d for d in s.documents}
         cv, offer = documents.get(DocumentKind.CV), documents.get(DocumentKind.JOB_OFFER)
+        owner = entry.report.profile_id
         return cls(
             snapshot_id=s.id,
             created_at=s.created_at,
@@ -110,6 +112,7 @@ class CvCheckHistoryView(BaseModel):
             cv=DocumentView.of(cv) if cv else None,
             job_offer=DocumentView.of(offer) if offer else None,
             latest_report=LatestReportView.of(entry.report),
+            profile=ProfileRefView(id=owner, name=profile_names.get(owner)) if owner else None,
         )
 
 
@@ -123,8 +126,12 @@ def history_router(assessment: AssessmentService, context: ContextService) -> AP
         return [InterviewHistoryView.of(e, names) for e in await assessment.interview_history()]
 
     @router.get("/cv-checks")
-    async def cv_checks() -> list[CvCheckHistoryView]:
-        """Every approved context with a CV review, latest review first."""
-        return [CvCheckHistoryView.of(e) for e in await assessment.cv_history()]
+    async def cv_checks(
+        profile_id: Annotated[str | None, Query(max_length=32)] = None,
+    ) -> list[CvCheckHistoryView]:
+        """Every approved context with a CV review, latest review first; with `profile_id`,
+        those with a version that belongs to that profile."""
+        names = {p.id: p.name for p in await context.profiles()}
+        return [CvCheckHistoryView.of(e, names) for e in await assessment.cv_history(profile_id)]
 
     return router
