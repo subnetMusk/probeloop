@@ -5,7 +5,15 @@ import { trendLines, typesWithScores } from './series'
 
 type Point = ProgressGroup['points'][number]
 
-function point(id: string, at: number, overall: number | null, type: string | null): Point {
+const BACKEND = { profession: 'Software', target_role: 'Backend developer', seniority: 'mid' }
+
+function point(
+  id: string,
+  at: number,
+  overall: number | null,
+  type: string | null,
+  patch: Partial<Point> = {},
+): Point {
   return {
     report_id: id,
     subject_id: `s-${id}`,
@@ -16,56 +24,96 @@ function point(id: string, at: number, overall: number | null, type: string | nu
     values: {},
     evidence_counts: {},
     interview_type: type,
-    profile_id: null,
-    role: null,
-    rubric_id: 'r',
-    rubric_hash: 'h',
-    model_ref: 'model',
-    prompt_ref: 'p',
+    profile_id: 'pr1',
+    role: BACKEND,
+    rubric_id: 'hr.v2+technical.v3',
+    rubric_hash: 'h1',
+    model_ref: 'model-a',
+    prompt_ref: 'p1',
     language: 'it',
+    ...patch,
   }
 }
 
-function group(id: string, scorer: string, kind: string, points: Point[]): ProgressGroup {
+function group(id: string, kind: string, points: Point[]): ProgressGroup {
   return {
     id,
-    scorer_key: scorer,
+    scorer_key: id,
     kind,
     rubric_id: 'r',
     rubric_hash: 'h',
-    model_ref: `model-${scorer}`,
+    model_ref: 'model',
     language: 'it',
     criteria: {},
     points,
   }
 }
 
+const ids = (segments: { reportId: string }[][]) =>
+  segments.map((run) => run.map((p) => p.reportId))
+
 describe('trend lines', () => {
-  const groups = [
-    // Two comparison groups with the same scorer: different criteria, one line.
-    group('g1', 'A', 'interview', [point('t1', 1, 3.5, 'technical'), point('h1', 2, 4, 'hr')]),
-    group('g2', 'A', 'interview', [point('t2', 3, 4.1, 'technical')]),
-    // Another evaluator: a new run on the same line.
-    group('g3', 'B', 'interview', [point('t3', 5, 4.4, 'technical'), point('x', 6, null, 'hr')]),
-    group('g4', 'A', 'cv', [point('c1', 4, 3.7, null)]),
-  ]
+  it('follows one profile across changes of evaluator, marking them', () => {
+    const groups = [
+      group('g1', 'interview', [point('a', 1, 60, 'technical')]),
+      group('g2', 'interview', [
+        point('b', 2, 65, 'hr', { model_ref: 'model-b', rubric_id: 'hr.v2', rubric_hash: 'h2' }),
+      ]),
+      group('g3', 'interview', [
+        point('c', 3, 70, 'technical', {
+          language: 'en',
+          role: { ...BACKEND, seniority: 'Senior' },
+        }),
+      ]),
+    ]
+    const [line, ...others] = trendLines(groups, 'interview')
+    expect(others).toEqual([])
+    expect(line?.key).toBe('profile:pr1')
+    expect(ids(line?.segments ?? [])).toEqual([['a', 'b', 'c']])
+    expect(line?.segments.flat().map((p) => p.changes)).toEqual([
+      [],
+      ['model'],
+      ['model', 'language', 'role'],
+    ])
+  })
 
-  it('joins points scored the same way and breaks where the evaluator changes', () => {
+  it('breaks a line only where a rubric version changes', () => {
+    const groups = [
+      group('g1', 'interview', [
+        point('a', 1, 60, 'technical'),
+        point('b', 2, 62, 'technical', { rubric_id: 'technical.v4+hr.v2', rubric_hash: 'h3' }),
+        point('c', 3, 64, 'technical', { rubric_id: 'technical.v4+hr.v2', rubric_hash: 'h4' }),
+        point('d', 4, 66, 'behavioral', { rubric_id: 'behavioral.v2', rubric_hash: 'h5' }),
+      ]),
+    ]
+    const [line] = trendLines(groups, 'interview')
+    // A new version breaks; the same reference with other content breaks too.
+    expect(ids(line?.segments ?? [])).toEqual([['a'], ['b'], ['c', 'd']])
+  })
+
+  it('gives each profile its own line, and reports without one a line per role', () => {
+    const groups = [
+      group('g1', 'interview', [
+        point('a', 1, 60, 'technical'),
+        point('b', 2, 61, 'technical', { profile_id: 'pr2' }),
+        point('c', 3, 62, 'hr', { profile_id: null, role: { ...BACKEND, seniority: ' MID ' } }),
+        point('d', 4, 63, 'hr', { profile_id: null, role: null }),
+        point('x', 5, null, 'hr'),
+      ]),
+      group('g2', 'cv', [point('cv', 6, 70, null, { rubric_id: 'cv.v1' })]),
+    ]
     const lines = trendLines(groups, 'interview')
-    expect(lines.map((l) => l.key)).toEqual(['technical', 'hr'])
-    const technical = lines[0]?.segments.map((run) => run.map((p) => p.reportId))
-    expect(technical).toEqual([['t1', 't2'], ['t3']])
-    expect(lines[1]?.segments).toHaveLength(1)
-  })
-
-  it('filters by interview type and leaves out reports without a score', () => {
-    const hr = trendLines(groups, 'interview', 'hr')
-    expect(hr.map((l) => l.segments.flat().map((p) => p.reportId))).toEqual([['h1']])
+    expect(lines.map((l) => l.key)).toEqual([
+      'none',
+      'role:software / backend developer / mid',
+      'profile:pr2',
+      'profile:pr1',
+    ])
+    expect(trendLines(groups, 'interview', 'hr').map((l) => l.key)).toEqual([
+      'none',
+      'role:software / backend developer / mid',
+    ])
+    expect(trendLines(groups, 'cv').map((l) => ids(l.segments))).toEqual([[['cv']]])
     expect(typesWithScores(groups)).toEqual(['technical', 'hr'])
-  })
-
-  it('keeps CV checks on their own line', () => {
-    const cv = trendLines(groups, 'cv')
-    expect(cv).toEqual([{ key: 'cv', segments: [[expect.objectContaining({ reportId: 'c1' })]] }])
   })
 })

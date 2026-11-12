@@ -10,6 +10,11 @@ export interface ChartPoint {
   title: string
   /** A secondary line, such as who scored it. */
   detail?: string
+  /**
+   * Something to know when comparing this point with the previous one, such as a change of
+   * evaluator. The point is drawn hollow, and the note is in the tooltip and the table.
+   */
+  note?: string
   /** Opens the point, for example its report. */
   onSelect?: () => void
   /** The same action as a link, for the table view. */
@@ -122,7 +127,14 @@ export function TrendChart({
   ariaLabel: string
   formatX: (x: number) => string
   formatY: (y: number) => string
-  table: { summary: string; date: string; series: string; value: string; open: string }
+  table: {
+    summary: string
+    date: string
+    series: string
+    value: string
+    open: string
+    note: string
+  }
   height?: number
   /** False when the legend is drawn elsewhere, for example beside the chart's filters. */
   legend?: boolean
@@ -164,6 +176,7 @@ export function TrendChart({
   const xTicks = ticksBetween(minX, maxX, formatX)
   const current = active === null ? null : (points[active] ?? null)
   const single = series.length === 1
+  const noted = points.some(({ point }) => point.note)
 
   const nearestX = (clientX: number, rect: DOMRect) => {
     const px = clientX - rect.left
@@ -331,8 +344,8 @@ export function TrendChart({
               cx={sx(point.x)}
               cy={sy(point.y)}
               r={current?.point === point ? 6 : 4}
-              fill={s.color}
-              stroke="var(--card)"
+              fill={point.note ? 'var(--card)' : s.color}
+              stroke={point.note ? s.color : 'var(--card)'}
               strokeWidth={2}
               className="transition-[r] duration-150 motion-reduce:transition-none"
             />
@@ -372,6 +385,7 @@ export function TrendChart({
             {current.point.detail && (
               <p className="text-muted-foreground">{current.point.detail}</p>
             )}
+            {current.point.note && <p className="max-w-56">{current.point.note}</p>}
           </div>
         )}
       </div>
@@ -386,6 +400,7 @@ export function TrendChart({
                 <th className="py-1 pr-3 font-medium">{table.date}</th>
                 {series.length > 1 && <th className="py-1 pr-3 font-medium">{table.series}</th>}
                 <th className="py-1 pr-3 font-medium">{table.value}</th>
+                {noted && <th className="py-1 pr-3 font-medium">{table.note}</th>}
                 <th className="py-1 font-medium">
                   <span className="sr-only">{table.open}</span>
                 </th>
@@ -397,6 +412,7 @@ export function TrendChart({
                   <td className="py-1.5 pr-3">{point.title}</td>
                   {series.length > 1 && <td className="py-1.5 pr-3">{s.name}</td>}
                   <td className="py-1.5 pr-3 tabular-nums">{formatY(point.y)}</td>
+                  {noted && <td className="py-1.5 pr-3">{point.note}</td>}
                   <td className="py-1.5">{point.link}</td>
                 </tr>
               ))}
