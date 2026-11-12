@@ -9,7 +9,12 @@ test('bundled dependency notices are served as text', async ({ request }) => {
 
 for (const width of [1280, 1440]) {
   for (const theme of ['light', 'dark']) {
-    test(`dashboard cards align at ${String(width)}px in ${theme}`, async ({ page }) => {
+    test(`dashboard cards align at ${String(width)}px in ${theme}`, async ({ page, request }) => {
+      // The lists need a row; other tests may have deleted all data before this one.
+      const created = await request.post('/api/sessions', {
+        data: { interview_type: 'hr', language: 'it', duration_minutes: 5 },
+      })
+      expect(created.ok()).toBe(true)
       await page.setViewportSize({ width, height: 720 })
       await page.addInitScript((theme) => {
         localStorage.setItem('probeloop.preferences', JSON.stringify({ language: 'en', theme }))
