@@ -1,6 +1,6 @@
 # Architecture
 
-Current implementation, updated 2026-11-11. Decisions are recorded in [ADRs](adr/); dated
+Current implementation, updated 2026-11-12. Decisions are recorded in [ADRs](adr/); dated
 proposals, research and handoffs preserve earlier alternatives and measurements. Use the
 [installation](getting-started.md), [configuration](configuration.md) and
 [operations](operations.md) guides for current runtime instructions.
@@ -133,6 +133,12 @@ these documents are not automatically followed. Extraction keeps provenance, and
 is schema-validated before it becomes reviewable facts. The user reviews those facts and confirms
 the target profession, role and seniority before approving an immutable context snapshot.
 
+Profiles and CV checks do not depend on an interview. A profile is a named set of documents,
+created on its own page, from a CV check or in the interview wizard. A CV check analyses a saved
+profile or documents added for it, goes through the same review and approval, then reviews the
+CV against the approved snapshot. The wizard and the CV check share the review components; the
+preparation and snapshot ids in the URL hold the state of a standalone CV check.
+
 Planning builds objectives from approved context. A session keeps its configuration, execution
 plan, objective state, coverage and conversation. The interviewer reacts to the latest answer,
 reviewed experience and emerging relevant topics instead of consuming a fixed profession-specific
@@ -205,6 +211,13 @@ migration from an earlier supported schema; machine settings, account tokens and
 separate. Data maintenance uses the same idle/mutation coordination. Deleting user data is
 separate from signing out or deleting model volumes.
 
+Each report records the saved profile that owns it, outside its assessed content; the link
+survives the profile's deletion and orders the dashboard's score lines. Deleting a CV check or a
+profile removes the records only it kept. The storage adapter checks references across modules:
+a snapshot stays while an interview, a report or a pending job uses it, and a document stays
+while a profile, a preparation or a snapshot refers to it. Cleanup considers only the documents
+of the deleted records, so uploads of work in progress are never collected.
+
 Normal logs contain identifiers, states and timings; CV text, transcripts and audio are not logged
 at INFO or higher. Optional LLM debug logs are sensitive local diagnostics and disabled by default.
 No real personal data, tokens, recordings, transcripts or weights belong in git. Test fixtures are
@@ -225,5 +238,7 @@ are reported separately. Synthetic acceptance cannot close interview-quality or 
 See [current status](status.md) for open acceptance work, [development](development.md) for checks,
 and ADRs [0016](adr/0016-adaptive-role-based-interviews.md),
 [0017](adr/0017-local-stated-limit-classifier.md), [0018](adr/0018-per-role-processing-tools.md),
-[0019](adr/0019-guided-installation.md), [0020](adr/0020-faster-turns-and-reviewed-transcripts.md)
-and [0021](adr/0021-interface-guidance-and-navigation.md) for the relevant decisions.
+[0019](adr/0019-guided-installation.md), [0020](adr/0020-faster-turns-and-reviewed-transcripts.md),
+[0021](adr/0021-interface-guidance-and-navigation.md),
+[0022](adr/0022-standalone-profiles-and-cv-checks.md) and
+[0023](adr/0023-score-trends-per-profile.md) for the relevant decisions.

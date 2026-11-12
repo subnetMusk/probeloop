@@ -155,6 +155,8 @@ export function CheckStep() {
               snapshotId={snapshotId}
               language={draft.settings.language}
               execution={draft.settings.execution ?? 'local'}
+              profileId={draft.profile?.kind === 'saved' ? draft.profile.id : null}
+              inInterview
               onBusyChange={setCvBusy}
             />
           )}

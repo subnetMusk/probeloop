@@ -10,13 +10,19 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from probeloop.api.context_routes import ProfileView
 from probeloop.api.schemas import JobView
 from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.schemas import ReportData
 from probeloop.assessment.application.score_scale import score_100
-from probeloop.assessment.application.service import AssessmentService, ReportNotFoundError
+from probeloop.assessment.application.service import (
+    AssessmentBusyError,
+    AssessmentService,
+    ReportNotFoundError,
+)
 from probeloop.assessment.domain.model import Report, ReportKind
-from probeloop.context.application.service import ContextNotFoundError
+from probeloop.context.application.service import ContextNotFoundError, ContextService
+from probeloop.context.domain.model import MAX_TITLE, ContextError
 from probeloop.platform.jobs import JobRunner
 
 
@@ -25,6 +31,19 @@ class ReviewRequest(BaseModel):
     language: Literal["it", "en"] = "it"
     # CV checks only: interview reports always use the interview's profile (ADR 0015).
     execution_profile: str | None = Field(default=None, max_length=1024)
+    # CV checks only: the saved profile the report belongs to.
+    profile_id: str | None = Field(default=None, max_length=32)
+
+
+class ProfileFromCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=MAX_TITLE)
+
+
+class TargetRoleView(BaseModel):
+    profession: str
+    target_role: str
+    seniority: str
 
 
 class ProgressPointView(BaseModel):
@@ -38,6 +57,13 @@ class ProgressPointView(BaseModel):
     values: dict[str, float | None]
     evidence_counts: dict[str, int]
     interview_type: str | None  # interview reports only
+    profile_id: str | None  # the owning saved profile, possibly deleted since
+    role: TargetRoleView | None
+    rubric_id: str
+    rubric_hash: str
+    model_ref: str
+    prompt_ref: str
+    language: str
 
 
 class ProgressGroupView(BaseModel):
@@ -54,6 +80,7 @@ class ProgressGroupView(BaseModel):
 
 def assessment_router(
     assessment: AssessmentService,
+    context: ContextService,
     jobs: JobRunner,
     export: Callable[[Report, str, ExportSources], bytes],
     execution: Callable[[str | None], str] = lambda requested: requested or "local",
@@ -77,13 +104,43 @@ def assessment_router(
 
     @router.post("/snapshots/{snapshot_id}/cv-reviews", status_code=202)
     async def review_cv(snapshot_id: str, body: ReviewRequest) -> JobView:
+        if body.profile_id is not None:
+            try:
+                await context.profile(body.profile_id)
+            except ContextNotFoundError as exc:
+                raise HTTPException(404, "profile not found") from exc
         try:
-            profile = execution(body.execution_profile)
-            return JobView.of(await assessment.submit_cv(snapshot_id, body.language, profile))
+            plan = execution(body.execution_profile)
+            return JobView.of(
+                await assessment.submit_cv(snapshot_id, body.language, plan, body.profile_id)
+            )
         except ContextNotFoundError as exc:
             raise HTTPException(404, "approved context not found") from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    @router.delete("/snapshots/{snapshot_id}/cv-reviews", status_code=204)
+    async def delete_cv_check(snapshot_id: str) -> None:
+        """Delete every version of a CV check. The approved context and its documents go too,
+        unless a saved profile, an interview or another report still uses them."""
+        try:
+            await assessment.delete_cv_check(snapshot_id)
+        except ReportNotFoundError as exc:
+            raise HTTPException(404, "CV check not found") from exc
+        except AssessmentBusyError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @router.post("/snapshots/{snapshot_id}/profile", status_code=201)
+    async def profile_from_check(snapshot_id: str, body: ProfileFromCheck) -> ProfileView:
+        """Save the documents of a CV check as a new profile, which then owns the check."""
+        try:
+            profile = await context.profile_from_snapshot(snapshot_id, body.name)
+        except ContextNotFoundError as exc:
+            raise HTTPException(404, "approved context not found") from exc
+        except ContextError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        await assessment.adopt_cv_check(snapshot_id, profile.id)
+        return ProfileView.of(profile)
 
     @router.get("/snapshots/{snapshot_id}/cv-reviews")
     async def cv_reviews(snapshot_id: str) -> list[ReportData]:

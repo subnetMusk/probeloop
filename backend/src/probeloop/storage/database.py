@@ -224,6 +224,9 @@ class ReportRow(Base):
         ForeignKey("interview_sessions.id", ondelete="CASCADE"), index=True
     )
     snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("context_snapshots.id"))
+    # The owning profile is a link outside the assessed content in `data`; no foreign key, so
+    # reports keep it after the profile is deleted.
+    profile_id: Mapped[str | None] = mapped_column(String(32), index=True)
     data: Mapped[dict[str, Any]]
 
 

@@ -299,6 +299,7 @@ class ReportData(Strict):
     objectives: list[Topic] = Field(default_factory=list)
     question_trace: list[QuestionTrace] = Field(default_factory=list)
     reference_documents: list[ReferenceDocument] = Field(default_factory=list)
+    profile_id: str | None = None
 
     @classmethod
     def of(cls, report: Report) -> ReportData:
@@ -344,4 +345,5 @@ class ReportData(Strict):
             objectives=tuple(self.objectives),
             question_trace=tuple(self.question_trace),
             reference_documents=tuple(self.reference_documents),
+            profile_id=self.profile_id,
         )

@@ -20,7 +20,8 @@ const messages = defineMessages({
     recent: 'Resource profiles',
     all: 'Saved profiles',
     viewAll: 'All profiles',
-    empty: 'No profiles yet. Choose “New profile” when you prepare an interview.',
+    empty: 'No profiles yet. A profile keeps a CV, a job offer and resources to reuse.',
+    create: 'Create a profile',
     noCv: 'no CV',
     noOffer: 'no job offer',
     resources: (count: number) => (count === 1 ? '1 resource' : `${String(count)} resources`),
@@ -32,7 +33,8 @@ const messages = defineMessages({
     recent: 'Profili delle risorse',
     all: 'Profili salvati',
     viewAll: 'Tutti i profili',
-    empty: 'Ancora nessun profilo. Scegli «Nuovo profilo» quando prepari un colloquio.',
+    empty: 'Ancora nessun profilo. Un profilo conserva CV, offerta e risorse da riusare.',
+    create: 'Crea un profilo',
     noCv: 'nessun CV',
     noOffer: 'nessuna offerta',
     resources: (count: number) => (count === 1 ? '1 risorsa' : `${String(count)} risorse`),
@@ -45,7 +47,7 @@ const messages = defineMessages({
 function Row({ profile, manage }: { profile: ProfileView; manage: boolean }) {
   const t = useMessages(messages)
   const language = useLanguage()
-  const start = useStartWithProfile()
+  const { start, confirmation } = useStartWithProfile()
   const parts = [
     profile.cv ? (profile.cv.filename ?? profile.cv.title) : t.noCv,
     profile.job_offer ? (profile.job_offer.filename ?? profile.job_offer.title) : t.noOffer,
@@ -81,6 +83,7 @@ function Row({ profile, manage }: { profile: ProfileView; manage: boolean }) {
         </Link>
       </Button>
       {manage && <DeleteProfile profile={profile} />}
+      {confirmation}
     </li>
   )
 }
@@ -111,7 +114,14 @@ export function ProfileList({ pageSize, manage = false }: { pageSize: number; ma
           {profiles.error.message}
         </p>
       )}
-      {profiles.data?.length === 0 && <ListEmpty>{t.empty}</ListEmpty>}
+      {profiles.data?.length === 0 && (
+        <ListEmpty>
+          {t.empty}{' '}
+          <Link to="/profiles/new" className="text-brand-text underline">
+            {t.create}
+          </Link>
+        </ListEmpty>
+      )}
       <ul className="flex flex-col divide-y">
         {paged.items.map((profile) => (
           <Row key={profile.id} profile={profile} manage={manage} />

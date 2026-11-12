@@ -12,6 +12,7 @@ import {
   restoreDraft,
   contentDigest,
   stepDone,
+  useDraft,
 } from './draft'
 import type { PreparationDraft } from './draft'
 
@@ -131,5 +132,24 @@ describe('preparation draft', () => {
     expect(restoreDraft(typing)?.profile).toEqual({ kind: 'new', name: '' })
     expect(restoreDraft({ settings: { language: 'fr' } })).toBeUndefined()
     expect(restoreDraft(null)).toBeUndefined()
+  })
+
+  it('forgets a deleted profile and the documents loaded from it', () => {
+    const draft = prepared()
+    useDraft.setState({
+      ...draft,
+      profile: { kind: 'saved', id: 'pr1', name: 'Backend' },
+      documents: { ...draft.documents, loadedFrom: 'pr1' },
+      snapshotId: 's1',
+    })
+    useDraft.getState().forgetProfile('other')
+    expect(useDraft.getState().profile).toEqual({ kind: 'saved', id: 'pr1', name: 'Backend' })
+    useDraft.getState().forgetProfile('pr1')
+    const after = useDraft.getState()
+    expect(after.profile).toBeNull()
+    expect(after.documents.cv.documentId).toBeNull()
+    expect([after.preparationId, after.snapshotId]).toEqual([null, null])
+    expect(after.settingsDone).toBe(true)
+    useDraft.getState().reset()
   })
 })

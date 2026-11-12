@@ -7,7 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
@@ -33,9 +33,12 @@ from probeloop.context.domain.model import (
 from probeloop.storage.database import (
     ContextExtractionRow,
     DocumentRow,
+    JobRow,
     PreparationRow,
     ProfileResourceRow,
     ProfileRow,
+    ReportRow,
+    SessionRow,
     SnapshotRow,
 )
 from probeloop.storage.session_files import atomic_write
@@ -115,8 +118,52 @@ class SqlContextStore:
             row = await db.get(ProfileRow, profile_id)
             if row is None:
                 return False
+            candidates = {row.cv_document_id, row.job_offer_document_id}
+            candidates |= set(
+                (
+                    await db.scalars(
+                        select(ProfileResourceRow.document_id).where(
+                            ProfileResourceRow.profile_id == profile_id
+                        )
+                    )
+                ).all()
+            )
             await db.delete(row)
-            return True
+            await db.flush()
+            # Preparations still analysing stay: their job would otherwise fail.
+            preparations = (
+                await db.scalars(
+                    select(PreparationRow).where(
+                        PreparationRow.profile_id == profile_id,
+                        PreparationRow.status != PreparationStatus.ANALYSING.value,
+                    )
+                )
+            ).all()
+            approved = {p.snapshot_id for p in preparations if p.snapshot_id}
+            used = await _snapshots_in_use(db, approved)
+            doomed = [p for p in preparations if p.snapshot_id is None or p.snapshot_id not in used]
+            candidates |= await _drop_preparations(db, doomed)
+            candidates |= await _drop_snapshots(db, {p.snapshot_id for p in doomed} - {None})
+            hashes = await _drop_documents(db, candidates)
+        await asyncio.to_thread(self._drop_blobs, hashes)
+        return True
+
+    async def discard_snapshot(self, snapshot_id: str) -> bool:
+        async with self._sessions.begin() as db:
+            if await db.get(SnapshotRow, snapshot_id) is None:
+                return False
+            if await _snapshots_in_use(db, {snapshot_id}):
+                return False
+            preparations = (
+                await db.scalars(
+                    select(PreparationRow).where(PreparationRow.snapshot_id == snapshot_id)
+                )
+            ).all()
+            candidates = await _drop_preparations(db, list(preparations))
+            candidates |= await _drop_snapshots(db, {snapshot_id})
+            hashes = await _drop_documents(db, candidates)
+        await asyncio.to_thread(self._drop_blobs, hashes)
+        return True
 
     async def save_preparation(self, preparation: Preparation) -> None:
         async with self._sessions.begin() as db:
@@ -209,6 +256,11 @@ class SqlContextStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write(path, data)
 
+    def _drop_blobs(self, hashes: set[str]) -> None:
+        for sha256 in hashes:
+            if len(sha256) == 64 and all(c in "0123456789abcdef" for c in sha256):
+                (self._blobs / sha256[:2] / sha256).unlink(missing_ok=True)
+
     async def _profile(self, db: AsyncSession, row: ProfileRow) -> Profile:
         ids = [r.document_id for r in row.resources]
         wanted = [*ids, row.cv_document_id, row.job_offer_document_id]
@@ -245,6 +297,126 @@ class SqlContextStore:
             documents=tuple(await self.documents(list(data["document_ids"]))),
             content_hash=row.content_hash,
         )
+
+
+# ---------------------------------------------------------------------- cleanup
+
+PENDING_JOBS = ("queued", "running")
+
+
+async def _snapshots_in_use(db: AsyncSession, snapshot_ids: set[str]) -> set[str]:
+    """The contexts an interview, a report or a pending job refers to."""
+    if not snapshot_ids:
+        return set()
+    wanted = list(snapshot_ids)
+    used = set(
+        (
+            await db.scalars(
+                select(SessionRow.snapshot_id).where(SessionRow.snapshot_id.in_(wanted))
+            )
+        ).all()
+    )
+    used |= set(
+        (
+            await db.scalars(select(ReportRow.snapshot_id).where(ReportRow.snapshot_id.in_(wanted)))
+        ).all()
+    )
+    used |= set(
+        (
+            await db.scalars(
+                select(JobRow.subject_id).where(
+                    JobRow.subject_id.in_(wanted), JobRow.status.in_(PENDING_JOBS)
+                )
+            )
+        ).all()
+    )
+    return {s for s in used if s}
+
+
+async def _drop_preparations(db: AsyncSession, rows: list[PreparationRow]) -> set[str | None]:
+    """Delete preparations with their jobs; returns the documents they used."""
+    if not rows:
+        return set()
+    ids = [p.id for p in rows]
+    documents: set[str | None] = {d for p in rows for d in p.document_ids}
+    await db.execute(delete(JobRow).where(JobRow.subject_id.in_(ids)))
+    await db.execute(delete(PreparationRow).where(PreparationRow.id.in_(ids)))
+    return documents
+
+
+async def _drop_snapshots(db: AsyncSession, snapshot_ids: set[str | None]) -> set[str | None]:
+    """Delete the contexts that no interview, report, pending job or remaining preparation
+    refers to; returns the documents they used."""
+    wanted = {s for s in snapshot_ids if s}
+    unused = wanted - await _snapshots_in_use(db, wanted)
+    if unused:
+        unused -= set(
+            (
+                await db.scalars(
+                    select(PreparationRow.snapshot_id).where(
+                        PreparationRow.snapshot_id.in_(list(unused))
+                    )
+                )
+            ).all()
+        )
+    if not unused:
+        return set()
+    rows = (await db.scalars(select(SnapshotRow).where(SnapshotRow.id.in_(list(unused))))).all()
+    documents: set[str | None] = {d for r in rows for d in r.data.get("document_ids", [])}
+    await db.execute(delete(SnapshotRow).where(SnapshotRow.id.in_(list(unused))))
+    return documents
+
+
+async def _drop_documents(db: AsyncSession, candidates: set[str | None]) -> set[str]:
+    """Delete the candidate documents nothing refers to, with the earlier documents of the same
+    uploaded file (an edited text keeps its original). Newer uploads of that file may belong to
+    work in progress and stay. Returns the hashes of files no document uses any more."""
+    wanted = [c for c in candidates if c]
+    if not wanted:
+        return set()
+    rows = list((await db.scalars(select(DocumentRow).where(DocumentRow.id.in_(wanted)))).all())
+    newest: dict[str, float] = {}
+    for row in rows:
+        if row.sha256:
+            newest[row.sha256] = max(newest.get(row.sha256, row.created_at), row.created_at)
+    if newest:
+        rows += (
+            await db.scalars(
+                select(DocumentRow).where(
+                    DocumentRow.sha256.in_(list(newest)), DocumentRow.id.not_in(wanted)
+                )
+            )
+        ).all()
+    rows = [r for r in rows if not r.sha256 or r.created_at <= newest[r.sha256]]
+    referenced = await _referenced_documents(db)
+    doomed = {r.id: r.sha256 for r in rows if r.id not in referenced}
+    if not doomed:
+        return set()
+    await db.execute(delete(DocumentRow).where(DocumentRow.id.in_(list(doomed))))
+    hashes = {h for h in doomed.values() if h}
+    if hashes:
+        hashes -= set(
+            (
+                await db.scalars(
+                    select(DocumentRow.sha256).where(DocumentRow.sha256.in_(list(hashes)))
+                )
+            ).all()
+        )
+    return {h for h in hashes if h}
+
+
+async def _referenced_documents(db: AsyncSession) -> set[str]:
+    referenced: set[str] = set()
+    for cv, offer in (
+        await db.execute(select(ProfileRow.cv_document_id, ProfileRow.job_offer_document_id))
+    ).all():
+        referenced |= {d for d in (cv, offer) if d}
+    referenced |= set((await db.scalars(select(ProfileResourceRow.document_id))).all())
+    for ids in (await db.scalars(select(PreparationRow.document_ids))).all():
+        referenced |= set(ids)
+    for data in (await db.scalars(select(SnapshotRow.data))).all():
+        referenced |= set(data.get("document_ids", []))
+    return referenced
 
 
 # ---------------------------------------------------------------------- mapping

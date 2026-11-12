@@ -411,7 +411,13 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(installation_router(container))
     app.include_router(context_router(container.context, jobs, execution_for))
     app.include_router(
-        assessment_router(container.assessment, jobs, container.export_report, execution_for)
+        assessment_router(
+            container.assessment,
+            container.context,
+            jobs,
+            container.export_report,
+            execution_for,
+        )
     )
     app.include_router(history_router(container.assessment, container.context))
     app.include_router(data_router(container.data))

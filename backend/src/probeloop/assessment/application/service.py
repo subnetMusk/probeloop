@@ -33,7 +33,7 @@ from probeloop.assessment.domain.model import (
     overall_score,
 )
 from probeloop.assessment.domain.progress import ProgressGroup, latest_reports, progress_groups
-from probeloop.context.domain.model import ContextSnapshot, DocumentKind
+from probeloop.context.domain.model import ContextSnapshot, DocumentKind, RoleProfile
 from probeloop.interview.application.ports import SessionStore
 from probeloop.interview.domain.model import CandidateTurn, InterviewerTurn
 from probeloop.platform.jobs import Job, JobError, Progress
@@ -58,6 +58,10 @@ class ReportNotFoundError(LookupError):
     pass
 
 
+class AssessmentBusyError(RuntimeError):
+    """The subject still has a review queued or running."""
+
+
 class AssessmentService:
     def __init__(
         self,
@@ -71,6 +75,8 @@ class AssessmentService:
         sessions: SessionStore,
         interviewer: InterviewReviewer,
         delivery: DeliveryAnalyser,
+        jobs: Callable[[str], Awaitable[list[Job]]],
+        discard_snapshot: Callable[[str], Awaitable[bool]],
     ) -> None:
         self.store = store
         self.reviewer = reviewer
@@ -81,6 +87,8 @@ class AssessmentService:
         self.sessions = sessions
         self.interviewer = interviewer
         self.delivery = delivery
+        self._jobs = jobs
+        self._discard_snapshot = discard_snapshot
 
     async def submit_interview(self, session_id: str, language: str) -> Job:
         session = await self.sessions.load(session_id)
@@ -98,15 +106,35 @@ class AssessmentService:
         return await self._submit(INTERVIEW_REVIEW_JOB, session_id, payload)
 
     async def submit_cv(
-        self, snapshot_id: str, language: str, execution_profile: str | None = None
+        self,
+        snapshot_id: str,
+        language: str,
+        execution_profile: str | None = None,
+        profile_id: str | None = None,
     ) -> Job:
+        """Review the CV of an approved context; the report belongs to `profile_id`, if any."""
         snapshot = await self._snapshot(snapshot_id)
         if not any(d.kind is DocumentKind.CV for d in snapshot.documents):
             raise ValueError("the approved context has no CV")
         payload: dict[str, object] = {"language": language}
         if execution_profile:
             payload["execution"] = execution_profile
+        if profile_id:
+            payload["profile_id"] = profile_id
         return await self._submit(CV_REVIEW_JOB, snapshot_id, payload)
+
+    async def delete_cv_check(self, snapshot_id: str) -> None:
+        """Delete every version of a CV check, then the approved context and the documents that
+        nothing else keeps: a saved profile, an interview or another report keeps them."""
+        if any(j.kind == CV_REVIEW_JOB and not j.finished for j in await self._jobs(snapshot_id)):
+            raise AssessmentBusyError("wait for the CV review to finish first")
+        if not await self.store.delete_cv_check(snapshot_id):
+            raise ReportNotFoundError(snapshot_id)
+        await self._discard_snapshot(snapshot_id)
+
+    async def adopt_cv_check(self, snapshot_id: str, profile_id: str) -> None:
+        """Make the versions of a CV check that have no owner belong to this profile."""
+        await self.store.adopt_cv_reports(snapshot_id, profile_id)
 
     async def reports(self, kind: ReportKind, subject_id: str) -> list[Report]:
         return await self.store.reports(kind, subject_id)
@@ -116,16 +144,30 @@ class AssessmentService:
 
     async def progress(self) -> tuple[ProgressGroup, ...]:
         types = {s.id: s.interview_type for s in await self.sessions.summaries()}
-        return progress_groups(await self.store.all(), types)
+        reports = await self.store.all()
+        roles: dict[str, RoleProfile | None] = {}
+        for subject in {r.subject_id for r in reports if r.kind is ReportKind.CV}:
+            try:
+                roles[subject] = (await self._snapshot(subject)).role_profile
+            except LookupError:
+                roles[subject] = None
+        return progress_groups(reports, types, roles)
 
     async def interview_history(self) -> list[InterviewEntry]:
         return interview_history(await self.sessions.summaries(), await self.store.all())
 
-    async def cv_history(self) -> list[CvCheckEntry]:
-        """Every approved context with a CV review, latest review first."""
-        latest = latest_by_subject(await self.store.all(), ReportKind.CV)
+    async def cv_history(self, profile_id: str | None = None) -> list[CvCheckEntry]:
+        """Every approved context with a CV review, latest review first; with `profile_id`,
+        those with at least one version that belongs to that profile."""
+        reports = await self.store.all()
+        latest = latest_by_subject(reports, ReportKind.CV)
+        owned = {
+            r.subject_id for r in reports if r.kind is ReportKind.CV and r.profile_id == profile_id
+        }
         entries = []
         for report in sorted(latest.values(), key=lambda r: r.created_at, reverse=True):
+            if profile_id is not None and report.subject_id not in owned:
+                continue
             try:
                 snapshot = await self._snapshot(report.subject_id)
             except LookupError:
@@ -220,6 +262,7 @@ class AssessmentService:
             dropped=dropped,
             duration_s=round(self._now() - started, 2),
             disclaimer=DISCLAIMER[language],
+            profile_id=_profile_of(job),
         )
         await self.store.save(report)
         return {"report_id": report.id, "version": report.version, "dropped": dropped}
@@ -344,9 +387,15 @@ class AssessmentService:
                 for d in (snapshot.documents if snapshot else ())
                 if d.kind is DocumentKind.RESOURCE
             ),
+            profile_id=session.profile_id,
         )
         await self.store.save(report)
         return {"report_id": report.id, "version": report.version, "dropped": report.dropped}
+
+
+def _profile_of(job: Job) -> str | None:
+    profile = job.payload.get("profile_id")
+    return profile if isinstance(profile, str) and profile else None
 
 
 def _cost(calls: tuple[CallTrace, ...]) -> dict[str, object]:

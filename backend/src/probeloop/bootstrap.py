@@ -411,6 +411,8 @@ def build(
         submit=jobs.submit,
         now=clock.now,
         new_id=new_id,
+        jobs=jobs.for_subject,
+        discard_snapshot=context.discard_snapshot,
     )
     jobs.register(CV_REVIEW_JOB, with_job_profile(assessment.review_cv))
     jobs.register(INTERVIEW_REVIEW_JOB, with_job_profile(assessment.review_interview))

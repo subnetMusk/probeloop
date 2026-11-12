@@ -1,9 +1,10 @@
 # Roadmap
 
-> **Current checkpoint (2026-11-11).** M0–M6 capabilities and the M7 adaptive-interview/reporting
+> **Current checkpoint (2026-11-12).** M0–M6 capabilities and the M7 adaptive-interview/reporting
 > implementation are present; M7's independent cross-profession and real-speech quality gates
-> remain open. Guided installation, per-role tools and provisional Laya deployment are approved
-> additions to that work. The milestone descriptions below retain their original sequencing and
+> remain open. Guided installation, per-role tools, provisional Laya deployment, and profiles and
+> CV checks without an interview ([ADR 0022](adr/0022-standalone-profiles-and-cv-checks.md)) are
+> approved additions to that work. The milestone descriptions below retain their original sequencing and
 > acceptance criteria; they do not replace the current [status](status.md),
 > [installation guide](getting-started.md) or [architecture](architecture.md). ADRs 0016–0019
 > supersede earlier per-interview selection, mandatory refinement and fallback descriptions.
@@ -358,6 +359,10 @@ retain immutable versions and expose verified quotations, deterministic diagnost
 not-assessable checks. The report language follows the application preference; practice questions
 feed the interview planner as suggestions. Model work is serialised and waits during a live call.
 
+**Update (2026-11-12):** a CV check starts from CV checks or from a profile, without interview
+settings, and can be saved as a profile or deleted
+([ADR 0022](adr/0022-standalone-profiles-and-cv-checks.md)).
+
 The synthetic CV smoke run on `qwen3.5:9b` with thinking took **91.82 seconds**, with seven
 assessable criteria and no rejected quotations. It detected the reversed date range and requested
 more decision/scope detail. A preceding run exposed an unsupported claim about an unvisited link;
@@ -453,10 +458,16 @@ No crawler, GitHub client, enrichment job or URL fetcher is planned.
 
 ## M9 — History and progress · 3–5 days
 
-**Checkpoint (2026-11-08), not complete:** latest-version progress groups, portable backups,
-empty-target restore and delete-all are implemented. Targeted SQLite/PostgreSQL checks passed;
-complete browser integration, error-path review and documentation remain open. See the
+**Checkpoint (2026-11-08):** latest-version progress groups, portable backups, empty-target
+restore and delete-all are implemented. Targeted SQLite/PostgreSQL checks passed. See the
 [continuation notes](handoffs/2026-11-08-assessment-continuation.md).
+
+**Checkpoint (2026-11-12):** score lines follow a profile and break only where a rubric version
+changes; other evaluator changes are marked on the point
+([ADR 0023](adr/0023-score-trends-per-profile.md)). Browser tests cover the JSON export, the ZIP
+backup and delete-all; tests cover the busy responses; the restore command is documented in
+[operations](operations.md#restoring-a-backup). Per-criterion trends in the interface remain
+open.
 
 - **Deliverables**
   - History and comparisons, valid only when the rubric version is the same.

@@ -10,33 +10,14 @@ import {
   documentsMessages,
   problemsOf,
   useCommitDocuments,
+  useProblemText,
   useProfileDocuments,
 } from '@/features/edit-documents'
-import type { Problem } from '@/features/edit-documents'
-import { MAX_RESOURCES } from '@/entities/preparation'
 import { useMessages } from '@/shared/i18n'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { newInterviewMessages } from './messages'
 import { stepPath } from '../model/paths'
 import { StepFooter, StepFrame } from './step-frame'
-
-function useProblemText() {
-  const t = useMessages(documentsMessages)
-  return (problem: Problem) => {
-    switch (problem.kind) {
-      case 'cv':
-        return t.problems.cv
-      case 'offer':
-        return t.problems.offer
-      case 'resource-title':
-        return t.problems.resourceTitle(problem.index + 1)
-      case 'resource-content':
-        return t.problems.resourceContent(problem.index + 1)
-      case 'too-many-resources':
-        return t.problems.tooMany(MAX_RESOURCES)
-    }
-  }
-}
 
 export function DocumentsStep() {
   const t = useMessages(newInterviewMessages)

@@ -27,6 +27,7 @@ class LatestReport:
     language: str
     model_ref: str
     scorer_key: str = ""
+    profile_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +58,7 @@ def latest_by_subject(reports: Iterable[Report], kind: ReportKind) -> dict[str, 
             language=r.language,
             model_ref=r.model_ref,
             scorer_key=scorer_key(r),
+            profile_id=r.profile_id,
         )
         for r in latest_reports(of_kind)
     }

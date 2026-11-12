@@ -1,7 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { CheckIcon } from 'lucide-react'
 
-import { useDraft } from '@/entities/preparation'
 import { api } from '@/shared/api'
 import type { PreparationView, RoleProfileData } from '@/shared/api'
 import { useMessages } from '@/shared/i18n'
@@ -13,22 +12,32 @@ import { RequiredMark } from '@/shared/ui/required-mark'
 import { Textarea } from '@/shared/ui/textarea'
 import { roleMessages } from './messages'
 
+/**
+ * Edit and confirm the target role of a preparation. The caller keeps unconfirmed edits
+ * (`role`), so they survive leaving the page; `null` shows the preparation's own role.
+ */
 export function RoleProfileEditor({
   preparation,
+  role: edited,
+  onEdit,
   onChange,
+  onReopened,
 }: {
   preparation: PreparationView
+  role: RoleProfileData | null
+  onEdit: (role: RoleProfileData | null) => void
   onChange: (view: PreparationView) => void
+  /** Called when confirming reopened an approved preparation. */
+  onReopened?: () => void
 }) {
   const t = useMessages(roleMessages)
-  const draft = useDraft()
-  const role = draft.roleProfile ?? preparation.role_profile
+  const role = edited ?? preparation.role_profile
   const confirm = useMutation({
     mutationFn: async () => {
       if (!role) throw new Error('target profile unavailable')
       if (preparation.status === 'approved') {
         await api.reopen(preparation.id)
-        draft.setSnapshot(null)
+        onReopened?.()
       }
       return api.setRoleProfile(preparation.id, {
         ...role,
@@ -38,13 +47,13 @@ export function RoleProfileEditor({
       })
     },
     onSuccess: (view) => {
-      draft.setRoleProfile(view.role_profile ?? null)
+      onEdit(view.role_profile ?? null)
       onChange(view)
     },
   })
   if (!role) return null
   const update = (patch: Partial<RoleProfileData>) => {
-    draft.setRoleProfile({ ...role, ...patch, confirmed: false })
+    onEdit({ ...role, ...patch, confirmed: false })
   }
   const valid =
     [role.profession, role.target_role, role.seniority].every((s) => s.trim()) &&

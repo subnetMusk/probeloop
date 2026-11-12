@@ -23,7 +23,12 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
 - Full-width transcription switches and section navigation aligned with the visible content,
   including short trailing sections and keyboard return to the top.
 - Local Parakeet recognition and Piper synthesis; optional Whisper second transcription.
-- Correctable transcripts with revision history, report exports, history and portable backups.
+- Correctable transcripts with revision history, report exports, history and portable backups;
+  restoring a backup is a [documented command](operations.md#restoring-a-backup).
+- Profiles and CV checks created without an interview; a CV check can be saved as a profile or
+  deleted, and deleting either keeps what interviews and other reports still use.
+- Score trends with one line per profile, broken only by rubric version changes and marking other
+  evaluator changes.
 - First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
 - Evidence-scoped reports with descriptive anchors shown on a 0–100 scale and unassessed criteria.
 - Container-based tooling, import contracts, adapter contracts and scripted browser acceptance.
@@ -43,6 +48,14 @@ The 2026-11-12 follow-up passed 670 backend tests (39 skipped, 23 live tests des
 Container-based lint, formatting, strict type checks, import contracts, production builds and
 API schema/type regeneration also passed. The earlier PostgreSQL result was not rerun because
 this follow-up changes no persistence contracts.
+
+The standalone profile and CV check checkpoint, later on 2026-11-12, passed 691 backend tests
+(46 skipped, 23 live tests deselected), the 46 PostgreSQL storage contracts, 101 frontend unit
+tests and 37 browser tests against a rebuilt runtime, with the two live tests skipped. One
+existing browser test passed on retry after an accessibility scan ran during a button
+transition. Lint, formatting, strict type checks, import contracts, documentation checks,
+production builds and API schema/type regeneration also passed. A backup, delete and restore
+round trip with the documented command reproduced the data summary of a local installation.
 
 ## Remaining quality gates
 
@@ -71,5 +84,8 @@ Installers pin the reviewed revision and hashes; a later fine-tuning needs its o
 manifest update. Laya is not adopted for choosing interview moves.
 
 The active product work remains the adaptive interview/reporting milestone and its acceptance
-work. Guided installation is an explicitly approved usability addition. Web crawling and later
-roadmap capabilities are not introduced by this release.
+work. Guided installation is an explicitly approved usability addition, and so are standalone
+profiles and CV checks with the M9 history changes
+([ADR 0022](adr/0022-standalone-profiles-and-cv-checks.md),
+[ADR 0023](adr/0023-score-trends-per-profile.md)). Web crawling and later roadmap capabilities
+are not introduced by this release.

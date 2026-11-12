@@ -9,7 +9,7 @@ export const manageMessages = defineMessages({
     delete: (name: string) => `Delete ${name}`,
     deleteTitle: 'Delete this profile?',
     deleteText: (name: string) =>
-      `“${name}” will no longer be offered for new interviews. Interviews already prepared with it keep their documents.`,
+      `“${name}” will no longer be offered. Its interviews, reports and CV checks stay with the documents they use; documents nothing else uses are deleted.`,
     confirmDelete: 'Delete profile',
   },
   it: {
@@ -20,7 +20,7 @@ export const manageMessages = defineMessages({
     delete: (name: string) => `Elimina ${name}`,
     deleteTitle: 'Eliminare questo profilo?',
     deleteText: (name: string) =>
-      `«${name}» non verrà più proposto per i nuovi colloqui. I colloqui già preparati con questo profilo conservano i loro documenti.`,
+      `«${name}» non verrà più proposto. Colloqui, report e CV check restano con i documenti che usano; i documenti che nient’altro usa vengono eliminati.`,
     confirmDelete: 'Elimina profilo',
   },
 })

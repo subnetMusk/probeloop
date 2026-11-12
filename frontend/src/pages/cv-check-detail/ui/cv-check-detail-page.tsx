@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { DownloadIcon, ExternalLinkIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { profilesQuery } from '@/entities/profile'
 import { CvCheck } from '@/features/check-cv'
+import { DeleteCvCheck, ProfileFromCheck } from '@/features/manage-cv-check'
 import { api } from '@/shared/api'
 import type { DocumentView } from '@/shared/api'
 import { defineMessages, useMessages } from '@/shared/i18n'
@@ -34,6 +36,7 @@ const messages = defineMessages({
     version: (version: number, date: string) => `Version ${String(version)} · ${date}`,
     unscored: 'not scored',
     noVersions: 'No CV report yet.',
+    profile: 'Profile',
   },
   it: {
     eyebrow: 'CV check',
@@ -53,6 +56,7 @@ const messages = defineMessages({
     version: (version: number, date: string) => `Versione ${String(version)} · ${date}`,
     unscored: 'non valutato',
     noVersions: 'Ancora nessun report del CV.',
+    profile: 'Profilo',
   },
 })
 
@@ -146,7 +150,12 @@ export function CvCheckDetailPage() {
     queryFn: () => api.cvReviews(snapshotId),
   })
   const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
+  const profiles = useQuery(profilesQuery)
+  const navigate = useNavigate()
   const versions = usePaged(reports.data?.toReversed() ?? [], 4)
+  const ownerId = reports.data?.at(-1)?.profile_id ?? null
+  const owner = profiles.data?.find((p) => p.id === ownerId)
+  const unowned = reports.data !== undefined && reports.data.every((r) => !r.profile_id)
   if (snapshot.isPending) return <Page>{t.loading}</Page>
   if (!snapshot.data)
     return (
@@ -164,7 +173,29 @@ export function CvCheckDetailPage() {
         description={`${offer ? (offer.filename ?? offer.title) : t.noOffer} · ${t.approved(
           shortDate(snapshot.data.created_at, language),
         )}`}
-      />
+        actions={
+          <>
+            {unowned && <ProfileFromCheck snapshotId={snapshotId} />}
+            <DeleteCvCheck
+              snapshotId={snapshotId}
+              onDeleted={() => void navigate({ to: '/cv-checks', replace: true })}
+            />
+          </>
+        }
+      >
+        {owner && (
+          <p className="text-sm">
+            {t.profile}:{' '}
+            <Link
+              to="/profiles/$profileId"
+              params={{ profileId: owner.id }}
+              className="text-brand-text underline"
+            >
+              {owner.name}
+            </Link>
+          </p>
+        )}
+      </PageHeader>
       <div className="grid items-start gap-6 lg:grid-cols-5">
         <div className="flex flex-col gap-6 lg:col-span-3">
           {cv && <DocumentCard title={t.cv} document={cv} preview />}
@@ -183,7 +214,6 @@ export function CvCheckDetailPage() {
               snapshotId={snapshotId}
               language={language}
               execution={execution.data.profile}
-              onBusyChange={() => undefined}
             />
           )}
           <Card>

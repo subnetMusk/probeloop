@@ -187,7 +187,8 @@ export interface paths {
         };
         /**
          * Cv Checks
-         * @description Every approved context with a CV review, latest review first.
+         * @description Every approved context with a CV review, latest review first; with `profile_id`,
+         *     those with a version that belongs to that profile.
          */
         get: operations["cv_checks_api_history_cv_checks_get"];
         put?: never;
@@ -919,7 +920,12 @@ export interface paths {
         put?: never;
         /** Review Cv */
         post: operations["review_cv_api_snapshots__snapshot_id__cv_reviews_post"];
-        delete?: never;
+        /**
+         * Delete Cv Check
+         * @description Delete every version of a CV check. The approved context and its documents go too,
+         *     unless a saved profile, an interview or another report still uses them.
+         */
+        delete: operations["delete_cv_check_api_snapshots__snapshot_id__cv_reviews_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -936,6 +942,26 @@ export interface paths {
         get: operations["snapshot_jobs_api_snapshots__snapshot_id__jobs_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/snapshots/{snapshot_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Profile From Check
+         * @description Save the documents of a CV check as a new profile, which then owns the check.
+         */
+        post: operations["profile_from_check_api_snapshots__snapshot_id__profile_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1082,6 +1108,7 @@ export interface components {
             /** Language */
             language: string;
             latest_report: components["schemas"]["LatestReportView"];
+            profile: components["schemas"]["ProfileRefView"] | null;
             /** Snapshot Id */
             snapshot_id: string;
         };
@@ -1524,6 +1551,11 @@ export interface components {
         };
         /** @enum {string} */
         Profile: "local" | "cloud";
+        /** ProfileFromCheck */
+        ProfileFromCheck: {
+            /** Name */
+            name: string;
+        };
         /** ProfileIn */
         ProfileIn: {
             /** Cv Id */
@@ -1596,10 +1628,23 @@ export interface components {
             };
             /** Interview Type */
             interview_type: string | null;
+            /** Language */
+            language: string;
+            /** Model Ref */
+            model_ref: string;
             /** Overall */
             overall: number | null;
+            /** Profile Id */
+            profile_id: string | null;
+            /** Prompt Ref */
+            prompt_ref: string;
             /** Report Id */
             report_id: string;
+            role: components["schemas"]["TargetRoleView"] | null;
+            /** Rubric Hash */
+            rubric_hash: string;
+            /** Rubric Id */
+            rubric_id: string;
             /**
              * Scale
              * @default 0_100
@@ -1699,6 +1744,8 @@ export interface components {
             overall: number | null;
             /** Policy Version */
             policy_version?: string | null;
+            /** Profile Id */
+            profile_id?: string | null;
             /** Prompt Ref */
             prompt_ref: string;
             /** Question Trace */
@@ -1790,6 +1837,8 @@ export interface components {
              * @enum {string}
              */
             language?: "it" | "en";
+            /** Profile Id */
+            profile_id?: string | null;
         };
         /** RevisionView */
         RevisionView: {
@@ -2006,6 +2055,15 @@ export interface components {
          * @enum {string}
          */
         Subject: "candidate" | "job";
+        /** TargetRoleView */
+        TargetRoleView: {
+            /** Profession */
+            profession: string;
+            /** Seniority */
+            seniority: string;
+            /** Target Role */
+            target_role: string;
+        };
         /** @enum {string} */
         Tool: "local" | "cloud" | "laya" | "jev";
         /** ToolOptionView */
@@ -2535,7 +2593,9 @@ export interface operations {
     };
     cv_checks_api_history_cv_checks_get: {
         parameters: {
-            query?: never;
+            query?: {
+                profile_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2549,6 +2609,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CvCheckHistoryView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3983,6 +4052,35 @@ export interface operations {
             };
         };
     };
+    delete_cv_check_api_snapshots__snapshot_id__cv_reviews_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     snapshot_jobs_api_snapshots__snapshot_id__jobs_get: {
         parameters: {
             query?: never;
@@ -4001,6 +4099,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    profile_from_check_api_snapshots__snapshot_id__profile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileFromCheck"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileView"];
                 };
             };
             /** @description Validation Error */

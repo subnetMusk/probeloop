@@ -1,6 +1,6 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from '@tanstack/react-router'
-import { PlayIcon } from 'lucide-react'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { FileCheckIcon, PlayIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import type { DocumentsDraft } from '@/entities/preparation'
@@ -22,6 +22,7 @@ import { shortDate } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
 import { Button } from '@/shared/ui/button'
 import { PAGE_TITLE, Page, PageHeader } from '@/shared/ui/page-header'
+import { CvCheckList } from '@/widgets/cv-check-list'
 
 const messages = defineMessages({
   en: {
@@ -30,8 +31,9 @@ const messages = defineMessages({
     notFound: 'This profile does not exist.',
     updated: (date: string) => `Updated on ${date}`,
     use: 'New interview with this profile',
+    check: 'Check the CV',
     unsaved: 'Unsaved changes',
-    usesSaved: 'A new interview uses the saved version.',
+    usesSaved: 'New interviews and CV checks use the saved version.',
     incomplete: 'Complete the highlighted documents before saving.',
     discard: 'Discard',
     save: 'Save changes',
@@ -43,8 +45,9 @@ const messages = defineMessages({
     notFound: 'Questo profilo non esiste.',
     updated: (date: string) => `Aggiornato il ${date}`,
     use: 'Nuovo colloquio con questo profilo',
+    check: 'Controlla il CV',
     unsaved: 'Modifiche non salvate',
-    usesSaved: 'Un nuovo colloquio usa la versione salvata.',
+    usesSaved: 'I nuovi colloqui e CV check usano la versione salvata.',
     incomplete: 'Completa i documenti evidenziati prima di salvare.',
     discard: 'Annulla modifiche',
     save: 'Salva le modifiche',
@@ -74,6 +77,7 @@ function Editor({ profile }: { profile: ProfileView }) {
       client.setQueryData(profilesQuery.queryKey, (old) =>
         old?.map((p) => (p.id === saved.id ? saved : p)),
       )
+      void client.invalidateQueries({ queryKey: ['history'] })
       setEdited(null)
     },
   })
@@ -139,7 +143,7 @@ export function ProfileDetailPage() {
   const t = useMessages(messages)
   const language = useLanguage()
   const navigate = useNavigate()
-  const start = useStartWithProfile()
+  const { start, confirmation } = useStartWithProfile()
   const { profileId } = useParams({ from: '/profiles/$profileId' })
   const profiles = useQuery(profilesQuery)
   const profile = profiles.data?.find((p) => p.id === profileId)
@@ -168,6 +172,14 @@ export function ProfileDetailPage() {
               <PlayIcon data-icon="inline-start" />
               {t.use}
             </Button>
+            {profile.cv && (
+              <Button asChild variant="outline">
+                <Link to="/cv-checks/new" search={{ profile: profile.id }}>
+                  <FileCheckIcon data-icon="inline-start" />
+                  {t.check}
+                </Link>
+              </Button>
+            )}
             <DeleteProfile
               profile={profile}
               onDeleted={() => void navigate({ to: '/profiles', replace: true })}
@@ -175,7 +187,9 @@ export function ProfileDetailPage() {
           </>
         }
       />
+      <CvCheckList pageSize={3} profileId={profile.id} />
       <Editor key={`${profile.id}-${String(profile.updated_at)}`} profile={profile} />
+      {confirmation}
     </Page>
   )
 }
