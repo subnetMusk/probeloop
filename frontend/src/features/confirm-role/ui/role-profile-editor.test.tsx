@@ -4,14 +4,12 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-import { useDraft } from '@/entities/preparation'
-import type { PreparationView } from '@/shared/api'
+import type { PreparationView, RoleProfileData } from '@/shared/api'
 import { setLanguage } from '@/shared/lib/preferences'
 import { RoleProfileEditor } from './role-profile-editor'
 
 beforeEach(() => {
   setLanguage('en')
-  useDraft.getState().reset()
 })
 afterEach(cleanup)
 
@@ -43,22 +41,33 @@ const preparation: PreparationView = {
   },
 }
 
-it('requires role and level and keeps unfinished edits when remounted', async () => {
+it('requires role and level and leaves unfinished edits to the caller', async () => {
   const client = new QueryClient()
-  const show = () =>
-    render(
-      <QueryClientProvider client={client}>
-        <RoleProfileEditor preparation={preparation} onChange={vi.fn()} />
-      </QueryClientProvider>,
-    )
-  const view = show()
+  // The caller's store of unconfirmed edits, as the interview draft keeps them.
+  let kept: RoleProfileData | null = null
+  let view: ReturnType<typeof render> | undefined
+  const element = () => (
+    <QueryClientProvider client={client}>
+      <RoleProfileEditor
+        preparation={preparation}
+        role={kept}
+        onEdit={(role) => {
+          kept = role
+          view?.rerender(element())
+        }}
+        onChange={vi.fn()}
+      />
+    </QueryClientProvider>
+  )
+  const show = () => render(element())
+  view = show()
   const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm role and level' })
   expect(confirm.disabled).toBe(true)
   await userEvent.type(screen.getByRole('textbox', { name: 'Profession or field' }), 'Economics')
   await userEvent.type(screen.getByRole('textbox', { name: /^Target role$/ }), 'Research economist')
   expect(confirm.disabled).toBe(true)
   view.unmount()
-  show()
+  view = show()
   expect(screen.getByRole<HTMLInputElement>('textbox', { name: /^Target role$/ }).value).toBe(
     'Research economist',
   )
@@ -69,5 +78,5 @@ it('requires role and level and keeps unfinished edits when remounted', async ()
   expect(
     screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm role and level' }).disabled,
   ).toBe(false)
-  expect(useDraft.getState().roleProfile?.confirmed).toBe(false)
+  expect((kept as RoleProfileData | null)?.confirmed).toBe(false)
 })

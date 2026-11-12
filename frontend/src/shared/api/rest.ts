@@ -117,10 +117,31 @@ export const api = {
   report: (id: string) => request<ReportData>(`/api/reports/${encodeURIComponent(id)}`),
   cvReviews: (snapshotId: string) =>
     request<ReportData[]>(`/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`),
-  reviewCv: (snapshotId: string, language: 'it' | 'en', executionProfile?: ExecutionProfile) =>
+  /** Review the CV of an approved context; the report belongs to `profileId`, if given. */
+  reviewCv: (
+    snapshotId: string,
+    language: 'it' | 'en',
+    executionProfile?: ExecutionProfile,
+    profileId?: string | null,
+  ) =>
     request<JobView>(
       `/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`,
-      json('POST', { language, execution_profile: executionProfile }),
+      json('POST', {
+        language,
+        execution_profile: executionProfile,
+        profile_id: profileId ?? null,
+      }),
+    ),
+  /** Every version of a CV check, with its context and the documents nothing else keeps. */
+  deleteCvCheck: (snapshotId: string) =>
+    request<undefined>(`/api/snapshots/${encodeURIComponent(snapshotId)}/cv-reviews`, {
+      method: 'DELETE',
+    }),
+  /** Save the documents of a CV check as a new profile, which then owns the check. */
+  profileFromCheck: (snapshotId: string, name: string) =>
+    request<ProfileView>(
+      `/api/snapshots/${encodeURIComponent(snapshotId)}/profile`,
+      json('POST', { name }),
     ),
   snapshot: (id: string) => request<SnapshotView>(`/api/snapshots/${encodeURIComponent(id)}`),
   snapshotJobs: (id: string) => request<JobView[]>(`/api/snapshots/${encodeURIComponent(id)}/jobs`),
@@ -167,7 +188,12 @@ export const api = {
   reopen: (id: string) =>
     request<PreparationView>(`${preparationPath(id)}/reopen`, { method: 'POST' }),
   interviewHistory: () => request<InterviewHistoryEntry[]>('/api/history/interviews'),
-  cvCheckHistory: () => request<CvCheckHistoryEntry[]>('/api/history/cv-checks'),
+  cvCheckHistory: (profileId?: string) =>
+    request<CvCheckHistoryEntry[]>(
+      profileId
+        ? `/api/history/cv-checks?profile_id=${encodeURIComponent(profileId)}`
+        : '/api/history/cv-checks',
+    ),
   speechStatus: () => request<SpeechStatus>('/api/speech'),
   sessions: () => request<SessionSummary[]>('/api/sessions'),
   session: (id: string) => request<SessionView>(sessionPath(id)),

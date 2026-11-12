@@ -1,6 +1,7 @@
 export {
   UPLOAD_KEY,
   loadProfileDocuments,
+  prepareDocuments,
   problemsOf,
   profileBody,
   storeDocuments,
@@ -11,3 +12,4 @@ export type { SaveChoice } from './model/commit'
 export { DocumentsEditor } from './ui/documents-editor'
 export { SaveProfileDialog } from './ui/save-profile-dialog'
 export { documentsMessages } from './ui/messages'
+export { useProblemText } from './ui/problems'

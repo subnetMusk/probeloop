@@ -170,11 +170,11 @@ export const guideContent: Record<Language, GuideContent> = {
         points: [
           {
             term: 'CV check',
-            text: 'A review of your CV against the position, with the original file and its reports. It can run during the final check of an interview.',
+            text: 'A review of your CV against the position, with the original file and its reports. Start one from CV checks, from a profile or during the final check of an interview; deleting it keeps the documents a profile or an interview still uses.',
           },
           {
             term: 'Profiles',
-            text: 'Saved sets of documents — a CV, a job offer and resources — to reuse for later interviews.',
+            text: 'Saved sets of documents (a CV, a job offer and resources) to reuse for interviews and CV checks. Create them from Profiles, from a CV check or while preparing an interview.',
           },
         ],
       },
@@ -370,11 +370,11 @@ export const guideContent: Record<Language, GuideContent> = {
         points: [
           {
             term: 'CV check',
-            text: 'Una revisione del tuo CV rispetto alla posizione, con il file originale e i suoi report. Può partire durante il controllo finale di un colloquio.',
+            text: 'Una revisione del tuo CV rispetto alla posizione, con il file originale e i suoi report. Avviala da CV check, da un profilo o durante il controllo finale di un colloquio; eliminarla conserva i documenti che un profilo o un colloquio usano ancora.',
           },
           {
             term: 'Profili',
-            text: 'Insiemi di documenti salvati — CV, offerta e risorse — da riusare nei colloqui successivi.',
+            text: 'Insiemi di documenti salvati (CV, offerta e risorse) da riusare in colloqui e CV check. Creali da Profili, da un CV check o mentre prepari un colloquio.',
           },
         ],
       },

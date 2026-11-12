@@ -18,9 +18,8 @@ const messages = defineMessages({
   en: {
     title: 'CV check',
     description: (offer: boolean) =>
-      offer
-        ? 'How your CV reads against the job offer. Optional: you can start the interview without it.'
-        : 'How your CV reads to a recruiter. Optional: you can start the interview without it.',
+      offer ? 'How your CV reads against the job offer.' : 'How your CV reads to a recruiter.',
+    optional: 'Optional: you can start the interview without it.',
     noCv: 'There is no CV in the documents, so there is nothing to check.',
     run: 'Check the CV',
     again: 'Check again',
@@ -37,8 +36,9 @@ const messages = defineMessages({
     title: 'Controllo del CV',
     description: (offer: boolean) =>
       offer
-        ? 'Come si legge il tuo CV rispetto all’offerta. Facoltativo: puoi iniziare il colloquio anche senza.'
-        : 'Come si legge il tuo CV agli occhi di un selezionatore. Facoltativo: puoi iniziare il colloquio anche senza.',
+        ? 'Come si legge il tuo CV rispetto all’offerta.'
+        : 'Come si legge il tuo CV agli occhi di un selezionatore.',
+    optional: 'Facoltativo: puoi iniziare il colloquio anche senza.',
     noCv: 'Tra i documenti non c’è un CV, quindi non c’è nulla da controllare.',
     run: 'Controlla il CV',
     again: 'Controlla di nuovo',
@@ -56,17 +56,23 @@ const messages = defineMessages({
 /**
  * Review the CV of an approved context, against its job offer when there is one. Each run keeps
  * the earlier versions; the latest is summarised here and opens in full on its own page.
+ * A new version belongs to `profileId`; when it is not given, to the owner of the latest one.
  */
 export function CvCheck({
   snapshotId,
   language,
   execution,
+  profileId,
+  inInterview = false,
   onBusyChange,
 }: {
   snapshotId: string
   language: 'it' | 'en'
   execution: ExecutionProfile
-  onBusyChange: (busy: boolean) => void
+  profileId?: string | null
+  /** Shown while preparing an interview, where the check is optional. */
+  inInterview?: boolean
+  onBusyChange?: (busy: boolean) => void
 }) {
   const t = useMessages(messages)
   const ui = useLanguage()
@@ -83,8 +89,11 @@ export function CvCheck({
     queryFn: async () => {
       const list = await api.snapshotJobs(snapshotId)
       const previous = client.getQueryData<JobView[]>(jobsKey)
-      if (previous?.some(isRunning) && !list.some(isRunning))
+      if (previous?.some(isRunning) && !list.some(isRunning)) {
         void client.invalidateQueries({ queryKey: reportsKey })
+        void client.invalidateQueries({ queryKey: ['history'] })
+        void client.invalidateQueries({ queryKey: ['progress'] })
+      }
       return list
     },
     refetchInterval: (query) => (query.state.data?.some(isRunning) ? 1500 : false),
@@ -92,8 +101,9 @@ export function CvCheck({
   const reports = useQuery({ queryKey: reportsKey, queryFn: () => api.cvReviews(snapshotId) })
   const job = jobs.data?.filter((j) => j.kind === 'review_cv').at(-1)
   const running = isRunning(job)
+  const owner = profileId === undefined ? (reports.data?.at(-1)?.profile_id ?? null) : profileId
   const start = useMutation({
-    mutationFn: () => api.reviewCv(snapshotId, language, execution),
+    mutationFn: () => api.reviewCv(snapshotId, language, execution, owner),
     onSuccess: (created) => {
       rememberReportJob(created.id)
       client.setQueryData<JobView[]>(jobsKey, (old) => [...(old ?? []), created])
@@ -101,7 +111,7 @@ export function CvCheck({
     },
   })
   useEffect(() => {
-    onBusyChange(running || start.isPending)
+    onBusyChange?.(running || start.isPending)
   }, [running, start.isPending, onBusyChange])
 
   const hasCv = snapshot.data?.documents.some((d) => d.kind === 'cv') ?? false
@@ -114,7 +124,10 @@ export function CvCheck({
           <FileCheckIcon className="size-5 text-brand-text" aria-hidden="true" />
           {t.title}
         </CardTitle>
-        <CardDescription>{t.description(hasOffer)}</CardDescription>
+        <CardDescription>
+          {t.description(hasOffer)}
+          {inInterview && ` ${t.optional}`}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {snapshot.data && !hasCv && <p className="text-muted-foreground">{t.noCv}</p>}

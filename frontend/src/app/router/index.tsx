@@ -13,6 +13,7 @@ import { canOpen, firstOpenStep, getDraft } from '@/entities/preparation'
 import type { Step } from '@/entities/preparation'
 import { AccessibilityPage } from '@/pages/accessibility'
 import { CvCheckDetailPage } from '@/pages/cv-check-detail'
+import { CvCheckReviewPage, NewCvCheckPage } from '@/pages/cv-check-new'
 import { CvChecksPage } from '@/pages/cv-checks'
 import { DashboardPage } from '@/pages/dashboard'
 import { GuidePage } from '@/pages/guide'
@@ -30,6 +31,7 @@ import {
 } from '@/pages/new-interview'
 import { NotFoundPage } from '@/pages/not-found'
 import { ProfileDetailPage } from '@/pages/profile-detail'
+import { NewProfilePage } from '@/pages/profile-new'
 import { ProfilesPage } from '@/pages/profiles'
 import { SettingsPage } from '@/pages/settings'
 import { SetupPage } from '@/pages/setup'
@@ -157,6 +159,26 @@ const cvChecksIndexRoute = createRoute({
   path: '/',
   component: CvChecksPage,
 })
+const newCvCheckRoute = createRoute({
+  getParentRoute: () => cvChecksRoute,
+  path: 'new',
+  staticData: { slug: 'new-cv-check' },
+  component: Outlet,
+})
+const newCvCheckIndexRoute = createRoute({
+  getParentRoute: () => newCvCheckRoute,
+  path: '/',
+  // `profile` preselects a saved profile, for example from its page.
+  validateSearch: (search: Record<string, unknown>): { profile?: string } =>
+    typeof search.profile === 'string' ? { profile: search.profile } : {},
+  component: NewCvCheckPage,
+})
+const cvCheckReviewRoute = createRoute({
+  getParentRoute: () => newCvCheckRoute,
+  path: '$preparationId',
+  staticData: { slug: 'cv-check-review' },
+  component: CvCheckReviewPage,
+})
 const cvCheckRoute = createRoute({
   getParentRoute: () => cvChecksRoute,
   path: '$snapshotId',
@@ -185,6 +207,12 @@ const profilesIndexRoute = createRoute({
   getParentRoute: () => profilesRoute,
   path: '/',
   component: ProfilesPage,
+})
+const newProfileRoute = createRoute({
+  getParentRoute: () => profilesRoute,
+  path: 'new',
+  staticData: { slug: 'new-profile' },
+  component: NewProfilePage,
 })
 const profileRoute = createRoute({
   getParentRoute: () => profilesRoute,
@@ -266,9 +294,10 @@ export const router = createRouter({
     ]),
     cvChecksRoute.addChildren([
       cvChecksIndexRoute,
+      newCvCheckRoute.addChildren([newCvCheckIndexRoute, cvCheckReviewRoute]),
       cvCheckRoute.addChildren([cvCheckIndexRoute, cvReportRoute]),
     ]),
-    profilesRoute.addChildren([profilesIndexRoute, profileRoute]),
+    profilesRoute.addChildren([profilesIndexRoute, newProfileRoute, profileRoute]),
     settingsRoute,
     guideRoute,
     accessibilityRoute,

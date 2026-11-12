@@ -15,7 +15,8 @@ import { profileMessages } from './messages'
 const valueOf = (choice: ProfileChoice | null) =>
   choice === null ? '' : choice.kind === 'saved' ? `saved:${choice.id}` : choice.kind
 
-function ProfileSummary({ profile }: { profile: ProfileView }) {
+/** The documents of a saved profile, in a few short lines. */
+export function ProfileSummary({ profile }: { profile: ProfileView }) {
   const t = useMessages(profileMessages)
   const language = useLanguage()
   const offer = profile.job_offer

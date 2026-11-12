@@ -4,10 +4,17 @@ import {
   emptyDocuments,
   emptySlot,
   isSaved,
+  jobModeOf,
 } from '@/entities/preparation'
 import type { DocumentSlot, DocumentsDraft, ResourceSlot } from '@/entities/preparation'
 import { api } from '@/shared/api'
-import type { DocumentView, ProfileIn, ProfileView } from '@/shared/api'
+import type {
+  DocumentView,
+  ExecutionProfile,
+  PreparationView,
+  ProfileIn,
+  ProfileView,
+} from '@/shared/api'
 
 /** Uploads in progress, so that the step does not continue before they finish. */
 export const UPLOAD_KEY = ['upload-document'] as const
@@ -127,3 +134,23 @@ export function differsFrom(documents: DocumentsDraft, profile: ProfileView): bo
 }
 
 export const clearedSlot = (slot: DocumentSlot): DocumentSlot => emptySlot(slot.title)
+
+/** Analyse stored documents in a new preparation, owned by `profileId` when given. */
+export function prepareDocuments(
+  documents: DocumentsDraft,
+  options: { language: 'it' | 'en'; execution: ExecutionProfile; profileId: string | null },
+): Promise<PreparationView> {
+  const offer = documents.offerSource === 'none' ? null : documents.offer
+  return api.prepare({
+    language: options.language,
+    job_mode: jobModeOf(documents),
+    cv_id: documents.cv.documentId,
+    job_offer_id: offer?.documentId ?? null,
+    resources: documents.resources.map((r) => ({
+      title: r.title.trim(),
+      document_id: r.documentId ?? '',
+    })),
+    profile_id: options.profileId,
+    execution_profile: options.execution,
+  })
+}

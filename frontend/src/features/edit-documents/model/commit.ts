@@ -1,12 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { getDraft, jobModeOf, preparationKeyOf, useDraft } from '@/entities/preparation'
+import { getDraft, preparationKeyOf, useDraft } from '@/entities/preparation'
 import type { ProfileChoice } from '@/entities/preparation'
 import { profilesQuery } from '@/entities/profile'
 import { api } from '@/shared/api'
 import type { ProfileView } from '@/shared/api'
-import { differsFrom, loadProfileDocuments, profileBody, storeDocuments } from './documents'
+import {
+  differsFrom,
+  loadProfileDocuments,
+  prepareDocuments,
+  profileBody,
+  storeDocuments,
+} from './documents'
 
 /** What to do with a saved profile whose documents were changed for this interview. */
 export type SaveChoice = { kind: 'overwrite' } | { kind: 'new'; name: string } | { kind: 'once' }
@@ -42,18 +48,10 @@ export async function startAnalysis(profileId: string | null): Promise<void> {
   const key = preparationKeyOf(draft)
   const { settings, documents } = draft
   if (key === null || settings.execution === null) throw new Error('documents not stored')
-  const offer = documents.offerSource === 'none' ? null : documents.offer
-  const preparation = await api.prepare({
+  const preparation = await prepareDocuments(documents, {
     language: settings.language,
-    job_mode: jobModeOf(documents),
-    cv_id: documents.cv.documentId,
-    job_offer_id: offer?.documentId ?? null,
-    resources: documents.resources.map((r) => ({
-      title: r.title.trim(),
-      document_id: r.documentId ?? '',
-    })),
-    profile_id: profileId,
-    execution_profile: settings.execution,
+    execution: settings.execution,
+    profileId,
   })
   useDraft.getState().startPreparation(preparation.id, key)
 }

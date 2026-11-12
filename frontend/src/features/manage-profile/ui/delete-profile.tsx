@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 
+import { useDraft } from '@/entities/preparation'
 import { profilesQuery } from '@/entities/profile'
 import { api } from '@/shared/api'
 import type { ProfileView } from '@/shared/api'
@@ -10,7 +11,10 @@ import { Button } from '@/shared/ui/button'
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog'
 import { manageMessages } from './messages'
 
-/** Delete a profile after a confirmation. Its documents stay with earlier preparations. */
+/**
+ * Delete a profile after a confirmation. Its interviews, reports and CV checks stay with the
+ * documents they use; documents that nothing else uses are deleted with it.
+ */
 export function DeleteProfile({
   profile,
   onDeleted,
@@ -25,7 +29,9 @@ export function DeleteProfile({
     mutationFn: () => api.deleteProfile(profile.id),
     onSuccess: () => {
       client.setQueryData(profilesQuery.queryKey, (old) => old?.filter((p) => p.id !== profile.id))
+      useDraft.getState().forgetProfile(profile.id)
       void client.invalidateQueries({ queryKey: ['history'] })
+      void client.invalidateQueries({ queryKey: ['progress'] })
       setOpen(false)
       onDeleted?.()
     },
