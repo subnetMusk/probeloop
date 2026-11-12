@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from probeloop.context.domain.model import (
+    Alternative,
     ContextSnapshot,
     Document,
     DocumentKind,
@@ -21,14 +22,18 @@ from probeloop.context.domain.model import (
     FactOrigin,
     JobMode,
     MatchStatus,
+    Obligation,
     Preparation,
     PreparationStatus,
     Profile,
+    RequirementDetail,
     RequirementMatch,
     Review,
     RoleProfile,
+    Route,
     Subject,
     TargetArea,
+    Threshold,
 )
 from probeloop.storage.database import (
     ContextExtractionRow,
@@ -478,7 +483,49 @@ def fact_to_json(f: Fact) -> dict[str, Any]:
         "quote": f.quote,
         "review": f.review.value,
         "corrected": f.corrected,
+        "requirement": requirement_to_json(f.requirement) if f.requirement else None,
     }
+
+
+def requirement_to_json(r: RequirementDetail) -> dict[str, Any]:
+    return {
+        "obligation": r.obligation.value,
+        "cue": r.cue,
+        "category": r.category,
+        "any_of": [{"value": a.value, "open": a.open} for a in r.any_of],
+        "equivalents": [{"kind": e.kind, "value": e.value} for e in r.equivalents],
+        "threshold": (
+            {
+                "kind": r.threshold.kind,
+                "minimum": r.threshold.minimum,
+                "subject": r.threshold.subject,
+            }
+            if r.threshold
+            else None
+        ),
+        "refines": r.refines,
+        "implicit": r.implicit,
+        "readings": [[source, obligation.value] for source, obligation in r.readings],
+    }
+
+
+def requirement_from_json(d: dict[str, Any]) -> RequirementDetail:
+    threshold = d.get("threshold")
+    return RequirementDetail(
+        obligation=Obligation(d["obligation"]),
+        cue=d.get("cue"),
+        category=d.get("category", "other"),
+        any_of=tuple(Alternative(a["value"], bool(a.get("open"))) for a in d.get("any_of", [])),
+        equivalents=tuple(Route(e["kind"], e["value"]) for e in d.get("equivalents", [])),
+        threshold=(
+            Threshold(threshold["kind"], threshold["minimum"], threshold.get("subject", ""))
+            if threshold
+            else None
+        ),
+        refines=d.get("refines"),
+        implicit=bool(d.get("implicit")),
+        readings=tuple((source, Obligation(o)) for source, o in d.get("readings", [])),
+    )
 
 
 def fact_from_json(d: dict[str, Any]) -> Fact:
@@ -492,6 +539,7 @@ def fact_from_json(d: dict[str, Any]) -> Fact:
         quote=d["quote"],
         review=Review(d["review"]),
         corrected=d["corrected"],
+        requirement=requirement_from_json(d["requirement"]) if d.get("requirement") else None,
     )
 
 

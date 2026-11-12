@@ -100,13 +100,31 @@ def snapshot_of(preparation: Preparation, snapshot_id: str, now: float) -> Conte
 
 
 def _fact_key(fact: Fact) -> list[Any]:
-    return [
+    key: list[Any] = [
         fact.kind.value,
         fact.text,
         fact.origin.value,
         fact.quote,
         fact.review is Review.CORRECTED,
     ]
+    detail = fact.requirement
+    if detail is not None:
+        # The structure is assessed content; who read the obligation is not.
+        key.append(
+            [
+                detail.obligation.value,
+                detail.cue,
+                detail.category,
+                [[a.value, a.open] for a in detail.any_of],
+                [[e.kind, e.value] for e in detail.equivalents],
+                [detail.threshold.kind, detail.threshold.minimum, detail.threshold.subject]
+                if detail.threshold
+                else None,
+                detail.refines,
+                detail.implicit,
+            ]
+        )
+    return key
 
 
 def candidate_brief(snapshot: ContextSnapshot) -> str:
