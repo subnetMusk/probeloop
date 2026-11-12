@@ -114,10 +114,10 @@ For the pair as a whole:
 
 | Field | Values and rules |
 |---|---|
-| `sections` | Each heading as written, its type (`profile`, `experience`, `projects`, `education`, `skills`, `languages`, `certifications`, `other`) and whether it is an extraction artefact |
-| `dates` | Each interval as written, with `start`, `end`, `precision` (`year`, `month`) and `open` |
-| `quantities` | Each outcome or scope measure as written, with `kind` (`outcome`, `scope`); dates, phone numbers and identifiers are excluded |
-| `artefacts` | Extraction artefacts (letter-spaced headings, broken lines, interleaved columns), each with a quote |
+| `sections` | Each heading as written (`text`), its `type` (`profile`, `experience`, `projects`, `education`, `skills`, `languages`, `certifications`, `other`) and whether it is an extraction artefact (`artefact`) |
+| `dates` | Each interval as written (`text`), with `start`, `end`, `precision` (`year`, `month`) and `open` |
+| `quantities` | Each outcome or scope measure as written (`text`), with `kind` (`outcome`, `scope`); dates, phone numbers and identifiers are excluded |
+| `artefacts` | Extraction artefacts (letter-spaced headings, broken lines, interleaved columns), each with a `quote` |
 | `defects` | Document issues, each with `kind` (`impossible_date`, `contradiction`, `vague_wording`, `repetition`, `missing_contact`, `spelling`), a quote and `severity` (`minor`, `major`) |
 
 A gap between periods, a missing introduction, a photo or a template is not a defect.

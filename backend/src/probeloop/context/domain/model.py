@@ -151,6 +151,14 @@ class MatchStatus(StrEnum):
     NOT_SHOWN = "not_shown"
 
 
+class Obligation(StrEnum):
+    """How binding a requirement of a job offer is, as its text or its section heading says."""
+
+    MUST = "must"
+    PREFERRED = "preferred"
+    UNCLEAR = "unclear"  # no cue decides it
+
+
 @dataclass(frozen=True, slots=True)
 class RequirementMatch:
     requirement_id: str
