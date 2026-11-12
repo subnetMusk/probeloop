@@ -76,7 +76,8 @@ runtime.
    docker compose run --rm --no-deps -v "/absolute/path/probeloop-backup.zip:/restore/backup.zip:ro" backend probeloop restore-backup /restore/backup.zip
    ```
 
-   The command prints `backup restored`. It refuses a database or data folder that is not empty,
+   The command prints `backup restored`; Fontconfig warnings about cache directories before it
+   are harmless. It refuses a database or data folder that is not empty,
    and a backup from a newer version of ProbeLoop. On Windows, the same command accepts a path
    such as `C:\Users\<name>\Downloads\probeloop-backup.zip`.
 4. Start the project again with the launcher or `docker compose up -d`.

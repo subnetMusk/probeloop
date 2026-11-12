@@ -49,6 +49,14 @@ Container-based lint, formatting, strict type checks, import contracts, producti
 API schema/type regeneration also passed. The earlier PostgreSQL result was not rerun because
 this follow-up changes no persistence contracts.
 
+The standalone profile and CV check checkpoint, later on 2026-11-12, passed 691 backend tests
+(46 skipped, 23 live tests deselected), the 46 PostgreSQL storage contracts, 101 frontend unit
+tests and 37 browser tests against a rebuilt runtime, with the two live tests skipped. One
+existing browser test passed on retry after an accessibility scan ran during a button
+transition. Lint, formatting, strict type checks, import contracts, documentation checks,
+production builds and API schema/type regeneration also passed. A backup, delete and restore
+round trip with the documented command reproduced the data summary of a local installation.
+
 ## Remaining quality gates
 
 - Interview behaviour and evaluator grounding across independent professions, seniority and
