@@ -11,7 +11,12 @@ from typing import Any
 
 from probeloop.ai.ports import UserActionRequiredError
 from probeloop.context.application.analysis import ContextAnalyser
-from probeloop.context.application.ports import ContextStore, ExtractedText, TextExtraction
+from probeloop.context.application.ports import (
+    ContextStore,
+    ExtractedText,
+    TextClassifierUnavailable,
+    TextExtraction,
+)
 from probeloop.context.application.snapshots import snapshot_of
 from probeloop.context.domain.model import (
     ContextError,
@@ -296,19 +301,13 @@ class ContextService:
                 "context analysis failed",
                 extra={"preparation_id": preparation.id, "error_type": type(exc).__name__},
             )
-            # A provider refusal the user can resolve (sign-in, usage limit) is shown as is.
-            reason = (
-                str(exc)
-                if isinstance(exc, UserActionRequiredError)
-                else "the documents could not be analysed; try again"
-            )
+            # A refusal the user can resolve (sign-in, usage limit, the selected classifier's key
+            # or connection) is shown as is; the analysis never switches tools on its own.
+            actionable = isinstance(exc, UserActionRequiredError | TextClassifierUnavailable)
+            reason = str(exc) if actionable else "the documents could not be analysed; try again"
             preparation.failed(reason)
             await self._store.save_preparation(preparation)
-            raise JobError(
-                reason
-                if isinstance(exc, UserActionRequiredError)
-                else "the documents could not be analysed"
-            ) from exc
+            raise JobError(reason if actionable else "the documents could not be analysed") from exc
         preparation.analysed(result.facts, result.matches, result.area, result.vocabulary)
         preparation.role_profile = role_profile
         await self._store.save_preparation(preparation)

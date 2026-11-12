@@ -22,6 +22,24 @@ def scripted_analysis(request: ChatRequest) -> str:
                 "rationale": "Synthetic proposal; confirm or correct before starting.",
             }
         )
+    if "requirements" in properties:
+        text = content.split("<<<\n", 1)[-1].rsplit("\n>>>", 1)[0]
+        lines = [line.strip() for line in text.splitlines() if len(line.strip()) >= 8]
+        items: list[dict[str, object]] = [
+            {
+                "statement": line[:400],
+                "quote": line[:600],
+                "category": "skill",
+                "obligation": "must",
+                "any_of": [],
+                "equivalents": [],
+                "threshold": None,
+                "refines": None,
+                "implicit": False,
+            }
+            for line in lines[:6]
+        ]
+        return json.dumps({"requirements": items, "facts": [], "terms": ["Python", "FastAPI"]})
     if "facts" in properties:
         text = content.split("<<<\n", 1)[-1].rsplit("\n>>>", 1)[0]
         job = "Document type: a job offer." in request.instructions

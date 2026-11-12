@@ -26,8 +26,9 @@ from rapidfuzz import fuzz
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import complete_structured
-from probeloop.context.application.ports import ContextStore
+from probeloop.context.application.ports import ContextStore, OfferLine, TextClassifier
 from probeloop.context.domain.model import (
+    Alternative,
     Document,
     DocumentKind,
     Fact,
@@ -35,11 +36,18 @@ from probeloop.context.domain.model import (
     FactOrigin,
     JobMode,
     MatchStatus,
+    Obligation,
+    RequirementDetail,
     RequirementMatch,
     RoleProfile,
+    Route,
     Subject,
     TargetArea,
+    Threshold,
+    decide_obligation,
+    requirement_kind,
 )
+from probeloop.context.domain.offer_cues import cue_obligation, locate
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +83,84 @@ class ExtractionOut(BaseModel):
 
     facts: list[FactOut] = Field(max_length=40)
     terms: list[str] = Field(max_length=40)
+
+
+_CATEGORIES = Literal[
+    "skill",
+    "knowledge",
+    "experience",
+    "education",
+    "credential",
+    "language",
+    "eligibility",
+    "interpersonal",
+    "other",
+]
+
+
+class AlternativeOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    value: str = Field(min_length=1, max_length=200)
+    open: bool
+
+
+class RouteOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["education", "experience", "credential"]
+    value: str = Field(min_length=1, max_length=200)
+
+
+class ThresholdOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["years", "language_level", "degree"]
+    minimum: str = Field(min_length=1, max_length=40)
+    subject: str = Field(max_length=200)
+
+
+class RequirementOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    statement: str = Field(min_length=3, max_length=400)
+    quote: str = Field(max_length=600)
+    category: _CATEGORIES
+    obligation: Literal["must", "preferred", "unclear"]
+    any_of: list[AlternativeOut] = Field(max_length=8)
+    equivalents: list[RouteOut] = Field(max_length=4)
+    threshold: ThresholdOut | None
+    refines: int | None = Field(ge=0)
+    implicit: bool
+
+
+class OfferFactOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["responsibility", "company"]
+    statement: str = Field(min_length=3, max_length=400)
+    quote: str = Field(max_length=600)
+
+
+class OfferExtractionOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requirements: list[RequirementOut] = Field(max_length=40)
+    facts: list[OfferFactOut] = Field(max_length=40)
+    terms: list[str] = Field(max_length=40)
+
+
+@dataclass(frozen=True, slots=True)
+class _Draft:
+    """A requirement read from an offer, before its obligation is decided."""
+
+    id: str
+    document: Document
+    item: RequirementOut
+    verified: bool
+    refines: str | None
+    line: OfferLine
+    cue: tuple[Obligation, str] | None
 
 
 class MatchOut(BaseModel):
@@ -180,11 +266,24 @@ def _split_long(paragraph: str, size: int) -> list[str]:
     return out
 
 
+def _no_classifier() -> TextClassifier | None:
+    return None
+
+
 class ContextAnalyser:
-    def __init__(self, model: ChatModel, *, cache: ContextStore | None = None) -> None:
+    """`classifier` gives, for the job being run, the line classifier selected for it, if any."""
+
+    def __init__(
+        self,
+        model: ChatModel,
+        *,
+        cache: ContextStore | None = None,
+        classifier: Callable[[], TextClassifier | None] = _no_classifier,
+    ) -> None:
         self._model = model
         self._prompts = PromptRenderer("probeloop.context")
         self._cache = cache
+        self._classifier = classifier
 
     async def _complete[T: BaseModel](self, request: ChatRequest, output: type[T]) -> T:
         """Reuse analyses only when the model, schema and complete input agree."""
@@ -219,22 +318,36 @@ class ContextAnalyser:
         language: str,
         progress: Callable[[float, str], Awaitable[None]] | None = None,
     ) -> AnalysisResult:
+        classifier = self._classifier()
         work = [(d, piece) for d in documents for piece in chunks(d.text)]
         steps = len(work) + 2
         facts: list[Fact] = []
         terms: list[str] = []
+        drafts: list[_Draft] = []
         seen: set[tuple[str, str]] = set()
+
+        def keep(fact: Fact) -> None:
+            key = (fact.subject.value, normalise(fact.statement))
+            if key not in seen:
+                seen.add(key)
+                facts.append(fact)
+
         for index, (document, piece) in enumerate(work, start=1):
             if progress is not None:
                 await progress(index / steps, f"reading {document.title}")
+            if document.kind is DocumentKind.JOB_OFFER:
+                offer = await self._extract_offer(document, piece, language)
+                for other in offer.facts:
+                    keep(self._fact(document, FactOut(subject="job", **other.model_dump())))
+                drafts += self._drafts(document, offer.requirements)
+                terms += offer.terms
+                continue
             extracted = await self._extract(document, piece, language)
             for item in extracted.facts:
-                fact = self._fact(document, item)
-                key = (fact.subject.value, normalise(fact.statement))
-                if key not in seen:
-                    seen.add(key)
-                    facts.append(fact)
+                keep(self._fact(document, item))
             terms += extracted.terms
+        for fact in await self._requirements(drafts, classifier):
+            keep(fact)
         if progress is not None:
             await progress((steps - 1) / steps, "comparing with the position")
         matches = await self._match(facts, language)
@@ -332,6 +445,115 @@ class ContextAnalyser:
             max_output_tokens=3000,
         )
         return await self._complete(request, ExtractionOut)
+
+    async def _extract_offer(
+        self, document: Document, piece: str, language: str
+    ) -> OfferExtractionOut:
+        prompt = self._prompts.render(
+            "extract_offer",
+            1,
+            language_name=LANGUAGE_NAMES.get(language, "English"),
+            max_facts=MAX_FACTS_PER_CHUNK,
+        )
+        request = ChatRequest(
+            instructions=prompt.text,
+            messages=(ChatMessage("user", f'Document "{document.title}":\n<<<\n{piece}\n>>>'),),
+            temperature=0.1,
+            max_output_tokens=4000,
+        )
+        return await self._complete(request, OfferExtractionOut)
+
+    def _drafts(self, document: Document, items: list[RequirementOut]) -> list[_Draft]:
+        ids = [
+            hashlib.sha256(
+                json.dumps(
+                    [
+                        document.kind.value,
+                        document.title,
+                        document.text,
+                        "requirement",
+                        item.statement,
+                        item.quote,
+                    ]
+                ).encode()
+            ).hexdigest()[:12]
+            for item in items
+        ]
+        drafts = []
+        for index, item in enumerate(items):
+            verified = not item.implicit and quote_found(item.quote, document.text)
+            located = locate(document.text, item.quote) if verified else None
+            heading = located[1] if located else None
+            words = item.quote if verified else item.statement
+            refines = item.refines
+            drafts.append(
+                _Draft(
+                    id=ids[index],
+                    document=document,
+                    item=item,
+                    verified=verified,
+                    refines=ids[refines] if refines is not None and refines < len(ids) else None,
+                    line=OfferLine(" ".join(words.split()), heading),
+                    # Only the offer's own words or headings are cues, never the model's wording.
+                    cue=cue_obligation(item.quote, heading) if verified else None,
+                )
+            )
+        return [d for d in drafts if d.refines != d.id]
+
+    async def _requirements(
+        self, drafts: list[_Draft], classifier: TextClassifier | None
+    ) -> list[Fact]:
+        """Decide each requirement's obligation: the offer's cue, then Jev, then the model."""
+        jev: list[Obligation | None] = [None] * len(drafts)
+        # An implicit requirement has no words of its own in the offer to classify.
+        asked = [i for i, draft in enumerate(drafts) if not draft.item.implicit]
+        if classifier is not None and asked:
+            classified = await classifier.obligations([drafts[i].line for i in asked])
+            for i, read in zip(asked, classified.readings, strict=True):
+                jev[i] = read.obligation
+            logger.info(
+                "requirement obligations classified",
+                extra={"model": classified.model_ref, "requirements": len(asked)},
+            )
+        facts = []
+        for draft, reading in zip(drafts, jev, strict=True):
+            item = draft.item
+            readings: list[tuple[str, Obligation]] = []
+            if draft.cue is not None:
+                readings.append(("cue", draft.cue[0]))
+            if reading is not None:
+                readings.append(("jev", reading))
+            readings.append(("model", Obligation(item.obligation)))
+            obligation = decide_obligation(tuple(readings))
+            threshold = item.threshold
+            detail = RequirementDetail(
+                obligation=obligation,
+                cue=draft.cue[1] if draft.cue else None,
+                category=item.category,
+                any_of=tuple(Alternative(a.value.strip(), a.open) for a in item.any_of),
+                equivalents=tuple(Route(e.kind, e.value.strip()) for e in item.equivalents),
+                threshold=(
+                    Threshold(threshold.kind, threshold.minimum.strip(), threshold.subject.strip())
+                    if threshold
+                    else None
+                ),
+                refines=draft.refines,
+                implicit=item.implicit,
+                readings=tuple(readings),
+            )
+            facts.append(
+                Fact(
+                    id=draft.id,
+                    subject=Subject.JOB,
+                    kind=requirement_kind(obligation),
+                    statement=" ".join(item.statement.split()),
+                    origin=FactOrigin.DECLARED if draft.verified else FactOrigin.INFERRED,
+                    document_id=draft.document.id,
+                    quote=" ".join(item.quote.split()) if draft.verified else None,
+                    requirement=detail,
+                )
+            )
+        return facts
 
     def _fact(self, document: Document, item: FactOut) -> Fact:
         subject = Subject(item.subject)

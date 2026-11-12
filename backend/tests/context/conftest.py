@@ -101,6 +101,58 @@ OFFER_FACTS = {
 }
 
 
+def requirement(statement: str, quote: str, obligation: str, **extra: object) -> dict[str, object]:
+    return {
+        "statement": statement,
+        "quote": quote,
+        "category": "experience",
+        "obligation": obligation,
+        "any_of": [],
+        "equivalents": [],
+        "threshold": None,
+        "refines": None,
+        "implicit": False,
+    } | extra
+
+
+OFFER_EXTRACTION = {
+    "requirements": [
+        requirement(
+            "Almeno 5 anni di esperienza con Python.",
+            "Almeno 5 anni di esperienza con Python",
+            "must",
+            threshold={"kind": "years", "minimum": "5", "subject": "Python"},
+        ),
+        requirement(
+            "Esperienza con Kafka e architetture a eventi.",
+            "Esperienza con Kafka e architetture a eventi",
+            "preferred",  # the heading says it is required: the cue wins
+        ),
+        requirement(
+            "Kubernetes in produzione.",
+            "Esperienza con Kubernetes in produzione",
+            "must",  # the heading says it is preferred: the cue wins
+            category="skill",
+        ),
+        requirement(
+            "Italiano fluente.",
+            "",
+            "unclear",
+            category="language",
+            implicit=True,
+        ),
+    ],
+    "facts": [
+        {
+            "kind": "company",
+            "statement": "Piattaforma di pagamenti.",
+            "quote": "Senior backend engineer - piattaforma di pagamenti",
+        }
+    ],
+    "terms": ["Python", "Kafka", "Kubernetes"],
+}
+
+
 def scripted_analysis(
     matches: Callable[[ChatRequest], dict[str, object]] | None = None,
 ) -> Callable[[ChatRequest], str]:
@@ -150,6 +202,8 @@ def scripted_analysis(
                     "rationale": "Proposal.",
                 }
             )
+        if "requirements of a job offer" in text:
+            return json.dumps(OFFER_EXTRACTION)
         if "list the facts" in text:
             return json.dumps(OFFER_FACTS if "Offerta" in content else CV_FACTS)
         if "compare the requirements" in text:
