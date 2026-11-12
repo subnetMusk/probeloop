@@ -499,8 +499,8 @@ export function ExecutionProfileSettings() {
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {it
-                  ? 'Un servizio cloud che può leggere i limiti dichiarati al posto di Laya, utile se Laya non è installato. Richiede una chiave API a consumo.'
-                  : 'A cloud service that can read stated limits instead of Laya, useful when Laya is not installed. It needs a pay-as-you-go API key.'}{' '}
+                  ? 'Un servizio cloud che può leggere i limiti dichiarati al posto di Laya, utile se Laya non è installato, e classificare i requisiti delle offerte. Richiede una chiave API a consumo.'
+                  : 'A cloud service that can read stated limits instead of Laya, useful when Laya is not installed, and classify the requirements of job offers. It needs a pay-as-you-go API key.'}{' '}
                 <a
                   href={TYPESAFE_CONSOLE_URL}
                   target="_blank"

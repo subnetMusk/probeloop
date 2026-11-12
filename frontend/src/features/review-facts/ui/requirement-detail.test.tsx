@@ -60,3 +60,20 @@ it('lets the user settle the obligation, and says nothing more when the sources 
   expect(screen.queryByRole('note')).toBeNull()
   expect(screen.queryByRole('list')).toBeNull()
 })
+
+it('names the user, not the offer, once the user has decided', () => {
+  render(
+    <RequirementDetail
+      id="r1"
+      detail={{
+        ...DETAIL,
+        obligation: 'preferred',
+        disputed: false,
+        readings: [...DETAIL.readings, { source: 'user', obligation: 'preferred' }],
+      }}
+      onObligation={vi.fn()}
+    />,
+  )
+  expect(screen.getByText('set by you')).toBeTruthy()
+  expect(screen.queryByText('from “Requisiti”')).toBeNull()
+})

@@ -1,5 +1,4 @@
 import { TriangleAlertIcon } from 'lucide-react'
-import { cn } from 'cn'
 
 import type { Obligation, RequirementDetailView } from '@/shared/api'
 import { defineMessages, useMessages } from '@/shared/i18n'
@@ -12,6 +11,7 @@ const messages = defineMessages({
     obligation: 'How binding',
     values: { must: 'Required', preferred: 'Preferred', unclear: 'Unclear' },
     cue: (cue: string) => `from “${cue}”`,
+    byUser: 'set by you',
     anyOf: (members: string) => `Any of: ${members}`,
     similar: 'or similar',
     equivalents: (routes: string) => `Or: ${routes}`,
@@ -31,6 +31,7 @@ const messages = defineMessages({
     obligation: 'Quanto è vincolante',
     values: { must: 'Obbligatorio', preferred: 'Preferito', unclear: 'Non chiaro' },
     cue: (cue: string) => `da «${cue}»`,
+    byUser: 'scelto da te',
     anyOf: (members: string) => `Basta uno tra: ${members}`,
     similar: 'o simili',
     equivalents: (routes: string) => `Oppure: ${routes}`,
@@ -94,12 +95,9 @@ export function RequirementDetail({
               key={value}
               type="button"
               size="sm"
-              variant="outline"
+              variant={detail.obligation === value ? 'default' : 'outline'}
               aria-pressed={detail.obligation === value}
-              className={cn(
-                'h-7 px-2 text-xs',
-                detail.obligation === value && 'border-brand bg-brand/10',
-              )}
+              className="h-7 px-2 text-xs"
               onClick={() => {
                 if (detail.obligation !== value) onObligation(value)
               }}
@@ -108,7 +106,11 @@ export function RequirementDetail({
             </Button>
           ))}
         </div>
-        {detail.cue && <span className="text-xs text-muted-foreground">{t.cue(detail.cue)}</span>}
+        {detail.readings.some((r) => r.source === 'user') ? (
+          <span className="text-xs text-muted-foreground">{t.byUser}</span>
+        ) : (
+          detail.cue && <span className="text-xs text-muted-foreground">{t.cue(detail.cue)}</span>
+        )}
       </div>
       {facts.length > 0 && (
         <ul className="list-disc pl-5 text-xs text-muted-foreground">
