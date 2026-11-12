@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { forgetCvCheckPreparation, rememberCvCheckPreparation } from '@/entities/cv-check'
 import { rememberReportJob } from '@/entities/report-job'
 import {
   ContextReview,
@@ -57,6 +58,8 @@ export function CvCheckReviewPage() {
       return api.prepare(prepareAgain(view))
     },
     onSuccess: (again) => {
+      if (view) forgetCvCheckPreparation(view.id)
+      rememberCvCheckPreparation(again.id)
       setRole(null)
       void navigate({
         to: '/cv-checks/new/$preparationId',

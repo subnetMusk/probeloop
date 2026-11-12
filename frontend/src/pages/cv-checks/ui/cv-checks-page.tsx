@@ -4,7 +4,7 @@ import { PlusIcon } from 'lucide-react'
 import { defineMessages, useMessages } from '@/shared/i18n'
 import { Button } from '@/shared/ui/button'
 import { Page, PageHeader } from '@/shared/ui/page-header'
-import { CvCheckList } from '@/widgets/cv-check-list'
+import { CvCheckList, UnfinishedCvChecks } from '@/widgets/cv-check-list'
 
 const messages = defineMessages({
   en: {
@@ -37,6 +37,7 @@ export function CvChecksPage() {
           </Button>
         }
       />
+      <UnfinishedCvChecks />
       <CvCheckList pageSize={15} full />
     </Page>
   )

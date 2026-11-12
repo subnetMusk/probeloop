@@ -77,6 +77,48 @@ test('a profile is created on its own and its CV checked without an interview', 
   ).toBeVisible()
 })
 
+test('an unfinished CV check stays reachable after leaving its page', async ({ page, request }) => {
+  const name = `Unfinished ${String(Date.now())}`
+  const typed = await request.post('/api/documents/text', {
+    data: { kind: 'cv', title: 'CV', text: `${cv.trim()}\nRun ${name}.` },
+  })
+  const document = (await typed.json()) as { id: string }
+  const saved = await request.post('/api/profiles', {
+    data: { name, cv_id: document.id, job_offer_id: null, resources: [] },
+  })
+  expect(saved.ok()).toBe(true)
+  const profile = (await saved.json()) as { id: string }
+  const main = page.getByRole('navigation', { name: 'Main' })
+
+  await page.goto(`/cv-checks/new?profile=${profile.id}`)
+  await page.getByRole('button', { name: 'Analyse the documents', exact: true }).click()
+  await expect(page).toHaveURL(/\/cv-checks\/new\/\w+$/)
+  const reviewUrl = page.url()
+  await expect(
+    page.getByRole('button', { name: 'Confirm role and level', exact: true }),
+  ).toBeVisible({ timeout: 30_000 })
+
+  // Elsewhere, then back through the navigation: the analysis waits under CV checks.
+  await main.getByRole('link', { name: 'Interviews', exact: true }).click()
+  await expect(page).toHaveURL(/\/interviews$/)
+  await main.getByRole('link', { name: 'CV checks', exact: true }).click()
+  const unfinished = page.getByTestId('unfinished-cv-check')
+  await expect(unfinished).toHaveCount(1)
+  await expect(unfinished).toContainText('Analysis ready to review')
+  await noSeriousViolations(page)
+  await page.getByRole('link', { name: 'New CV check', exact: true }).click()
+  await expect(page.getByText('A CV check you started is not finished.')).toBeVisible()
+  await page.getByRole('link', { name: 'Resume from CV checks', exact: true }).click()
+  await unfinished.getByRole('link').click()
+  await expect(page).toHaveURL(reviewUrl)
+
+  await approveAndCheck(page)
+  await page.goto('/cv-checks')
+  await expect(page.getByTestId('cv-check-row').first()).toBeVisible()
+  await expect(unfinished).toHaveCount(0)
+  await request.delete(`/api/profiles/${profile.id}`)
+})
+
 test('a one-off CV check is saved as a profile, then deleted', async ({ page, request }) => {
   const name = `From a check ${String(Date.now())}`
   await page.goto('/cv-checks')

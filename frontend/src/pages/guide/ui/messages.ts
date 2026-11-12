@@ -170,7 +170,7 @@ export const guideContent: Record<Language, GuideContent> = {
         points: [
           {
             term: 'CV check',
-            text: 'A review of your CV against the position, with the original file and its reports. Start one from CV checks, from a profile or during the final check of an interview; deleting it keeps the documents a profile or an interview still uses.',
+            text: 'A review of your CV against the position, with the original file and its reports. Start one from CV checks, from a profile or during the final check of an interview; one you leave before it finishes waits under In progress on CV checks. Deleting it keeps the documents a profile or an interview still uses.',
           },
           {
             term: 'Profiles',
@@ -370,7 +370,7 @@ export const guideContent: Record<Language, GuideContent> = {
         points: [
           {
             term: 'CV check',
-            text: 'Una revisione del tuo CV rispetto alla posizione, con il file originale e i suoi report. Avviala da CV check, da un profilo o durante il controllo finale di un colloquio; eliminarla conserva i documenti che un profilo o un colloquio usano ancora.',
+            text: 'Una revisione del tuo CV rispetto alla posizione, con il file originale e i suoi report. Avviala da CV check, da un profilo o durante il controllo finale di un colloquio; se la lasci prima che finisca, la ritrovi in In corso su CV check. Eliminarla conserva i documenti che un profilo o un colloquio usano ancora.',
           },
           {
             term: 'Profili',

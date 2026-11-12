@@ -2,6 +2,7 @@ import { useIsMutating, useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { rememberCvCheckPreparation } from '@/entities/cv-check'
 import { MAX_PROFILE_NAME, emptyDocuments } from '@/entities/preparation'
 import type { DocumentsDraft } from '@/entities/preparation'
 import { profilesQuery } from '@/entities/profile'
@@ -26,6 +27,7 @@ import { Input } from '@/shared/ui/input'
 import { Page, PageHeader } from '@/shared/ui/page-header'
 import { RadioGroup } from '@/shared/ui/radio-group'
 import { RequiredMark } from '@/shared/ui/required-mark'
+import { UnfinishedCvChecksNotice } from '@/widgets/cv-check-list'
 import { newCvCheckMessages } from './messages'
 
 const ONE_OFF = 'documents'
@@ -71,6 +73,7 @@ export function NewCvCheckPage() {
       return prepareDocuments(stored, { language, execution: plan, profileId: saved?.id ?? null })
     },
     onSuccess: (preparation) => {
+      rememberCvCheckPreparation(preparation.id)
       void navigate({
         to: '/cv-checks/new/$preparationId',
         params: { preparationId: preparation.id },
@@ -89,6 +92,7 @@ export function NewCvCheckPage() {
   return (
     <Page>
       <PageHeader eyebrow={t.eyebrow} title={t.title} description={t.description} />
+      <UnfinishedCvChecksNotice />
       <fieldset>
         <legend className="mb-3 flex items-center gap-1 font-heading text-base font-semibold">
           {t.source} <RequiredMark />
