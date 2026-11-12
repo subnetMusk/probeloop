@@ -223,13 +223,18 @@ async def evaluate(
     }
 
 
-async def run(output: Path, *, allow_draft: bool) -> None:
+async def run(output: Path, *, allow_draft: bool, max_questions: int | None) -> None:
     from probeloop.context.infrastructure.jev_classifier import JevTextClassifier
     from probeloop.platform.jev import JevKeyFile
     from probeloop.settings import Settings
 
     labels = load(FIXTURES, allow_draft=allow_draft)
-    classifier = JevTextClassifier(JevKeyFile(Settings().data_dir / "typesafe"))
+    keys = JevKeyFile(Settings().data_dir / "typesafe")
+    classifier = (
+        JevTextClassifier(keys)
+        if max_questions is None
+        else JevTextClassifier(keys, max_questions=max_questions)
+    )
     try:
         result = await evaluate(classifier, FIXTURES, labels)
     finally:
@@ -245,5 +250,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--allow-draft", action="store_true")
+    parser.add_argument(
+        "--max-questions", type=int, help="questions per request, to compare batch sizes"
+    )
     arguments = parser.parse_args()
-    asyncio.run(run(arguments.output, allow_draft=arguments.allow_draft))
+    asyncio.run(
+        run(
+            arguments.output,
+            allow_draft=arguments.allow_draft,
+            max_questions=arguments.max_questions,
+        )
+    )

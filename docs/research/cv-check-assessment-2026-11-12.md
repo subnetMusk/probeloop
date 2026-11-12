@@ -310,6 +310,32 @@ encoder) with digests in the model catalogue, and an ADR. Obligation, headings a
 outcomes resemble the stated-limit task; evidence directness is closer to the turn decisions and
 is the riskiest candidate.
 
+## Jev on the reference labels
+
+On the evening of 2026-11-12, `evals/jev_classification.py` ran the Jev adapter
+(`jev-1.14.0`, wordings `cv.obligation.v1`, `cv.quantified.v1` and `cv.heading.v1`, thresholds
+0.5) against the frozen labels in `backend/evals/fixtures/synthetic/cv_check/` (version 2). Lines
+are the units: 81 offer lines with one obligation and 3 with mixed obligations, and 462 CV lines,
+55 of them holding a labelled quantity and 78 a heading. Raw scores stay outside git.
+
+| Task | 40 questions per request | 8 questions per request |
+|---|---|---|
+| Obligation `must`, precision / recall | 0.91 / 0.82 | 1.00 / 1.00 |
+| Obligation `preferred` | 0.86 / 0.86 | 0.97 / 1.00 |
+| Heading at 0.5 | 0.19 / 0.76 | 0.62 / 0.94 |
+| Quantified outcome at 0.5 | 0.28 / 0.66 | 0.41 / 0.80 |
+
+With 40 questions per request, readings of later lines drifted towards the middle of the scale,
+so the adapter now sends 8. Obligation then made one error in 81 lines: a trait sentence without
+a cue scored exactly 0.5 for preference. The corpus states obligation with explicit cues and
+headings, so this result is likely optimistic for offers written in looser prose.
+
+The CV tasks remain weak because a line is the wrong unit. The CVs wrap a bullet over two lines,
+so a quantity often starts on one line and ends on the next, and a continuation line is judged
+without its sentence. Some readings still leak to the line after a heading. Both tasks need the
+logical lines that the Phase 4 normaliser produces before they can be judged; the wordings are
+not changed, so no threshold was tuned on these labels. `EVALUATED` stays false.
+
 ## Limits of this record
 
 - The probe uses scripted model outputs; frequencies with real models are unknown until a

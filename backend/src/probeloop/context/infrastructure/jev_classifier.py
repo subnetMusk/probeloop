@@ -44,7 +44,9 @@ logger = logging.getLogger(__name__)
 MODEL = "jev-1.14.0"
 EVALUATED = False
 TIMEOUT_S = 15.0  # a whole document, not a live interview turn
-MAX_QUESTIONS = 40  # per request; the service-side limit is not documented
+# Per request. On the reference labels of 2026-11-12, 40 questions per request blurred the
+# readings of later lines (heading precision 0.19); 8 kept them apart (0.62).
+MAX_QUESTIONS = 8
 
 _MESSAGES: dict[Failure, str] = {
     "key_missing": "add a Jev API key in Settings",
