@@ -1,0 +1,44 @@
+Marco Galli (candidato sintetico)
+Backend developer - Python
+Bologna - marco.galli@example.test
+
+Formazione
+2018 Laurea triennale in Informatica, Universita' di Esempio. Tesi sulla schedulazione di veicoli
+con vincoli di finestra temporale.
+
+Competenze tecniche
+Python, FastAPI, Django, SQLAlchemy, PostgreSQL, Redis, Kafka, Docker, GitLab CI, pytest,
+Prometheus e Grafana. Kubernetes: uso quotidiano dei deployment esistenti, nessuna gestione del
+cluster. AWS: S3 e RDS a livello base.
+
+Lingue
+Italiano madrelingua; inglese B2 (documentazione e riunioni tecniche).
+
+Esperienze
+
+2022 - oggi  Backend developer, Trasporti Digitali S.r.l. (Bologna)
+- Responsabile tecnico del servizio di pianificazione delle consegne (Python, FastAPI,
+  PostgreSQL), usato da 35 operatori e da circa 1.800 consegne al giorno.
+- Ho progettato il nuovo algoritmo di raggruppamento delle consegne per fascia oraria: il tempo
+  medio di pianificazione serale e' sceso da 40 a 12 minuti.
+- Ho introdotto Kafka per gli aggiornamenti di stato delle spedizioni al posto del polling del
+  database, con consumatori idempotenti e una coda di messaggi scartati.
+- Ho ridotto il p95 dell'API di tracciamento da 1,4 s a 380 ms con indici mirati, paginazione a
+  cursore e una cache Redis per gli stati piu' letti.
+- Affianco due sviluppatori junior nelle revisioni del codice.
+
+2019 - 2022  Software developer, Bottega Online S.p.A. (Modena)
+- Sviluppo di funzionalita' per il catalogo e il carrello di un e-commerce in Django.
+- Integrazione con tre corrieri tramite API REST e SOAP.
+- Partecipazione alla migrazione da MySQL a PostgreSQL insieme al team piattaforma.
+
+2018 - 2019  Sviluppatore junior, Studio Informatico Neri (Ferrara)
+- Gestionali su misura in PHP e Laravel per piccole imprese.
+
+Altro
+Disponibilita' a lavorare in modalita' ibrida. Preavviso contrattuale di un mese.
+
+Profilo
+Backend developer con sei anni di esperienza su servizi Python per la logistica e l'e-commerce.
+Mi occupo di API, basi dati relazionali e integrazione tra sistemi. Negli ultimi due anni ho
+seguito la migrazione di un monolite verso servizi che comunicano tramite eventi.

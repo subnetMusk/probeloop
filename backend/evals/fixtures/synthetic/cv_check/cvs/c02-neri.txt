@@ -1,0 +1,16 @@
+Giulia Neri - synthetic candidate
+Backend developer
+
+Experience
+2021-2024 Backend developer presso Logistica Veloce.
+Ho progettato il servizio di ottimizzazione dei percorsi in Python con FastAPI e PostgreSQL.
+Ho ridotto i chilometri percorsi del 12% su 400 consegne settimanali.
+2018-2021 Sviluppatrice junior presso Studio Web Rossi con PHP e Laravel.
+
+Skills
+Python, FastAPI, PostgreSQL, Redis, Docker. Kubernetes di base.
+
+Education
+2018 Laurea in Informatica presso Universita Esempio.
+Languages
+Italiano madrelingua, inglese B2.

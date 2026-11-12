@@ -1,0 +1,36 @@
+Elisa Bernardi (candidata sintetica)
+Assegnista di ricerca in Statistica
+Padova - tel. +39 000 000 0000
+
+Posizioni accademiche
+2023 - oggi   Assegnista di ricerca, Dipartimento di Scienze Statistiche, Università di Esempio
+              Progetto "Stime per piccole aree da dati di indagine e archivi amministrativi".
+              Ho sviluppato in R il pacchetto del progetto per la stima della povertà a livello
+              comunale, oggi usato da tre gruppi di ricerca.
+2022          Visiting PhD student (6 mesi), University of Example, Regno Unito
+
+Formazione
+2019 - 2023   Dottorato di ricerca in Scienze Statistiche, Università di Esempio
+              Tesi: "Modelli bayesiani gerarchici per stime di piccola area con dati mancanti"
+2017 - 2019   Laurea magistrale in Scienze Statistiche, Università di Esempio, 110/110 e lode
+2014 - 2017   Laurea triennale in Statistica per l'economia e l'impresa, Università di Esempio
+
+Pubblicazioni
+- Bernardi, E., Conti, A. (2025). Small area estimation of poverty with administrative
+  covariates. Example Journal of Applied Statistics, 41(2), 115-138.
+- Bernardi, E. (2024). Gestione dei dati mancanti nei modelli di piccola area: un confronto
+  tramite simulazione. Rivista di Metodi Quantitativi di Esempio, 12(1), 33-52.
+- Bernardi, E., Conti, A., Ferri, M. (2023). Bayesian benchmarking for regional estimates.
+  Proceedings of the Example Conference on Survey Methods, 211-218.
+
+Didattica
+2023 - oggi   Esercitazioni di Statistica (laurea triennale in Economia), 40 ore all'anno
+2024 - 2026   Laboratorio di R per il master in Data Science, 16 ore all'anno
+2020 - 2023   Tutor didattico per il corso di Statistica di base
+
+Competenze informatiche
+R (avanzato: sviluppo di pacchetti, Shiny, simulazione), Stata, SQL, LaTeX, Git, Python (base).
+
+Lingue
+Italiano madrelingua; inglese C1 (certificazione 2019), usato ogni giorno per ricerca e
+conferenze.

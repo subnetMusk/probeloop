@@ -1,0 +1,27 @@
+RotteSmart S.r.l. (azienda sintetica) - Senior Python Engineer, piattaforma logistica
+Bologna o remoto in Italia
+
+Il ruolo
+Cerchiamo un ingegnere senior per il team che gestisce la piattaforma di tracciamento delle
+spedizioni: circa 4 milioni di eventi al giorno da corrieri, magazzini e app degli autisti.
+
+Responsabilita'
+- Progettare servizi Python (FastAPI) affidabili e osservabili.
+- Mantenere prestazioni e consistenza dei dati su PostgreSQL: indici, transazioni, migrazioni
+  senza fermo del servizio.
+- Gestire pipeline a eventi con Kafka: ordinamento, idempotenza, ritentativi, code di scarto.
+- Definire metriche, allarmi e runbook con Prometheus e Grafana.
+- Guidare le revisioni tecniche e fare da riferimento per i colleghi meno esperti.
+
+Requisiti
+- Cinque o piu' anni di sviluppo backend in Python.
+- Conoscenza approfondita di PostgreSQL (piani di esecuzione, livelli di isolamento, lock).
+- Esperienza di produzione con sistemi a eventi (Kafka o equivalenti).
+- Esperienza con test automatici e integrazione continua.
+
+Gradito
+- Kubernetes in produzione.
+- Algoritmi di ottimizzazione di percorsi o di schedulazione.
+
+Processo di selezione
+Colloquio conoscitivo, colloquio tecnico su progettazione e basi dati, incontro con il team.

@@ -45,7 +45,7 @@ as a prerequisite ("devi aver già gestito...").
 | `category` | `skill`, `knowledge`, `experience`, `education`, `credential`, `language`, `eligibility`, `interpersonal`, `other` |
 | `obligation` | `must`, `preferred` or `unclear`, by the precedence below |
 | `cue` | The heading or phrase that decided the obligation; `null` for `unclear` |
-| `any_of` | Members of an alternative; an open member ("or another backend language") has `open: true` |
+| `any_of` | Members of an alternative, each `{value, open}`; an open member ("or another backend language") has `open: true` |
 | `equivalents` | Alternative routes, each with `kind` (`education`, `experience`, `credential`) and `value` |
 | `threshold` | `{kind: years, min, subject}`, `{kind: language_level, min}` or `{kind: degree, min}` |
 | `refines` | The id of the requirement that this one narrows ("preferibilmente PostgreSQL" refines "basi dati relazionali") |
@@ -101,6 +101,8 @@ says why.
   `mention` (the name alone).
 - Rank by relation, then specificity, then recency, then quantification.
 - One quote supports several requirements only if it names each of them.
+- `insufficient` has no quotes; every other coverage has at least one. `contradicted` has a
+  `contradicting` quote, and `declared_only` has no `applied` one.
 
 For the pair as a whole:
 

@@ -1,0 +1,21 @@
+Senior Frontend Developer - Torino o full remote
+Nodo Digitale S.r.l. (azienda sintetica)
+
+Nodo Digitale progetta e sviluppa portali e app per enti pubblici, multiutility e aziende
+sanitarie. Il team frontend conta nove persone e lavora a stretto contatto con UX designer e
+sviluppatori backend. Cerchiamo una persona senior che diventi il riferimento tecnico di uno dei
+nostri prodotti principali, un portale di servizi al cittadino usato da oltre 300.000 persone
+al mese.
+
+Ti occuperai dell'architettura dell'applicazione, delle revisioni del codice e dell'affiancamento
+dei colleghi meno esperti, e parteciperai alle stime e alle scelte tecniche con il tech lead.
+È indispensabile un'esperienza di almeno 5 anni con React e un'ottima conoscenza di TypeScript.
+La conoscenza delle WCAG 2.2 è importante, perché i nostri clienti pubblici hanno obblighi
+di accessibilità. Costituisce titolo preferenziale l'esperienza con design system, che qui
+costruiamo e manteniamo internamente per tutti i prodotti.
+
+Offriamo un contratto a tempo indeterminato con RAL tra 48.000 e 58.000 euro, lavoro da remoto
+con due giornate in sede al mese a Torino (viaggi a nostro carico), un budget annuale per
+conferenze e formazione e un pomeriggio a settimana per progetti interni. La selezione prevede
+un colloquio conoscitivo, una revisione del codice su un esempio preparato da noi e un incontro
+con il team. Per candidarti invia il CV a talenti@example.test.

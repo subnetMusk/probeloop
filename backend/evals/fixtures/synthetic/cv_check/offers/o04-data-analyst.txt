@@ -1,0 +1,31 @@
+Data Analyst (mid-level)
+Northgate Home & Garden B.V. (synthetic company) - Amsterdam, hybrid (3 days in the office)
+
+Northgate runs 140 home and garden stores across the Benelux and an online shop that grew by
+30% last year. Our analytics team of seven works with Finance, Marketing and Store Operations
+and is the single source of numbers for the business.
+
+In this role you will
+- Own the weekly trading pack used by the commercial directors.
+- Write and maintain dbt models for the finance and marketing data marts.
+- Analyse A/B tests on the online shop and explain the results to non-technical colleagues.
+- Forecast seasonal demand together with the supply chain planners.
+- Present monthly insights to the leadership team.
+
+Requirements
+- At least 3 years writing SQL for reporting in a commercial environment.
+- Experience building dashboards in Power BI or Tableau.
+- Comfortable cleaning and automating data preparation, ideally with some Python.
+- A structured way of working and strong attention to detail.
+- English C1: it is our working language. Dutch is not needed.
+
+Bonus points
+- Retail or e-commerce background.
+- Statistics for experiments (confidence intervals, sample sizes).
+- Experience with dbt or a similar transformation tool.
+
+What we offer
+A salary of EUR 52,000 - 62,000, 8% holiday allowance, a yearly training budget and every other
+Friday afternoon reserved for learning.
+
+Apply at https://example.test/careers/data-analyst before 15 December 2026.
