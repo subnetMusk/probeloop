@@ -96,19 +96,19 @@ async def test_long_documents_are_split_and_keep_their_order(tmp_path: Path) -> 
 
     assert states == [["Riga 0", "Riga 1"], ["Riga 2", "Riga 3"], ["Riga 4"]]
     assert [r.score for r in result.readings] == [0.0, 0.1, 0.2, 0.3, 0.4]
-    assert result.model_ref == f"typesafe:{MODEL}:cv.quantified.v1:threshold=0.5"
+    assert result.model_ref == f"typesafe:{MODEL}:cv.quantified.v2:threshold=0.7"
 
 
 async def test_line_readings_apply_the_wording_threshold(tmp_path: Path) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert "section heading" in json.loads(request.content)["questions"]["q0_0"]["instructions"]
-        return reply({"q0_0": 0.93, "q0_1": 0.49, "q0_2": 0.5})
+        return reply({"q0_0": 0.93, "q0_1": 0.69, "q0_2": 0.7})
 
     result = await classifier(tmp_path, handler).headings(
         ["E S P E R I E N Z E", "Backend developer, Trasporti Digitali", "Work history"]
     )
     assert [r.positive for r in result.readings] == [True, False, True]
-    assert result.model_ref == f"typesafe:{MODEL}:cv.heading.v1:threshold=0.5"
+    assert result.model_ref == f"typesafe:{MODEL}:cv.heading.v2:threshold=0.7"
 
 
 async def test_no_lines_need_no_request(tmp_path: Path) -> None:
@@ -163,3 +163,27 @@ async def test_logs_carry_neither_the_key_nor_the_text(
     assert KEY not in caplog.text
     assert "pagamenti" not in caplog.text
     assert "document classification completed" in caplog.text
+
+
+async def test_v2_wordings_name_the_line_as_well_as_its_index(tmp_path: Path) -> None:
+    from probeloop.context.infrastructure.jev_classifier import HEADING_V2, QUANTIFIED_V2
+
+    bodies: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return reply({"q0_0": 0.9, "q0_1": 0.1})
+
+    keys = JevKeyFile(tmp_path / "typesafe")
+    keys.save(KEY)
+    jev = JevTextClassifier(
+        keys,
+        transport=httpx.MockTransport(handler),
+        sleep=no_wait,
+        line_wordings={"quantified": QUANTIFIED_V2, "heading": HEADING_V2},
+    )
+    result = await jev.headings(["Formazione", "2018 Laurea triennale in Informatica"])
+
+    assert result.model_ref == f"typesafe:{MODEL}:cv.heading.v2:threshold=0.7"
+    instructions = bodies[0]["questions"]["q0_1"]["instructions"]
+    assert '`cv_lines[1]` reads: "2018 Laurea triennale in Informatica"' in instructions

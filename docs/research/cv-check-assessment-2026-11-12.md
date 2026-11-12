@@ -330,11 +330,32 @@ so the adapter now sends 8. Obligation then made one error in 81 lines: a trait 
 a cue scored exactly 0.5 for preference. The corpus states obligation with explicit cues and
 headings, so this result is likely optimistic for offers written in looser prose.
 
-The CV tasks remain weak because a line is the wrong unit. The CVs wrap a bullet over two lines,
-so a quantity often starts on one line and ends on the next, and a continuation line is judged
-without its sentence. Some readings still leak to the line after a heading. Both tasks need the
-logical lines that the Phase 4 normaliser produces before they can be judged; the wordings are
-not changed, so no threshold was tuned on these labels. `EVALUATED` stays false.
+The CV tasks were weak for two reasons. A physical line is the wrong unit: the CVs wrap a bullet
+over two lines, so a quantity can start on one line and end on the next. And a question that
+names a line only by its index lets the reading drift to a neighbouring line. Three changes
+followed:
+- CV text is judged as logical lines, with wrapped lines joined
+  (`probeloop.context.domain.lines`);
+- wordings `cv.quantified.v2` and `cv.heading.v2` quote the line's text as well as its index;
+- choices are made on development CVs (`c01`, `c03`, `c05`, `c07`, `c09` and their variants) and
+  measured once on the others (`c02`, `c04`, `c06`, `c08`, `c10` and the `c04` variant).
+
+| Development CVs, precision / recall at 0.5 | v1, 8 per request | v1, 4 | v2, 8 | v2, 4 |
+|---|---|---|---|---|
+| Quantified outcome (30 lines) | 0.51 / 0.80 | 0.64 / 0.83 | 0.94 / 1.00 | 0.94 / 1.00 |
+| Heading (47 lines) | 0.57 / 0.94 | 0.76 / 1.00 | 0.90 / 1.00 | 0.96 / 1.00 |
+
+On the development CVs a threshold of 0.7 kept precision at 0.97 or more with full recall for
+both batch sizes, so v2 with 8 questions per request and thresholds 0.7 became the default. On
+the held-out CVs it gave 0.96 / 0.96 for quantified outcomes (24 lines) and 1.00 / 1.00 for
+headings (31 lines, letter-spaced ones included). The two errors were "Built the first Tableau
+workbook" read as a measure and "Staff Nurse, Acute Medical Ward (32 beds)" missed as scope.
+
+The three tasks are now marked as evaluated (`EVALUATED` in the adapter). The set is small and
+synthetic; obligation was measured on all offers, after the batch size had been chosen on the
+same labels, and the offers state obligation with explicit cues. These results support using
+Jev for the three line labels in the CV check; they do not establish its accuracy on real
+documents, which the CV check's own measures will have to watch.
 
 ## Limits of this record
 

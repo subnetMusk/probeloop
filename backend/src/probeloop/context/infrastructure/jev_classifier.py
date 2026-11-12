@@ -5,9 +5,10 @@ wording's question; obligation asks two, one for a requirement and one for a pre
 documents are split into several requests. The model, the wordings and the thresholds are fixed
 and recorded with every reading.
 
-The wordings are not evaluated yet. `EVALUATED` stays False until `evals/jev_classification.py`
-meets the acceptance targets on the frozen reference labels; until then the application must not
-offer this classifier. Changing a wording requires a new identifier and a new evaluation.
+`EVALUATED` names the tasks whose wording, threshold and batch size were measured with
+`evals/jev_classification.py` on the frozen reference labels (research record of 2026-11-12);
+the application offers the classifier only for those. Changing a wording requires a new
+identifier and a new evaluation.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -42,7 +43,10 @@ from probeloop.platform.jev import (
 logger = logging.getLogger(__name__)
 
 MODEL = "jev-1.14.0"
-EVALUATED = False
+# Measured on the reference labels of 2026-11-12 (version 2) with 8 questions per request:
+# obligation 1.00/1.00 for requirements and 0.97/1.00 for preferences over all offers; on the
+# CVs kept out of every choice, quantified outcomes 0.96/0.96 and headings 1.00/1.00.
+EVALUATED = frozenset({"obligation", "quantified", "heading"})
 TIMEOUT_S = 15.0  # a whole document, not a live interview turn
 # Per request. On the reference labels of 2026-11-12, 40 questions per request blurred the
 # readings of later lines (heading precision 0.19); 8 kept them apart (0.62).
@@ -59,7 +63,7 @@ _MESSAGES: dict[Failure, str] = {
 @dataclass(frozen=True, slots=True)
 class Wording:
     id: str
-    instructions: str  # formatted with the line's index in its request
+    instructions: str  # formatted with the line's index in its request and its text
     criteria: dict[str, str]
     threshold: float
 
@@ -116,6 +120,39 @@ HEADING = Wording(
 )
 
 
+# CV line wordings that name the line's text as well as its index, so that a reading cannot
+# drift to a neighbouring line. Their thresholds were chosen on the development CVs of the
+# reference labels (`evals/jev_classification.py --split dev`), where 0.7 kept precision at
+# 0.97 or more with full recall for both 4 and 8 questions per request.
+QUANTIFIED_V2 = Wording(
+    "cv.quantified.v2",
+    'The CV line `cv_lines[{index}]` reads: "{line}". Does it state a measured outcome or scope '
+    "of the candidate's own work?",
+    {
+        "true": "The line gives a number or a quantity, in digits or in words, for a result, a "
+        "change, a volume, a team or class size, users, customers, items, money, a time saved or "
+        "a grade the candidate obtained.",
+        "false": "Anything else, including dates, periods and durations of employment or study, "
+        "years of experience, phone numbers, identifiers, language levels and version numbers.",
+    },
+    0.7,
+)
+HEADING_V2 = Wording(
+    "cv.heading.v2",
+    'The CV line `cv_lines[{index}]` reads: "{line}". Is it a section heading that only names a '
+    "part of the CV?",
+    {
+        "true": "The line only names a section of the document, such as profile, experience, "
+        "projects, education, training, skills, languages or certifications, in any wording, "
+        "letter case or letter spacing.",
+        "false": "Anything else: names and contact details, job titles, employers and places, "
+        "dates, list items, and lines of text that state facts.",
+    },
+    0.7,
+)
+LINE_WORDINGS = {"quantified": QUANTIFIED_V2, "heading": HEADING_V2}
+
+
 def obligation_of(must: float, preferred: float) -> Obligation:
     """A line is a requirement or a preference only when one reading alone passes its threshold.
 
@@ -136,13 +173,17 @@ def request_body(state_key: str, items: list[Any], wordings: Sequence[Wording]) 
         "questions": {
             f"q{w}_{i}": {
                 "type": "noul",
-                "instructions": wording.instructions.format(index=i),
+                "instructions": wording.instructions.format(index=i, line=_text(items[i])),
                 "criteria": wording.criteria,
             }
             for w, wording in enumerate(wordings)
             for i in range(len(items))
         },
     }
+
+
+def _text(item: Any) -> str:
+    return item if isinstance(item, str) else str(item.get("text", ""))
 
 
 class JevTextClassifier:
@@ -154,9 +195,11 @@ class JevTextClassifier:
         transport: httpx.AsyncBaseTransport | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         max_questions: int = MAX_QUESTIONS,
+        line_wordings: Mapping[str, Wording] = LINE_WORDINGS,
     ) -> None:
         self.key = key
         self._max_questions = max_questions
+        self._line_wordings = dict(line_wordings)
         self._client = JevClient(
             key, base_url=base_url, timeout_s=TIMEOUT_S, transport=transport, sleep=sleep
         )
@@ -172,10 +215,10 @@ class JevTextClassifier:
         return Classified(readings, f"typesafe:{model}:cv.obligation.v1:{thresholds}")
 
     async def quantified(self, lines: Sequence[str]) -> Classified[LineReading]:
-        return await self._lines("quantified", lines, QUANTIFIED)
+        return await self._lines("quantified", lines, self._line_wordings["quantified"])
 
     async def headings(self, lines: Sequence[str]) -> Classified[LineReading]:
-        return await self._lines("headings", lines, HEADING)
+        return await self._lines("headings", lines, self._line_wordings["heading"])
 
     async def aclose(self) -> None:
         await self._client.aclose()

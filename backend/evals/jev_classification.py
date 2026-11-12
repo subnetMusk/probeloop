@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from probeloop.context.application.ports import OfferLine, TextClassifier
+from probeloop.context.domain.lines import logical_lines
 from probeloop.context.domain.model import Obligation
 
 FIXTURES = Path(__file__).parent / "fixtures/synthetic/cv_check"
@@ -105,8 +106,8 @@ class CvItem:
 
 
 def cv_items(cv: str, text: str, labels: dict[str, Any]) -> list[CvItem]:
-    """Every CV line; a quantity broken across lines marks the line where it starts."""
-    lines = _lines(text)
+    """Every logical CV line, wrapped lines joined; a quantity marks the line where it starts."""
+    lines = logical_lines(text)
     spans = [_span(lines, q["text"]) for q in labels.get("quantities", [])]
     quantified = {span[0] for span in spans if span is not None}
     headings = {_norm(s["text"]) for s in labels.get("sections", [])}
@@ -157,92 +158,119 @@ def load(fixtures: Path, *, allow_draft: bool) -> dict[str, Any]:
     return labels
 
 
+TASKS = ("obligation", "quantified", "heading")
+# Wordings and batch sizes are compared on these CVs; the others are kept for one final measure.
+# A variant stays with its base CV.
+DEV_CVS = frozenset(
+    {
+        "c01-galli",
+        "c01-galli--headings",
+        "c01-galli--order",
+        "c03-frontend-junior",
+        "c05-supporto-it",
+        "c07-contabile",
+        "c07-contabile--name",
+        "c09-accademico",
+    }
+)
+
+
+def in_split(cv: str, split: str) -> bool:
+    return split == "all" or (cv in DEV_CVS) == (split == "dev")
+
+
 async def evaluate(
-    classifier: TextClassifier, fixtures: Path, labels: dict[str, Any]
+    classifier: TextClassifier,
+    fixtures: Path,
+    labels: dict[str, Any],
+    *,
+    split: str = "all",
+    tasks: Sequence[str] = TASKS,
 ) -> dict[str, Any]:
-    obligations: list[ObligationItem] = []
-    for offer, data in sorted(labels["offers"].items()):
-        text = (fixtures / "offers" / f"{offer}.txt").read_text()
-        obligations += offer_items(offer, text, data["requirements"])
-    cv_lines: list[CvItem] = []
-    for cv, data in sorted(labels["cvs"].items()):
-        cv_lines += cv_items(cv, (fixtures / "cvs" / f"{cv}.txt").read_text(), data)
-
-    read = await classifier.obligations([item.line for item in obligations])
-    quantified = await classifier.quantified([item.line for item in cv_lines])
-    headings = await classifier.headings([item.line for item in cv_lines])
-
-    gold_quantified = [item.quantified for item in cv_lines]
-    gold_headings = [item.heading for item in cv_lines]
-    return {
+    result: dict[str, Any] = {
         "labels_version": labels.get("version"),
         "labels_status": labels.get("status"),
-        "model_refs": {
-            "obligation": read.model_ref,
-            "quantified": quantified.model_ref,
-            "heading": headings.model_ref,
-        },
-        "obligation": obligation_report(
-            [item.gold for item in obligations], [r.obligation.value for r in read.readings]
-        ),
-        "quantified": {
-            "at_threshold": precision_recall(
-                gold_quantified, [r.positive for r in quantified.readings]
-            ),
-            "sweep": sweep(gold_quantified, [r.score for r in quantified.readings]),
-        },
-        "heading": {
-            "at_threshold": precision_recall(
-                gold_headings, [r.positive for r in headings.readings]
-            ),
-            "sweep": sweep(gold_headings, [r.score for r in headings.readings]),
-        },
-        "items": {
-            "obligation": [
-                {
-                    "offer": i.offer,
-                    "line": i.line.text,
-                    "gold": i.gold,
-                    "must": r.must,
-                    "preferred": r.preferred,
-                }
-                for i, r in zip(obligations, read.readings, strict=True)
-            ],
-            "cv": [
-                {
-                    "cv": i.cv,
-                    "line": i.line,
-                    "quantified": i.quantified,
-                    "heading": i.heading,
-                    "quantified_score": q.score,
-                    "heading_score": h.score,
-                }
-                for i, q, h in zip(cv_lines, quantified.readings, headings.readings, strict=True)
-            ],
-        },
+        "split": split,
+        "model_refs": {},
+        "items": {},
     }
+    if "obligation" in tasks:
+        obligations: list[ObligationItem] = []
+        for offer, data in sorted(labels["offers"].items()):
+            text = (fixtures / "offers" / f"{offer}.txt").read_text()
+            obligations += offer_items(offer, text, data["requirements"])
+        read = await classifier.obligations([item.line for item in obligations])
+        result["model_refs"]["obligation"] = read.model_ref
+        result["obligation"] = obligation_report(
+            [item.gold for item in obligations], [r.obligation.value for r in read.readings]
+        )
+        result["items"]["obligation"] = [
+            {
+                "offer": i.offer,
+                "line": i.line.text,
+                "gold": i.gold,
+                "must": r.must,
+                "preferred": r.preferred,
+            }
+            for i, r in zip(obligations, read.readings, strict=True)
+        ]
+    cv_lines: list[CvItem] = []
+    for cv, data in sorted(labels["cvs"].items()):
+        if in_split(cv, split):
+            cv_lines += cv_items(cv, (fixtures / "cvs" / f"{cv}.txt").read_text(), data)
+    for task in ("quantified", "heading"):
+        if task not in tasks:
+            continue
+        lines = [item.line for item in cv_lines]
+        readings = await (
+            classifier.quantified(lines) if task == "quantified" else classifier.headings(lines)
+        )
+        gold = [item.quantified if task == "quantified" else item.heading for item in cv_lines]
+        result["model_refs"][task] = readings.model_ref
+        result[task] = {
+            "at_threshold": precision_recall(gold, [r.positive for r in readings.readings]),
+            "sweep": sweep(gold, [r.score for r in readings.readings]),
+        }
+        result["items"][task] = [
+            {"cv": i.cv, "line": i.line, "gold": g, "score": r.score}
+            for i, g, r in zip(cv_lines, gold, readings.readings, strict=True)
+        ]
+    return result
 
 
-async def run(output: Path, *, allow_draft: bool, max_questions: int | None) -> None:
-    from probeloop.context.infrastructure.jev_classifier import JevTextClassifier
+async def run(
+    output: Path,
+    *,
+    allow_draft: bool,
+    max_questions: int | None,
+    split: str,
+    tasks: Sequence[str],
+    wordings: str,
+) -> None:
+    from probeloop.context.infrastructure import jev_classifier
     from probeloop.platform.jev import JevKeyFile
     from probeloop.settings import Settings
 
     labels = load(FIXTURES, allow_draft=allow_draft)
-    keys = JevKeyFile(Settings().data_dir / "typesafe")
-    classifier = (
-        JevTextClassifier(keys)
-        if max_questions is None
-        else JevTextClassifier(keys, max_questions=max_questions)
+    line_wordings = (
+        {"quantified": jev_classifier.QUANTIFIED, "heading": jev_classifier.HEADING}
+        if wordings == "v1"
+        else jev_classifier.LINE_WORDINGS
+    )
+    classifier = jev_classifier.JevTextClassifier(
+        JevKeyFile(Settings().data_dir / "typesafe"),
+        max_questions=max_questions or jev_classifier.MAX_QUESTIONS,
+        line_wordings=line_wordings,
     )
     try:
-        result = await evaluate(classifier, FIXTURES, labels)
+        result = await evaluate(classifier, FIXTURES, labels, split=split, tasks=tasks)
     finally:
         await classifier.aclose()
     output.parent.mkdir(parents=True, exist_ok=True)
     await asyncio.to_thread(output.write_text, json.dumps(result, ensure_ascii=False, indent=2))
-    summary = {key: result[key] for key in ("model_refs", "obligation", "quantified", "heading")}
-    summary["obligation"] = {k: v for k, v in result["obligation"].items() if k != "confusion"}
+    summary = {key: result[key] for key in ("model_refs", *TASKS) if key in result}
+    if "obligation" in summary:
+        summary["obligation"] = {k: v for k, v in result["obligation"].items() if k != "confusion"}
     print(json.dumps(summary, indent=2), flush=True)
 
 
@@ -253,11 +281,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-questions", type=int, help="questions per request, to compare batch sizes"
     )
+    parser.add_argument("--split", choices=("all", "dev", "test"), default="all")
+    parser.add_argument("--tasks", default=",".join(TASKS), help="comma-separated tasks")
+    parser.add_argument("--wordings", choices=("v1", "v2"), default="v2")
     arguments = parser.parse_args()
     asyncio.run(
         run(
             arguments.output,
             allow_draft=arguments.allow_draft,
             max_questions=arguments.max_questions,
+            split=arguments.split,
+            tasks=arguments.tasks.split(","),
+            wordings=arguments.wordings,
         )
     )

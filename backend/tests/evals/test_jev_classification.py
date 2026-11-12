@@ -136,7 +136,7 @@ async def test_evaluation_compares_the_classifier_with_the_labels(tmp_path: Path
     assert result["quantified"]["at_threshold"]["recall"] == 1.0
     assert result["heading"]["at_threshold"]["precision"] == round(1 / 3, 3)
     assert result["heading"]["sweep"]["0.7"]["recall"] == 0.0
-    assert len(result["items"]["cv"]) == 3
+    assert len(result["items"]["heading"]) == 3
 
 
 def test_quotes_across_line_breaks_cover_every_line_they_touch() -> None:
@@ -151,4 +151,7 @@ def test_quotes_across_line_breaks_cover_every_line_they_touch() -> None:
     ]
     cv = "Reduced handover time by 15\n%.\nBLS certified.\n"
     lines = cv_items("c", cv, {"quantities": [{"text": "by 15 %"}], "sections": []})
-    assert [i.quantified for i in lines] == [True, False, False]
+    assert [(i.line, i.quantified) for i in lines] == [
+        ("Reduced handover time by 15 %.", True),
+        ("BLS certified.", False),
+    ]
