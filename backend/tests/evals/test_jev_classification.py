@@ -137,3 +137,18 @@ async def test_evaluation_compares_the_classifier_with_the_labels(tmp_path: Path
     assert result["heading"]["at_threshold"]["precision"] == round(1 / 3, 3)
     assert result["heading"]["sweep"]["0.7"]["recall"] == 0.0
     assert len(result["items"]["cv"]) == 3
+
+
+def test_quotes_across_line_breaks_cover_every_line_they_touch() -> None:
+    offer = "Nice to have\n- Experience with testing in Vitest\n  or Jest.\n"
+    items = offer_items(
+        "o",
+        offer,
+        [{"id": "o.r1", "quote": "testing in Vitest or Jest", "obligation": "preferred"}],
+    )
+    assert [(i.line.text, i.line.heading) for i in items] == [
+        ("- Experience with testing in Vitest or Jest.", "Nice to have")
+    ]
+    cv = "Reduced handover time by 15\n%.\nBLS certified.\n"
+    lines = cv_items("c", cv, {"quantities": [{"text": "by 15 %"}], "sections": []})
+    assert [i.quantified for i in lines] == [True, False, False]

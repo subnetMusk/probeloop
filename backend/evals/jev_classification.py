@@ -38,6 +38,23 @@ def _lines(text: str) -> list[str]:
     return [line.strip() for line in text.splitlines() if line.strip()]
 
 
+def _span(lines: Sequence[str], quote: str) -> tuple[int, int] | None:
+    """The first and last line that `quote` covers, matching across line breaks."""
+    starts, parts, position = [], [], 0
+    for line in lines:
+        part = _norm(line)
+        starts.append(position)
+        parts.append(part)
+        position += len(part) + 1
+    needle = _norm(quote)
+    at = " ".join(parts).find(needle) if needle else -1
+    if at < 0:
+        return None
+    end = at + len(needle) - 1
+    first = max(i for i, start in enumerate(starts) if start <= at)
+    return first, max(i for i, start in enumerate(starts) if start <= end)
+
+
 def _is_offer_heading(line: str) -> bool:
     """A short line that is not a list item and does not end a sentence."""
     return not _BULLET.match(line) and len(line.split()) <= 6 and not line.endswith((".", ";"))
@@ -53,7 +70,8 @@ class ObligationItem:
 def offer_items(
     offer: str, text: str, requirements: Sequence[dict[str, Any]]
 ) -> list[ObligationItem]:
-    """One item per offer line holding labelled requirements, with its section heading."""
+    """One item per offer line holding labelled requirements, with its section heading. A
+    requirement quoted across a line break is read with every line its quote covers."""
     heading: str | None = None
     by_line: dict[int, tuple[OfferLine, set[str]]] = {}
     lines = _lines(text)
@@ -65,11 +83,12 @@ def offer_items(
     for requirement in requirements:
         if requirement.get("implicit"):
             continue
-        quote = _norm(requirement["quote"])
-        index = next((i for i, line in enumerate(lines) if quote in _norm(line)), None)
-        if index is None:
+        span = _span(lines, requirement["quote"])
+        if span is None:
             raise ValueError(f"requirement {requirement['id']} is not found in its offer")
-        entry = by_line.setdefault(index, (OfferLine(lines[index], headings[index]), set()))
+        first, last = span
+        text = " ".join(lines[first : last + 1])
+        entry = by_line.setdefault(first, (OfferLine(text, headings[first]), set()))
         entry[1].add(requirement["obligation"])
     return [
         ObligationItem(offer, line, next(iter(gold)) if len(gold) == 1 else MIXED)
@@ -86,11 +105,13 @@ class CvItem:
 
 
 def cv_items(cv: str, text: str, labels: dict[str, Any]) -> list[CvItem]:
-    quantities = [_norm(q["text"]) for q in labels.get("quantities", [])]
+    """Every CV line; a quantity broken across lines marks the line where it starts."""
+    lines = _lines(text)
+    spans = [_span(lines, q["text"]) for q in labels.get("quantities", [])]
+    quantified = {span[0] for span in spans if span is not None}
     headings = {_norm(s["text"]) for s in labels.get("sections", [])}
     return [
-        CvItem(cv, line, any(q in _norm(line) for q in quantities), _norm(line) in headings)
-        for line in _lines(text)
+        CvItem(cv, line, i in quantified, _norm(line) in headings) for i, line in enumerate(lines)
     ]
 
 
