@@ -49,6 +49,32 @@ Backup, restore, deletion and configuration changes are guarded against active i
 background jobs. Make the app idle first. Keep backups outside the running data volume and
 protect them as personal information; they can contain documents, recordings and transcripts.
 
+### Restoring a backup
+
+A restore runs from the command line: it needs the backend stopped and an empty data store, and
+it never merges a backup into existing data. Run the commands in the folder that holds
+`compose.yaml`, which is the extracted package for an installer or the repository for a source
+runtime.
+
+1. In Settings, wait until the app is idle and choose **Delete all my data**.
+2. Stop the backend:
+
+   ```bash
+   docker compose stop backend
+   ```
+
+3. Restore the archive in a one-off backend container that mounts it read-only. Use the
+   absolute path of the backup file:
+
+   ```bash
+   docker compose run --rm --no-deps -v "/absolute/path/probeloop-backup.zip:/restore/backup.zip:ro" backend probeloop restore-backup /restore/backup.zip
+   ```
+
+   The command prints `backup restored`. It refuses a database or data folder that is not empty,
+   and a backup from a newer version of ProbeLoop. On Windows, the same command accepts a path
+   such as `C:\Users\<name>\Downloads\probeloop-backup.zip`.
+4. Start the project again with the launcher or `docker compose up -d`.
+
 ## Failures
 
 - **Provider unavailable:** the interview pauses with saved answers and remains pinned to its

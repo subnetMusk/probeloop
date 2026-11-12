@@ -35,6 +35,19 @@ function subscribe(listener: () => void) {
   }
 }
 
+/** Forget the first-run marks, for example after deleting all data. */
+export function resetOnboarding() {
+  try {
+    localStorage.removeItem(GUIDE)
+    localStorage.removeItem(HIDDEN)
+  } catch {
+    /* Nothing stored. */
+  }
+  listeners.forEach((listener) => {
+    listener()
+  })
+}
+
 export function markGuideSeen() {
   if (!read(GUIDE)) write(GUIDE)
 }

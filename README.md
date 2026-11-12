@@ -47,7 +47,8 @@
   from uncertain specialist claims. Scores use descriptive anchors presented on a 0–100 scale;
   criteria without enough evidence remain unassessed.
 - **Keep control of your data.** Browse history, export reports and transcripts, create portable
-  backups, restore them, or delete application data from Settings.
+  backups or delete application data from Settings. A backup is restored with the
+  [documented command](docs/operations.md#restoring-a-backup).
 
 ## Getting started
 

@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/shared/ui/card'
 import { resetDraft } from '@/entities/preparation'
 import { clearReportJobs } from '@/entities/report-job'
+import { resetOnboarding } from '@/shared/lib/onboarding'
 import { resetPreferences, useLanguage } from '@/shared/lib/preferences'
 
 export function DataControls() {
@@ -27,6 +28,7 @@ export function DataControls() {
     onSuccess: () => {
       client.clear()
       resetPreferences()
+      resetOnboarding()
       clearReportJobs()
       resetDraft()
       window.location.replace('/settings?deleted=1')
