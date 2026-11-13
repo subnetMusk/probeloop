@@ -93,9 +93,12 @@ test('back and forward keep what was entered until the interview starts', async 
 
   await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
   await expect(page.getByTestId('context-review')).toBeVisible({ timeout: 30_000 })
+  // An incomplete role blocks the approval; a complete one is confirmed by approving it.
+  const level = page.getByRole('textbox', { name: 'Target level or training grade', exact: true })
+  await level.fill('')
   await expect(continueButton(page)).toBeDisabled()
   await expect(
-    page.getByText('Confirm the target profession, role and level to continue.'),
+    page.getByText('Complete the target profession, role and level to continue.'),
   ).toBeVisible()
   const doubtful = page.getByTestId('doubtful-facts').getByTestId('context-fact').first()
   await expect(doubtful).toContainText('Unverified model interpretation.')
@@ -175,7 +178,9 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
   await expect(page.getByTestId('context-review')).toBeVisible()
   await continueButton(page).click()
 
+  await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   const check = page.getByTestId('cv-check')
+  await expect(check).toBeVisible()
   // The same documents give the same approved context, so earlier runs may have left versions.
   const snapshotId = await page.evaluate(() => {
     const stored = JSON.parse(sessionStorage.getItem('probeloop.prepare-draft') ?? '{}') as {
@@ -241,8 +246,12 @@ test('a quick start requires an explicit role and level without demo facts', asy
   await page.getByTestId('enable-microphone').click()
   await expect(page.getByText('Say something')).toBeVisible()
   await expect(continueButton(page)).toBeEnabled()
+  // Back returns to the choice, where the role was written and stays.
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
+  await expect(page).toHaveURL(/\/new-interview\/resource-profile$/)
+  await expect(page.getByRole('textbox', { name: 'Target role', exact: true })).toHaveValue(
+    'Research economist',
+  )
 })
 
 test('a changed profile can be overwritten, copied or used once', async ({ page, request }) => {

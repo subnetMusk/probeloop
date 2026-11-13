@@ -46,7 +46,10 @@ export function DataControls() {
       const url = URL.createObjectURL(await response.blob())
       const link = document.createElement('a')
       link.href = url
-      link.download = 'probeloop-data.json'
+      // The server names the export after the moment it was made.
+      link.download =
+        /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ??
+        'probeloop-data.json'
       link.click()
       window.setTimeout(() => {
         URL.revokeObjectURL(url)

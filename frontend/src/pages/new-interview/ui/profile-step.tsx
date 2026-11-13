@@ -19,14 +19,18 @@ import { StepFooter, StepFrame } from './step-frame'
  */
 async function prepareQuickStart(): Promise<void> {
   const draft = getDraft()
-  if (draft.preparationId === null || draft.preparationKey !== preparationKeyOf(draft))
+  // A new preparation clears the draft's role, so the role written here is kept apart.
+  const written = draft.roleProfile
+  if (draft.preparationId === null || draft.preparationKey !== preparationKeyOf(draft)) {
     await startAnalysis(null)
+    useDraft.getState().setRoleProfile(written)
+  }
   const id = getDraft().preparationId
   if (id === null) throw new Error('preparation unavailable')
   const view = await api.preparation(id)
   if (view.status !== 'review' && view.status !== 'approved')
     throw new Error('preparation unavailable')
-  const { snapshotId, role } = await approvePreparation(view, getDraft().roleProfile)
+  const { snapshotId, role } = await approvePreparation(view, written)
   const actions = useDraft.getState()
   actions.setRoleProfile(role)
   actions.setSnapshot(snapshotId)
