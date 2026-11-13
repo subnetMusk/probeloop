@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 import { useState } from 'react'
 
-import { useDraft } from '@/entities/preparation'
+import { applies, useDraft } from '@/entities/preparation'
 import { CvCheck } from '@/features/check-cv'
 import { MicrophoneCheck, useVoiceReadiness } from '@/features/check-microphone'
 import { useStartInterview } from '@/features/start-interview'
@@ -23,9 +23,11 @@ function Summary() {
   const documents =
     profile?.kind === 'quick'
       ? t.summary.quick
-      : profile?.kind === 'saved' || profile?.kind === 'new'
-        ? profile.name
-        : t.summary.once
+      : profile?.kind === 'approved'
+        ? t.summary.approved(profile.name)
+        : profile?.kind === 'saved' || profile?.kind === 'new'
+          ? profile.name
+          : t.summary.once
   const rows: [
     string,
     string,
@@ -45,13 +47,20 @@ function Summary() {
           : t.summary.local,
       null,
     ],
-    [t.summary.profile, documents, 'resource-profile'],
+    [t.summary.profile, documents, applies(draft, 'resource-profile') ? 'resource-profile' : null],
   ]
-  if (draft.roleProfile)
+  if (draft.roleProfile) {
+    // A quick start sets its role with the choice of documents.
+    const where = applies(draft, 'fact-review')
+      ? 'fact-review'
+      : applies(draft, 'resource-profile')
+        ? 'resource-profile'
+        : null
     rows.push(
-      [t.summary.targetRole, draft.roleProfile.target_role, 'fact-review'],
-      [t.summary.level, draft.roleProfile.seniority, 'fact-review'],
+      [t.summary.targetRole, draft.roleProfile.target_role, where],
+      [t.summary.level, draft.roleProfile.seniority, where],
     )
+  }
   return (
     <Card>
       <CardHeader>
@@ -160,7 +169,13 @@ export function CheckStep() {
               snapshotId={snapshotId}
               language={draft.settings.language}
               execution={draft.settings.execution ?? 'local'}
-              profileId={draft.profile?.kind === 'saved' ? draft.profile.id : null}
+              profileId={
+                draft.profile?.kind === 'saved'
+                  ? draft.profile.id
+                  : draft.profile?.kind === 'approved'
+                    ? draft.profile.profileId
+                    : null
+              }
               inInterview
               onBusyChange={setCvBusy}
             />

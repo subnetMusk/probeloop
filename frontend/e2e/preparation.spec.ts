@@ -212,8 +212,7 @@ test('a quick start requires an explicit role and level without demo facts', asy
   await expect(page.getByRole('radio', { name: 'Italian', exact: true })).toBeChecked()
   await continueButton(page).click()
   await page.getByRole('radio', { name: 'No documents', exact: true }).click()
-  await continueButton(page).click()
-  await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
+  // The role is written under the choice; continuing approves it and skips the review.
   await expect(continueButton(page)).toBeDisabled()
   await page.getByRole('textbox', { name: 'Profession or field', exact: true }).fill('Economics')
   await page.getByRole('textbox', { name: 'Target role', exact: true }).fill('Research economist')

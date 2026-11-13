@@ -365,37 +365,45 @@ export function FactReview({
         {preparation.job_mode === 'none' && !preparation.role_profile && (
           <Area preparation={preparation} act={act} />
         )}
-        <Card>
-          <CardHeader>
-            <CardTitle role="heading" aria-level={2} className="flex items-center gap-3">
-              {t.doubtful.title}
-              {summary.doubtful.length > 0 && (
-                <Badge variant={summary.open ? 'secondary' : 'outline'}>
-                  {t.doubtful.open(summary.open)}
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              {summary.doubtful.length ? t.doubtful.hint : t.doubtful.none}
-            </CardDescription>
-          </CardHeader>
-          {summary.doubtful.length > 0 && (
-            <CardContent>
-              <ul data-testid="doubtful-facts">
-                {summary.doubtful.map((fact) => (
-                  <FactItem
-                    key={fact.id}
-                    fact={fact}
-                    preparationId={preparation.id}
-                    act={act}
-                    detailed
-                  />
-                ))}
-              </ul>
-            </CardContent>
+        {/* Wide windows put the facts to check beside the requirements they may affect. */}
+        <div
+          className={cn(
+            'grid items-start gap-6',
+            preparation.job_mode !== 'none' && 'lg:grid-cols-2',
           )}
-        </Card>
-        {preparation.job_mode !== 'none' && <Requirements rows={summary.requirements} />}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={2} className="flex items-center gap-3">
+                {t.doubtful.title}
+                {summary.doubtful.length > 0 && (
+                  <Badge variant={summary.open ? 'secondary' : 'outline'}>
+                    {t.doubtful.open(summary.open)}
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {summary.doubtful.length ? t.doubtful.hint : t.doubtful.none}
+              </CardDescription>
+            </CardHeader>
+            {summary.doubtful.length > 0 && (
+              <CardContent>
+                <ul data-testid="doubtful-facts">
+                  {summary.doubtful.map((fact) => (
+                    <FactItem
+                      key={fact.id}
+                      fact={fact}
+                      preparationId={preparation.id}
+                      act={act}
+                      detailed
+                    />
+                  ))}
+                </ul>
+              </CardContent>
+            )}
+          </Card>
+          {preparation.job_mode !== 'none' && <Requirements rows={summary.requirements} />}
+        </div>
         <Disclosure title={t.all.title(preparation.facts.length)}>
           {(['candidate', 'job'] as const).map((subject) => {
             const facts = preparation.facts.filter((f) => f.subject === subject)

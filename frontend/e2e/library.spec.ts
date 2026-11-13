@@ -62,6 +62,16 @@ test('a profile is created on its own and its CV checked without an interview', 
   await expect(page.getByRole('link', { name, exact: true })).toBeVisible()
   const checkUrl = page.url()
 
+  // The approved context starts an interview that goes from the settings to the final check.
+  await page
+    .getByRole('button', { name: 'Practise an interview on this context', exact: true })
+    .click()
+  await expect(page).toHaveURL(/\/new-interview\/interview-settings$/)
+  await page.getByTestId('step-continue').click()
+  await expect(page).toHaveURL(/\/new-interview\/final-check$/)
+  await expect(page.getByText(/^Approved in the CV check of /)).toBeVisible()
+  await page.goto(checkUrl)
+
   await page.getByRole('link', { name, exact: true }).click()
   await expect(page.getByTestId('cv-check-row')).toHaveCount(1)
 

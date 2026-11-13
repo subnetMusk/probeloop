@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { DownloadIcon, ExternalLinkIcon } from 'lucide-react'
+import { DownloadIcon, ExternalLinkIcon, PlayIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { profilesQuery } from '@/entities/profile'
 import { toCvReportView } from '@/entities/report'
 import { CvCheck } from '@/features/check-cv'
 import { DeleteCvCheck, ProfileFromCheck } from '@/features/manage-cv-check'
+import { useStartWithContext } from '@/features/select-profile'
 import { api } from '@/shared/api'
 import type { DocumentView } from '@/shared/api'
 import { defineMessages, useMessages } from '@/shared/i18n'
@@ -43,6 +44,7 @@ const messages = defineMessages({
     documents: 'Documents of the check',
     report: 'CV report',
     toc: 'On this page',
+    practise: 'Practise an interview on this context',
   },
   it: {
     eyebrow: 'CV check',
@@ -67,6 +69,7 @@ const messages = defineMessages({
     documents: 'Documenti del controllo',
     report: 'Report del CV',
     toc: 'In questa pagina',
+    practise: 'Fai un colloquio con questo contesto',
   },
 })
 
@@ -165,6 +168,7 @@ export function CvCheckDetailPage() {
   const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
   const profiles = useQuery(profilesQuery)
   const navigate = useNavigate()
+  const practise = useStartWithContext()
   // No choice follows the latest version, including one that a new check has just added.
   const [chosen, setChosen] = useState<string | null>(null)
   const ownerId = reports.data?.at(-1)?.profile_id ?? null
@@ -190,6 +194,22 @@ export function CvCheckDetailPage() {
         )}`}
         actions={
           <>
+            <Button
+              type="button"
+              className="bg-brand text-brand-foreground hover:bg-brand/90"
+              onClick={() => {
+                practise.start({
+                  snapshotId,
+                  name: cv?.filename ?? cv?.title ?? 'CV',
+                  profileId: ownerId,
+                  role: snapshot.data.role_profile ?? null,
+                })
+              }}
+            >
+              <PlayIcon data-icon="inline-start" />
+              {t.practise}
+            </Button>
+            {practise.confirmation}
             {unowned && <ProfileFromCheck snapshotId={snapshotId} />}
             <DeleteCvCheck
               snapshotId={snapshotId}

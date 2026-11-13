@@ -1,6 +1,20 @@
 import { api } from '@/shared/api'
 import type { PreparationView, RoleProfileData } from '@/shared/api'
 
+/** A target role still to be written, for a start without documents. */
+export function emptyRole(): RoleProfileData {
+  return {
+    profession: '',
+    target_role: '',
+    seniority: '',
+    responsibilities: [],
+    competencies: [],
+    basis_fact_ids: [],
+    rationale: '',
+    confirmed: false,
+  }
+}
+
 /** Whether a target role can be confirmed: profession, role and level, within the limits. */
 export function roleComplete(role: RoleProfileData): boolean {
   return (

@@ -11,19 +11,20 @@ import { roleMessages } from './messages'
 /**
  * Edit the target role of a preparation. The caller keeps unconfirmed edits (`role`), so they
  * survive leaving the page; `null` shows the preparation's own role. Approving the review
- * confirms the role as it is shown (`confirmRole`).
+ * confirms the role as it is shown (`confirmRole`). Without a preparation, as in a start
+ * without documents, the caller's role is the only one.
  */
 export function RoleProfileEditor({
   preparation,
   role: edited,
   onEdit,
 }: {
-  preparation: PreparationView
+  preparation?: PreparationView
   role: RoleProfileData | null
   onEdit: (role: RoleProfileData | null) => void
 }) {
   const t = useMessages(roleMessages)
-  const role = edited ?? preparation.role_profile
+  const role = edited ?? preparation?.role_profile
   if (!role) return null
   const update = (patch: Partial<RoleProfileData>) => {
     onEdit({ ...role, ...patch, confirmed: false })
