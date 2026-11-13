@@ -27,7 +27,8 @@ the CV to TypeSafe before the model review, and Settings state that CV lines are
 
 **Jev reads, rules name.** Jev decides which lines are headings and which state a measured outcome
 or scope. A heading counts for the experience, education or skills check when its letters, in
-lower case and without spacing or punctuation, match one of the section's wordings. With
+lower case and without spacing or punctuation, start with one of the section's words, so
+"Esperienze di tirocinio" and "PROGETTI DI SVILUPPO SOFTWARE" name the experience section. With
 `rules`, the exact patterns stay as they were.
 
 **Recorded and never silent.** An information check names the models, wordings and thresholds

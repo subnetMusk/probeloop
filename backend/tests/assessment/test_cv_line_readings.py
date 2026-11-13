@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from probeloop.ai.fake import FakeChatModel
-from probeloop.assessment.application.cv_checks import LineReadings, cv_checks
+from probeloop.assessment.application.cv_checks import LineReadings, cv_checks, section_of
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.rubrics import load_rubric
 from probeloop.assessment.application.service import CV_REVIEW_JOB, AssessmentService
@@ -99,6 +99,26 @@ def test_projects_name_the_experience_section() -> None:
 
     assert checks["section_experience"].status == "pass"
     assert [e.quote for e in checks["section_experience"].evidence] == ["Progetti"]
+
+
+@pytest.mark.parametrize(
+    ("heading", "section"),
+    [
+        ("ESPERIENZE DI TIROCINIO", "experience"),
+        ("PROGETTI DI SVILUPPO SOFTWARE", "experience"),
+        ("Work history", "experience"),
+        ("E S P E R I E N Z E", "experience"),
+        ("Formazione e certificazioni", "education"),
+        ("COMPETENZE TECNICHE", "skills"),
+        ("Competenze linguistiche", "skills"),
+        ("CERTIFICAZIONI E LINGUE", None),
+        ("Hobby", None),
+    ],
+)
+def test_a_heading_names_a_section_by_the_words_it_starts_with(
+    heading: str, section: str | None
+) -> None:
+    assert section_of(heading) == section
 
 
 def test_the_classifier_decides_whether_a_line_is_a_heading() -> None:

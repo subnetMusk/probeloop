@@ -29,68 +29,52 @@ SECTIONS = {
     "education": r"^(?:formazione|istruzione|education|studi|education and training)$",
     "skills": r"^(?:competenze(?: tecniche)?|skills|technical skills)$",
 }
-# The wordings of a heading the classifier has found, compared by their letters alone.
-HEADINGS = {
+# The words a heading the classifier has found starts with, compared by their letters alone, so
+# "Esperienze di tirocinio", "PROGETTI DI SVILUPPO" or "E S P E R I E N Z E" name a section.
+HEADING_STARTS = {
     "experience": (
-        "esperienza",
-        "esperienze",
-        "esperienza professionale",
-        "esperienze professionali",
-        "esperienza lavorativa",
-        "esperienze lavorative",
+        "esperienz",
         "percorso professionale",
         "carriera",
         "progetti",
-        "progetti principali",
+        "tirocini",
+        "stage",
         "experience",
         "work experience",
         "professional experience",
         "employment",
-        "employment history",
         "work history",
-        "career history",
         "career",
         "projects",
         "key projects",
         "selected projects",
+        "internship",
     ),
     "education": (
         "formazione",
         "istruzione",
-        "istruzione e formazione",
-        "formazione e istruzione",
         "studi",
         "titoli di studio",
         "percorso di studi",
         "percorso formativo",
         "education",
-        "education and training",
-        "education & training",
-        "academic background",
+        "academic",
         "training",
     ),
     "skills": (
         "competenze",
-        "competenze tecniche",
-        "competenze professionali",
-        "competenze informatiche",
-        "competenze digitali",
-        "competenze chiave",
         "capacità e competenze",
         "conoscenze",
-        "conoscenze tecniche",
-        "conoscenze informatiche",
         "abilità",
+        "stack tecnologico",
         "skills",
         "technical skills",
         "key skills",
         "core skills",
         "hard skills",
-        "skills and competencies",
         "competencies",
         "core competencies",
         "tech stack",
-        "stack tecnologico",
     ),
 }
 
@@ -100,7 +84,17 @@ def heading_key(line: str) -> str:
     return "".join(c for c in line.casefold() if c.isalpha())
 
 
-_SECTION_OF = {heading_key(w): name for name, words in HEADINGS.items() for w in words}
+# Longest first, so a more specific start decides before a shorter one.
+_STARTS = sorted(
+    ((heading_key(start), name) for name, starts in HEADING_STARTS.items() for start in starts),
+    key=lambda item: -len(item[0]),
+)
+
+
+def section_of(heading: str) -> str | None:
+    """The section a heading names, if its letters start with one of the section's words."""
+    key = heading_key(heading)
+    return next((name for start, name in _STARTS if key.startswith(start)), None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,7 +280,7 @@ def _read_headings(lines: LineReadings) -> dict[str, str]:
     """The first line the classifier reads as a heading for each section the rules name."""
     found: dict[str, str] = {}
     for line in lines.read(lines.headings):
-        section = _SECTION_OF.get(heading_key(line))
+        section = section_of(line)
         if section is not None:
             found.setdefault(section, line)
     return found
