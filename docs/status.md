@@ -1,8 +1,8 @@
 # Current implementation and acceptance status
 
-Updated for the interview, interface and model-setup source checkpoint, 2026-11-12. This page
-describes current behaviour; dated research and handoffs retain the measurements available at their
-original checkpoints.
+Updated for the transcript review, preparation flow and Jev CV line checkpoint, 2026-11-13.
+This page describes current behaviour; dated research and handoffs retain the measurements
+available at their original checkpoints.
 
 The [alpha.2 installation validation](research/installation-validation-2026-11-11.md) records
 published-artifact checks, the empty-volume Windows run and the limits of ARM64 evidence.
@@ -67,6 +67,14 @@ existing browser test passed on retry after an accessibility scan ran during a b
 transition. Lint, formatting, strict type checks, import contracts, documentation checks,
 production builds and API schema/type regeneration also passed. A backup, delete and restore
 round trip with the documented command reproduced the data summary of a local installation.
+
+The review, flow and Jev checkpoint on 2026-11-13 passed 747 backend tests (46 skipped, 23 live
+tests deselected), 120 frontend unit tests and 38 browser tests against a rebuilt runtime, with
+the two live tests skipped. Lint, formatting, strict type checks, import contracts, documentation
+checks and the production build also passed. The PostgreSQL contracts were not rerun because no
+persistence contract changed. On one real CV, a CV check with Jev found the experience, education
+and skills headings, where the exact patterns had missed the experience heading; one CV is not a
+measurement.
 
 ## Remaining quality gates
 
