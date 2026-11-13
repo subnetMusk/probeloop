@@ -28,13 +28,16 @@ async function noSeriousViolations(page: Page) {
 async function approveAndCheck(page: Page) {
   await expect(page).toHaveURL(/\/cv-checks\/new\/\w+$/)
   await expect(page).toHaveTitle('Review | ProbeLoop')
-  const confirm = page.getByRole('button', { name: 'Confirm role and level', exact: true })
-  await expect(confirm).toBeVisible({ timeout: 30_000 })
+  // Approving confirms the target role as shown.
+  await expect(page.getByTestId('role-profile')).toBeVisible({ timeout: 30_000 })
   await noSeriousViolations(page)
-  await confirm.click()
   await page.getByRole('button', { name: 'Approve and check the CV', exact: true }).click()
   await expect(page).toHaveURL(/\/cv-checks\/\w+$/)
-  await expect(page.getByTestId('cv-score')).toContainText('version 1', { timeout: 30_000 })
+  // The check's page shows the report itself, with its version.
+  await expect(page.getByRole('combobox', { name: 'Version' })).toContainText('Version 1', {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('report-content')).toBeVisible()
 }
 
 test('a profile is created on its own and its CV checked without an interview', async ({
@@ -53,11 +56,8 @@ test('a profile is created on its own and its CV checked without an interview', 
   await expect(page).toHaveTitle('Profile | ProbeLoop')
   await expect(page.getByRole('heading', { level: 1 })).toContainText(name)
 
-  await page.getByRole('link', { name: 'Check the CV', exact: true }).click()
-  await expect(page).toHaveTitle('New CV check | ProbeLoop')
-  await expect(page.getByRole('radio', { name, exact: true })).toBeChecked()
-  await noSeriousViolations(page)
-  await page.getByRole('button', { name: 'Analyse the documents', exact: true }).click()
+  // Checking a profile's CV analyses its documents at once and opens the review.
+  await page.getByRole('button', { name: 'Check the CV', exact: true }).click()
   await approveAndCheck(page)
   await expect(page.getByRole('link', { name, exact: true })).toBeVisible()
   const checkUrl = page.url()
@@ -70,7 +70,7 @@ test('a profile is created on its own and its CV checked without an interview', 
   await page.getByRole('button', { name: 'Delete profile', exact: true }).click()
   await expect(page).toHaveURL(/\/profiles$/)
   await page.goto(checkUrl)
-  await expect(page.getByTestId('cv-score')).toContainText('version 1')
+  await expect(page.getByRole('combobox', { name: 'Version' })).toContainText('Version 1')
   await page.goto('/cv-checks')
   await expect(
     page.getByTestId('cv-check-row').filter({ hasText: 'Profile: deleted profile' }).first(),
@@ -91,12 +91,24 @@ test('an unfinished CV check stays reachable after leaving its page', async ({ p
   const main = page.getByRole('navigation', { name: 'Main' })
 
   await page.goto(`/cv-checks/new?profile=${profile.id}`)
+  await expect(page.getByRole('radio', { name, exact: true })).toBeChecked()
+  // The profile's documents can be corrected here before the analysis.
+  const cvText = page.getByRole('textbox', { name: 'CV text', exact: true })
+  await expect(cvText).toHaveValue(new RegExp(`Run ${name}`))
+  await noSeriousViolations(page)
+  await page.getByRole('button', { name: 'Analyse the documents', exact: true }).click()
+  await expect(page).toHaveURL(/\/cv-checks\/new\/\w+$/)
+  await expect(page.getByTestId('role-profile')).toBeVisible({ timeout: 30_000 })
+
+  // Going back refills the form with the same documents; analysing again replaces the check.
+  await page.getByRole('link', { name: 'Back to the documents', exact: true }).click()
+  await expect(page).toHaveURL(/\/cv-checks\/new\?from=\w+$/)
+  await expect(page.getByRole('radio', { name, exact: true })).toBeChecked()
+  await expect(cvText).toHaveValue(new RegExp(`Run ${name}`))
   await page.getByRole('button', { name: 'Analyse the documents', exact: true }).click()
   await expect(page).toHaveURL(/\/cv-checks\/new\/\w+$/)
   const reviewUrl = page.url()
-  await expect(
-    page.getByRole('button', { name: 'Confirm role and level', exact: true }),
-  ).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('role-profile')).toBeVisible({ timeout: 30_000 })
 
   // Elsewhere, then back through the navigation: the analysis waits under CV checks.
   await main.getByRole('link', { name: 'Interviews', exact: true }).click()
@@ -108,7 +120,7 @@ test('an unfinished CV check stays reachable after leaving its page', async ({ p
   await noSeriousViolations(page)
   await page.getByRole('link', { name: 'New CV check', exact: true }).click()
   await expect(page.getByText('A CV check you started is not finished.')).toBeVisible()
-  await page.getByRole('link', { name: 'Resume from CV checks', exact: true }).click()
+  // The notice opens the unfinished check directly.
   await unfinished.getByRole('link').click()
   await expect(page).toHaveURL(reviewUrl)
 

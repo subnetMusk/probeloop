@@ -41,10 +41,7 @@ test('a voice interview from the preparation to the end of the call', async ({ p
     'true',
   )
   await page.getByRole('textbox', { name: 'Profession or field', exact: true }).fill('Backend APIs')
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
-  await expect(
-    page.getByTestId('role-profile').getByText('Confirmed', { exact: true }),
-  ).toBeVisible()
+  // Approving confirms the role as shown.
   await next.click()
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   await page.getByTestId('enable-microphone').click()

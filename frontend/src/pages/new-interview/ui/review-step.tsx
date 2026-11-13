@@ -6,11 +6,11 @@ import { startAnalysis } from '@/features/edit-documents'
 import {
   ContextReview,
   approvalBlock,
+  approvePreparation,
   preparationKey,
   useApprovalHint,
   usePreparation,
 } from '@/widgets/context-review'
-import { api } from '@/shared/api'
 import { useMessages } from '@/shared/i18n'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { newInterviewMessages } from './messages'
@@ -26,11 +26,12 @@ export function ReviewStep() {
   const preparation = usePreparation(id)
   const view = preparation.data
   const approve = useMutation({
-    mutationFn: async () => {
-      if (view?.status === 'approved' && view.snapshot_id) return view.snapshot_id
-      return (await api.approve(id)).id
+    mutationFn: () => {
+      if (!view) throw new Error('preparation unavailable')
+      return approvePreparation(view, draft.roleProfile)
     },
-    onSuccess: (snapshotId) => {
+    onSuccess: ({ snapshotId, role }) => {
+      draft.setRoleProfile(role)
       draft.setSnapshot(snapshotId)
       void client.invalidateQueries({ queryKey: preparationKey(id) })
       void navigate({ to: stepPath('final-check') })

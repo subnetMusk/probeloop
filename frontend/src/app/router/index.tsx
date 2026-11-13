@@ -175,9 +175,12 @@ const newCvCheckRoute = createRoute({
 const newCvCheckIndexRoute = createRoute({
   getParentRoute: () => newCvCheckRoute,
   path: '/',
-  // `profile` preselects a saved profile, for example from its page.
-  validateSearch: (search: Record<string, unknown>): { profile?: string } =>
-    typeof search.profile === 'string' ? { profile: search.profile } : {},
+  // `profile` preselects a saved profile; `from` refills the form with the documents of a
+  // preparation, when the user goes back from its review.
+  validateSearch: (search: Record<string, unknown>): { profile?: string; from?: string } => ({
+    ...(typeof search.profile === 'string' ? { profile: search.profile } : {}),
+    ...(typeof search.from === 'string' ? { from: search.from } : {}),
+  }),
   component: NewCvCheckPage,
 })
 const cvCheckReviewRoute = createRoute({

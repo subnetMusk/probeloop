@@ -29,7 +29,8 @@ function Summary() {
   const rows: [
     string,
     string,
-    'interview-settings' | 'resource-profile' | 'fact-review' | 'settings',
+    // The processing tools were fixed when the analysis started; Settings change later work.
+    'interview-settings' | 'resource-profile' | 'fact-review' | null,
   ][] = [
     [t.summary.type, t.summary.types[settings.interviewType], 'interview-settings'],
     [t.summary.difficulty, t.summary.difficulties[settings.difficulty], 'interview-settings'],
@@ -42,7 +43,7 @@ function Summary() {
         : settings.execution === 'cloud'
           ? t.summary.cloud
           : t.summary.local,
-      'settings',
+      null,
     ],
     [t.summary.profile, documents, 'resource-profile'],
   ]
@@ -65,13 +66,17 @@ function Summary() {
               <dt className="text-muted-foreground">{label}</dt>
               <dd className="font-medium">{value}</dd>
               <dd>
-                <Link
-                  to={step === 'settings' ? '/settings' : stepPath(step)}
-                  aria-label={`${t.summary.edit}: ${label}`}
-                  className="text-brand-text underline"
-                >
-                  {t.summary.edit}
-                </Link>
+                {step === null ? (
+                  <span className="text-xs text-muted-foreground">{t.summary.fixed}</span>
+                ) : (
+                  <Link
+                    to={stepPath(step)}
+                    aria-label={`${t.summary.edit}: ${label}`}
+                    className="text-brand-text underline"
+                  >
+                    {t.summary.edit}
+                  </Link>
+                )}
               </dd>
             </div>
           ))}

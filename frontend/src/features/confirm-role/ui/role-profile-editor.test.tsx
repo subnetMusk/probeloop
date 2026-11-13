@@ -2,16 +2,28 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it } from 'vitest'
 
 import type { PreparationView, RoleProfileData } from '@/shared/api'
 import { setLanguage } from '@/shared/lib/preferences'
+import { roleComplete } from '../model/role'
 import { RoleProfileEditor } from './role-profile-editor'
 
 beforeEach(() => {
   setLanguage('en')
 })
 afterEach(cleanup)
+
+const role = (seniority: string): RoleProfileData => ({
+  profession: '',
+  target_role: '',
+  seniority,
+  responsibilities: [],
+  competencies: [],
+  basis_fact_ids: [],
+  rationale: '',
+  confirmed: false,
+})
 
 const preparation: PreparationView = {
   id: 'synthetic-no-docs',
@@ -29,22 +41,14 @@ const preparation: PreparationView = {
   profile_id: null,
   execution_profile: 'local',
   analysis: null,
-  role_profile: {
-    profession: '',
-    target_role: '',
-    seniority: '',
-    responsibilities: [],
-    competencies: [],
-    basis_fact_ids: [],
-    rationale: '',
-    confirmed: false,
-  },
+  role_profile: role(''),
 }
 
-it('requires role and level and leaves unfinished edits to the caller', async () => {
+it('leaves unfinished edits to the caller, who confirms them on approval', async () => {
   const client = new QueryClient()
   // The caller's store of unconfirmed edits, as the interview draft keeps them.
   let kept: RoleProfileData | null = null
+  const current = (): RoleProfileData | null => kept
   let view: ReturnType<typeof render> | undefined
   const element = () => (
     <QueryClientProvider client={client}>
@@ -55,17 +59,16 @@ it('requires role and level and leaves unfinished edits to the caller', async ()
           kept = role
           view?.rerender(element())
         }}
-        onChange={vi.fn()}
       />
     </QueryClientProvider>
   )
   const show = () => render(element())
   view = show()
-  const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm role and level' })
-  expect(confirm.disabled).toBe(true)
+  expect(screen.queryByRole('button')).toBeNull()
   await userEvent.type(screen.getByRole('textbox', { name: 'Profession or field' }), 'Economics')
   await userEvent.type(screen.getByRole('textbox', { name: /^Target role$/ }), 'Research economist')
-  expect(confirm.disabled).toBe(true)
+  expect(current()?.target_role).toBe('Research economist')
+  expect(roleComplete(current() ?? role(''))).toBe(false)
   view.unmount()
   view = show()
   expect(screen.getByRole<HTMLInputElement>('textbox', { name: /^Target role$/ }).value).toBe(
@@ -75,8 +78,7 @@ it('requires role and level and leaves unfinished edits to the caller', async ()
     screen.getByRole('textbox', { name: 'Target level or training grade' }),
     'Junior under supervision',
   )
-  expect(
-    screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm role and level' }).disabled,
-  ).toBe(false)
-  expect((kept as RoleProfileData | null)?.confirmed).toBe(false)
+  expect(roleComplete(current() ?? role(''))).toBe(true)
+  expect(current()?.confirmed).toBe(false)
+  expect(screen.queryByText('Confirmed')).toBeNull()
 })

@@ -76,6 +76,7 @@ export const newInterviewMessages = defineMessages({
       mixed: 'Tools selected in Settings',
       cloud: 'ChatGPT plan',
       edit: 'Change',
+      fixed: 'Set for this interview',
       types: {
         technical: 'Technical',
         behavioral: 'Behavioural',
@@ -165,6 +166,7 @@ export const newInterviewMessages = defineMessages({
       mixed: 'Strumenti selezionati nelle Impostazioni',
       cloud: 'Piano ChatGPT',
       edit: 'Modifica',
+      fixed: 'Fissata per questo colloquio',
       types: {
         technical: 'Tecnico',
         behavioral: 'Comportamentale',

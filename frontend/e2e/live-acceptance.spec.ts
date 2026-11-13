@@ -59,7 +59,6 @@ for (const profile of ['local', 'cloud'] as const) {
         'true',
       )
     }
-    await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
     await next.click()
     await expect(page).toHaveURL(/\/final-check$/)
     const draft = await page.evaluate(
@@ -79,17 +78,20 @@ for (const profile of ['local', 'cloud'] as const) {
       `version ${String(previous.length + 1)}`,
       { timeout: 900_000 },
     )
-    await check.getByRole('link', { name: 'Open the full CV report' }).click()
-    await expect(page.getByTitle('Original CV')).toBeVisible()
-    await page.screenshot({ path: `test-results/live-${profile}-cv-report.png` })
-    const cvReportId = page.url().split('/').at(-1) ?? ''
+    const [cvTab] = await Promise.all([
+      page.waitForEvent('popup'),
+      check.getByRole('link', { name: /^Open the full CV report/ }).click(),
+    ])
+    await expect(cvTab.getByTitle('Original CV')).toBeVisible()
+    await cvTab.screenshot({ path: `test-results/live-${profile}-cv-report.png` })
+    const cvReportId = cvTab.url().split('/').at(-1) ?? ''
+    await cvTab.close()
     const cvReport = (await (await request.get(`/api/reports/${cvReportId}`)).json()) as {
       model_ref: string
       language: string
     }
     expect(cvReport.model_ref).toContain(profile === 'local' ? 'ollama:' : 'chatgpt:')
     expect(cvReport.language).toBe('it')
-    await page.goBack()
     await page.getByTestId('enable-microphone').click()
     await expect(page.getByText('Say something')).toBeVisible()
     await next.click()

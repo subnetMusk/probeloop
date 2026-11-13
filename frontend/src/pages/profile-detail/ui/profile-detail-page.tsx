@@ -1,6 +1,6 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { FileCheckIcon, PlayIcon } from 'lucide-react'
+import { useNavigate, useParams } from '@tanstack/react-router'
+import { PlayIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import type { DocumentsDraft } from '@/entities/preparation'
@@ -13,6 +13,7 @@ import {
   profileBody,
   storeDocuments,
 } from '@/features/edit-documents'
+import { CheckProfileCv } from '@/features/manage-cv-check'
 import { DeleteProfile, RenameProfile } from '@/features/manage-profile'
 import { useStartWithProfile } from '@/features/select-profile'
 import { api } from '@/shared/api'
@@ -31,7 +32,6 @@ const messages = defineMessages({
     notFound: 'This profile does not exist.',
     updated: (date: string) => `Updated on ${date}`,
     use: 'New interview with this profile',
-    check: 'Check the CV',
     unsaved: 'Unsaved changes',
     usesSaved: 'New interviews and CV checks use the saved version.',
     incomplete: 'Complete the highlighted documents before saving.',
@@ -45,7 +45,6 @@ const messages = defineMessages({
     notFound: 'Questo profilo non esiste.',
     updated: (date: string) => `Aggiornato il ${date}`,
     use: 'Nuovo colloquio con questo profilo',
-    check: 'Controlla il CV',
     unsaved: 'Modifiche non salvate',
     usesSaved: 'I nuovi colloqui e CV check usano la versione salvata.',
     incomplete: 'Completa i documenti evidenziati prima di salvare.',
@@ -172,14 +171,7 @@ export function ProfileDetailPage() {
               <PlayIcon data-icon="inline-start" />
               {t.use}
             </Button>
-            {profile.cv && (
-              <Button asChild variant="outline">
-                <Link to="/cv-checks/new" search={{ profile: profile.id }}>
-                  <FileCheckIcon data-icon="inline-start" />
-                  {t.check}
-                </Link>
-              </Button>
-            )}
+            {profile.cv && <CheckProfileCv profile={profile} />}
             <DeleteProfile
               profile={profile}
               onDeleted={() => void navigate({ to: '/profiles', replace: true })}

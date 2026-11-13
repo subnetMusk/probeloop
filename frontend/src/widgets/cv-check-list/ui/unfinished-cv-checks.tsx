@@ -27,7 +27,6 @@ const messages = defineMessages({
       count === 1
         ? 'A CV check you started is not finished.'
         : `${String(count)} CV checks you started are not finished.`,
-    resume: 'Resume from CV checks',
   },
   it: {
     title: 'In corso',
@@ -41,7 +40,6 @@ const messages = defineMessages({
       count === 1
         ? 'Un CV check che hai iniziato non è finito.'
         : `${String(count)} CV check che hai iniziato non sono finiti.`,
-    resume: 'Riprendi dai CV check',
   },
 })
 
@@ -141,18 +139,23 @@ export function UnfinishedCvChecks() {
   )
 }
 
-/** A short notice, where a new CV check starts, that earlier ones are not finished. */
+/** A notice, where a new CV check starts, with the unfinished ones to open directly. */
 export function UnfinishedCvChecksNotice() {
   const t = useMessages(messages)
   const checks = useUnfinishedCvChecks()
   if (checks.length === 0) return null
   return (
     <Alert>
-      <AlertDescription>
-        {t.notice(checks.length)}{' '}
-        <Link to="/cv-checks" className="text-brand-text underline">
-          {t.resume}
-        </Link>
+      <AlertDescription className="flex flex-col gap-1">
+        <p>{t.notice(checks.length)}</p>
+        <ul className="flex w-full flex-col divide-y">
+          {checks.map((check) => (
+            <Row
+              key={check.kind === 'analysis' ? check.preparation.id : check.snapshotId}
+              check={check}
+            />
+          ))}
+        </ul>
       </AlertDescription>
     </Alert>
   )

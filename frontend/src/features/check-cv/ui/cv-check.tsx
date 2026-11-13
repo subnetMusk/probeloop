@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FileCheckIcon, Loader2Icon } from 'lucide-react'
+import { ExternalLinkIcon, FileCheckIcon, Loader2Icon } from 'lucide-react'
 import { useEffect } from 'react'
 
-import { RequirementList } from '@/entities/preparation'
 import { rememberReportJob } from '@/entities/report-job'
 import { api, isRunning, localizeProblem } from '@/shared/api'
 import type { ExecutionProfile, JobView } from '@/shared/api'
@@ -30,7 +29,7 @@ const messages = defineMessages({
       `${String(assessed)} of ${String(total)} criteria assessable`,
     version: (version: number) => `version ${String(version)}`,
     open: 'Open the full CV report',
-    requirements: 'Job requirements',
+    newTab: '(opens in a new tab)',
   },
   it: {
     title: 'Controllo del CV',
@@ -49,14 +48,16 @@ const messages = defineMessages({
       `${String(assessed)} criteri valutabili su ${String(total)}`,
     version: (version: number) => `versione ${String(version)}`,
     open: 'Apri il report completo del CV',
-    requirements: 'Requisiti della posizione',
+    newTab: '(si apre in una nuova scheda)',
   },
 })
 
 /**
  * Review the CV of an approved context, against its job offer when there is one. Each run keeps
- * the earlier versions; the latest is summarised here and opens in full on its own page.
- * A new version belongs to `profileId`; when it is not given, to the owner of the latest one.
+ * the earlier versions; with `summary` the latest is summarised here and opens in full in a new
+ * tab, so a preparation in progress stays where it is. A page that shows the report itself
+ * leaves `summary` off. A new version belongs to `profileId`; when it is not given, to the owner
+ * of the latest one.
  */
 export function CvCheck({
   snapshotId,
@@ -64,6 +65,7 @@ export function CvCheck({
   execution,
   profileId,
   inInterview = false,
+  summary = true,
   onBusyChange,
 }: {
   snapshotId: string
@@ -72,6 +74,8 @@ export function CvCheck({
   profileId?: string | null
   /** Shown while preparing an interview, where the check is optional. */
   inInterview?: boolean
+  /** Shows the latest score with a link to the full report. */
+  summary?: boolean
   onBusyChange?: (busy: boolean) => void
 }) {
   const t = useMessages(messages)
@@ -131,7 +135,7 @@ export function CvCheck({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {snapshot.data && !hasCv && <p className="text-muted-foreground">{t.noCv}</p>}
-        {latest && (
+        {summary && latest && (
           <div className="flex flex-col gap-1 rounded-lg bg-muted/50 p-4" data-testid="cv-score">
             <p className="font-heading text-2xl font-semibold">
               {latest.overall === null ? t.unavailable : t.score(score(latest.overall, ui))}
@@ -142,9 +146,13 @@ export function CvCheck({
             <Link
               to="/cv-checks/$snapshotId/reports/$reportId"
               params={{ snapshotId, reportId: latest.id }}
-              className="mt-1 self-start text-sm text-brand-text underline"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex items-center gap-1 self-start text-sm text-brand-text underline"
             >
               {t.open}
+              <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
+              <span className="sr-only">{t.newTab}</span>
             </Link>
           </div>
         )}
@@ -180,14 +188,6 @@ export function CvCheck({
           <p role="alert" className="text-sm text-destructive">
             {(start.error ?? reports.error ?? snapshot.error)?.message}
           </p>
-        )}
-        {hasOffer && (
-          <section aria-labelledby="cv-check-requirements" className="flex flex-col gap-1">
-            <h3 id="cv-check-requirements" className="text-sm font-medium text-muted-foreground">
-              {t.requirements}
-            </h3>
-            <RequirementList requirements={snapshot.data.requirements} />
-          </section>
         )}
       </CardContent>
     </Card>

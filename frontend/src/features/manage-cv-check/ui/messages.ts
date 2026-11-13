@@ -14,6 +14,8 @@ export const cvCheckMessages = defineMessages({
       'The profile keeps the CV, the job offer and the resources of this check, and the check belongs to it.',
     name: 'Profile name',
     confirmSave: 'Save the profile',
+    check: 'Check the CV',
+    checkStarting: 'Starting the analysis…',
   },
   it: {
     delete: 'Elimina',
@@ -28,5 +30,7 @@ export const cvCheckMessages = defineMessages({
       'Il profilo conserva CV, offerta e risorse di questo controllo, e il controllo gli appartiene.',
     name: 'Nome del profilo',
     confirmSave: 'Salva il profilo',
+    check: 'Controlla il CV',
+    checkStarting: 'Avvio dell’analisi…',
   },
 })

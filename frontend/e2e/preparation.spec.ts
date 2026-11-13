@@ -112,11 +112,8 @@ test('back and forward keep what was entered until the interview starts', async 
   await expect(
     page.getByRole('textbox', { name: 'Target level or training grade', exact: true }),
   ).toHaveValue('Junior under supervision')
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
-  await expect(
-    page.getByTestId('role-profile').getByText('Confirmed', { exact: true }),
-  ).toBeVisible()
   await noSeriousViolations(page)
+  // Approving confirms the role as shown.
   await continueButton(page).click()
 
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
@@ -176,11 +173,9 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
   ).toContainText('Added by you')
   await page.reload()
   await expect(page.getByTestId('context-review')).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
   await continueButton(page).click()
 
   const check = page.getByTestId('cv-check')
-  await expect(check.getByTestId('requirements')).toBeVisible()
   // The same documents give the same approved context, so earlier runs may have left versions.
   const snapshotId = await page.evaluate(() => {
     const stored = JSON.parse(sessionStorage.getItem('probeloop.prepare-draft') ?? '{}') as {
@@ -196,9 +191,15 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
     await run.click()
     await expect(score).toContainText(`version ${String(version)}`, { timeout: 30_000 })
   }
-  await check.getByRole('link', { name: 'Open the full CV report' }).click()
-  await expect(page).toHaveURL(/\/cv-checks\/\w+\/reports\/\w+$/)
-  await expect(page.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
+  // The full report opens in a new tab, so the preparation stays where it is.
+  const [report] = await Promise.all([
+    page.waitForEvent('popup'),
+    check.getByRole('link', { name: /^Open the full CV report/ }).click(),
+  ])
+  await expect(report).toHaveURL(/\/cv-checks\/\w+\/reports\/\w+$/)
+  await expect(report.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
+  await report.close()
+  await expect(page).toHaveURL(/\/new-interview\/final-check$/)
 })
 
 test('a quick start requires an explicit role and level without demo facts', async ({
@@ -219,7 +220,6 @@ test('a quick start requires an explicit role and level without demo facts', asy
   await page
     .getByRole('textbox', { name: 'Target level or training grade', exact: true })
     .fill('Junior under supervision')
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
   await continueButton(page).click()
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   const snapshotId = await page.evaluate(
