@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import Callable
 from dataclasses import asdict
 from typing import Literal
@@ -11,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.api.context_routes import ProfileView
+from probeloop.api.downloads import file_headers, subject_filename
 from probeloop.api.schemas import JobView
 from probeloop.assessment.application.outline import ExportSources
 from probeloop.assessment.application.schemas import ReportData
@@ -183,12 +185,22 @@ def assessment_router(
         media_type = {"md": "text/markdown", "json": "application/json", "pdf": "application/pdf"}[
             format
         ]
+        filename = await report_filename(report, f"report-v{report.version}.{format}")
         return Response(
-            content,
-            media_type=media_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="report-v{report.version}.{format}"',
-            },
+            content, media_type=media_type, headers=file_headers(filename, inline=False)
         )
+
+    async def report_filename(report: Report, artefact: str) -> str:
+        """Named after the report's subject: the interview session or the CV check's snapshot.
+        A subject deleted since falls back to the report's own date."""
+        created_at = report.created_at
+        if report.kind is ReportKind.INTERVIEW:
+            session = await assessment.sessions.load(report.subject_id)
+            if session is not None:
+                created_at = session.created_at
+            return subject_filename("interview", report.subject_id, created_at, artefact)
+        with contextlib.suppress(ContextNotFoundError):
+            created_at = (await context.snapshot(report.subject_id)).created_at
+        return subject_filename("cv-check", report.subject_id, created_at, artefact)
 
     return router

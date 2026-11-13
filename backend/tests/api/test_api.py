@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -180,6 +181,19 @@ def test_answers_are_corrected_as_new_revisions(client: TestClient, tmp_path: Pa
     assert client.put(f"/api/sessions/{'0' * 32}/answers/1", json={"text": "x"}).status_code == 404
     long_text = {"text": "x" * 8001}
     assert client.put(f"/api/sessions/{session_id}/answers/1", json=long_text).status_code == 422
+
+
+def test_session_files_are_served_inline_under_the_interview_name(client: TestClient) -> None:
+    session_id = finish_text_interview(client)
+    created_at = client.get(f"/api/sessions/{session_id}").json()["created_at"]
+    day = datetime.fromtimestamp(created_at, UTC).strftime("%Y%m%d")
+    for name in ("transcript.md", "transcript.json"):
+        served = client.get(f"/api/sessions/{session_id}/files/{name}")
+        assert served.status_code == 200
+        assert served.headers["content-disposition"].startswith(
+            f'inline; filename="probeloop-interview-{day}-{session_id[:8]}-{name}"'
+        )
+        assert served.headers["x-content-type-options"] == "nosniff"
 
 
 def test_refinement_needs_a_recogniser(client: TestClient) -> None:

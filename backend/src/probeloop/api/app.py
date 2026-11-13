@@ -31,6 +31,7 @@ from probeloop.ai.profiles import using_profile
 from probeloop.api.assessment_routes import assessment_router
 from probeloop.api.context_routes import context_router
 from probeloop.api.data_routes import data_router
+from probeloop.api.downloads import file_headers, subject_filename
 from probeloop.api.history_routes import history_router
 from probeloop.api.installation_routes import installation_router
 from probeloop.api.schemas import (
@@ -76,6 +77,10 @@ logger = logging.getLogger(__name__)
 WS_POLICY_VIOLATION = 1008
 WS_SESSION_BUSY = 4409
 WS_SESSION_NOT_FOUND = 4404
+
+# Download names of the session files whose stored name does not say what they hold; the others,
+# such as the per-turn audio, keep their file name after the interview prefix.
+_SESSION_ARTEFACTS = {"audio/interview.wav": "recording.wav"}
 
 type Frame = dict[str, Any] | bytes
 
@@ -287,10 +292,18 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     @app.get("/api/sessions/{session_id}/files/{name:path}")
     async def session_file(session_id: str, name: str) -> FileResponse:
+        """Served inline, so `<audio src>` plays it, under a name unique to the interview that
+        `<a download>` keeps."""
         path = store.artifact(session_id, name)
         if path is None:
             raise HTTPException(status_code=404, detail="file not found")
-        return FileResponse(path, headers={"Cache-Control": "no-cache"})
+        try:
+            session = await sessions.get(session_id)
+        except (SessionNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail="file not found") from exc
+        artefact = _SESSION_ARTEFACTS.get(name, name.removeprefix("audio/"))
+        filename = subject_filename("interview", session.id, session.created_at, artefact)
+        return FileResponse(path, headers=file_headers(filename, inline=True))
 
     @app.get("/api/jobs")
     async def pending_jobs() -> list[JobView]:

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Annotated, Literal
-from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.ai.ports import LlmError
 from probeloop.ai.profiles import using_profile
+from probeloop.api.downloads import file_headers
 from probeloop.api.schemas import JobView, RoleProfileData
 from probeloop.context.application.ports import ExtractionError
 from probeloop.context.application.service import (
@@ -529,12 +529,12 @@ def context_router(
             return Response(
                 data,
                 media_type=document.media_type,
-                headers=_file_headers(document.filename or document.title, inline=inline),
+                headers=file_headers(document.filename or document.title, inline=inline),
             )
         return Response(
             document.text.encode(),
             media_type="text/plain; charset=utf-8",
-            headers=_file_headers(f"{document.title}.txt", inline=False),
+            headers=file_headers(f"{document.title}.txt", inline=False),
         )
 
     @router.post("/documents/{document_id}/revisions", status_code=201)
@@ -667,18 +667,3 @@ def context_router(
             raise HTTPException(status_code=404, detail="not found") from exc
 
     return router
-
-
-def _file_headers(filename: str, *, inline: bool) -> dict[str, str]:
-    """Download headers with an ASCII fallback name and the UTF-8 name (RFC 6266 and 5987)."""
-    fallback = "".join(
-        c if c.isascii() and c.isprintable() and c not in '"\\' else "_" for c in filename
-    )
-    disposition = "inline" if inline else "attachment"
-    return {
-        "Content-Disposition": (
-            f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
-        ),
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "private, no-cache",
-    }
