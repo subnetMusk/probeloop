@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,15 @@ def test_a_voice_interview_over_the_websocket(client: TestClient, tmp_path: Path
     served = client.get(answer["audio"])
     assert served.status_code == 200
     assert from_wav(served.content).data == ANSWER
+    day = datetime.fromtimestamp(view["created_at"], UTC).strftime("%Y%m%d")
+    prefix = f"probeloop-interview-{day}-{session_id[:8]}"
+    assert served.headers["content-disposition"].startswith(
+        f'inline; filename="{prefix}-turn-0001-candidate.wav"'
+    )
+    recording = client.get(f"/api/sessions/{session_id}/files/audio/interview.wav")
+    assert recording.headers["content-disposition"].startswith(
+        f'inline; filename="{prefix}-recording.wav"'
+    )
     assert client.get(f"/api/sessions/{session_id}/files/session.json").status_code == 404
 
     transcript = json.loads((directory / "transcript.json").read_text("utf-8"))

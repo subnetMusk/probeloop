@@ -1,0 +1,32 @@
+Junior Frontend Developer
+Lumen Ledger (synthetic company) - remote within the EU or hybrid from our Lisbon office
+
+About us
+Lumen Ledger makes invoicing and expense software for freelancers and small studios. Around
+20,000 customers use our web app every month, and our frontend team of five ships to production
+several times a week.
+
+What you'll do
+- Build and maintain screens of the invoicing app, paired with a senior developer.
+- Turn designs from our product designer into accessible, responsive components.
+- Fix bugs reported by customers and by the support team.
+- Take part in code reviews, pairing sessions and our fortnightly demo.
+
+What we look for
+- Solid foundations in HTML, CSS and modern JavaScript.
+- Hands-on experience with React or Vue, from a job, a course or personal projects.
+- Basic accessibility knowledge (WCAG).
+- Familiarity with Git and pull requests.
+- A degree in computer science or equivalent practical experience.
+- Good written English: most of our communication is asynchronous.
+
+Nice to have
+- TypeScript.
+- Testing with Vitest or Jest.
+- Interest in design and user research.
+
+What we offer
+A structured mentoring plan for your first six months, a learning budget of EUR 1,000 a year,
+a laptop of your choice and 25 days of holiday.
+
+Send your CV and a link to your projects, if you have some, to jobs@example.test.

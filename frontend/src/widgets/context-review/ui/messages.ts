@@ -11,7 +11,7 @@ export const contextReviewMessages = defineMessages({
     },
     missing: {
       analysing: 'Wait for the analysis to finish.',
-      role: 'Confirm the target profession, role and level to continue.',
+      role: 'Complete the target profession, role and level to continue.',
     },
   },
   it: {
@@ -24,7 +24,7 @@ export const contextReviewMessages = defineMessages({
     },
     missing: {
       analysing: 'Attendi la fine dell’analisi.',
-      role: 'Conferma professione, ruolo e livello target per continuare.',
+      role: 'Completa professione, ruolo e livello target per continuare.',
     },
   },
 })

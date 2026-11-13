@@ -16,6 +16,18 @@ export interface TranscriptReview {
   liveOnly: number // spoken answers still in their live transcript
 }
 
+/**
+ * The first flagged answer after the turn looked at last, in conversation order. After the last
+ * one, or before any was looked at, it is the first flagged answer.
+ */
+export function nextFlagged(
+  flagged: TranscriptReview['flagged'],
+  last: number | null,
+): TranscriptReview['flagged'][number] | undefined {
+  if (last === null) return flagged[0]
+  return flagged.find((item) => item.seq > last) ?? flagged[0]
+}
+
 /** What the candidate should look at before a report assesses a spoken interview. */
 export function transcriptReview(session: SessionView): TranscriptReview {
   if (session.modality !== 'voice') return { flagged: [], liveOnly: 0 }

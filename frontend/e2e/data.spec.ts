@@ -30,7 +30,7 @@ test('data is exported, backed up and deleted from Settings', async ({ page, req
   const exported = page.waitForEvent('download')
   await page.getByRole('button', { name: 'JSON', exact: true }).click()
   const json = await exported
-  expect(json.suggestedFilename()).toBe('probeloop-data.json')
+  expect(json.suggestedFilename()).toMatch(/^probeloop-data-\d{8}-\d{6}\.json$/)
   const data = JSON.parse(readFileSync(await json.path(), 'utf8')) as Exported
   expect(data.tables.profiles?.some((row) => row.name === name)).toBe(true)
   expect(data.revision).toMatch(/^\d{4}$/)
@@ -38,7 +38,7 @@ test('data is exported, backed up and deleted from Settings', async ({ page, req
   const backedUp = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP backup', exact: true }).click()
   const zip = await backedUp
-  expect(zip.suggestedFilename()).toBe('probeloop-backup.zip')
+  expect(zip.suggestedFilename()).toMatch(/^probeloop-backup-\d{8}-\d{6}\.zip$/)
   expect(
     readFileSync(await zip.path())
       .subarray(0, 2)

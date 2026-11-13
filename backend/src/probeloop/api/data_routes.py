@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response
@@ -9,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.background import BackgroundTask
 
+from probeloop.api.downloads import file_headers, timestamped_filename
 from probeloop.workspace.service import DataBusyError, DataService
 
 
@@ -37,7 +39,7 @@ def data_router(data: DataService) -> APIRouter:
         return Response(
             content,
             media_type="application/json",
-            headers={"Content-Disposition": 'attachment; filename="probeloop-data.json"'},
+            headers=file_headers(timestamped_filename("data", time.time(), "json"), inline=False),
         )
 
     @router.post("/backup")
@@ -56,7 +58,7 @@ def data_router(data: DataService) -> APIRouter:
         return FileResponse(
             archive,
             media_type="application/zip",
-            filename="probeloop-backup.zip",
+            headers=file_headers(timestamped_filename("backup", time.time(), "zip"), inline=False),
             background=BackgroundTask(archive.unlink, missing_ok=True),
         )
 

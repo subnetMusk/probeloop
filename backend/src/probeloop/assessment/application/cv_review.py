@@ -4,29 +4,45 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 
 from probeloop.ai.ports import ChatMessage, ChatModel, ChatRequest
 from probeloop.ai.prompts import PromptRenderer
 from probeloop.ai.structured import complete_structured
-from probeloop.assessment.application.cv_checks import cv_checks
+from probeloop.assessment.application.cv_checks import LineReadings, cv_checks
 from probeloop.assessment.application.evidence import Source, checked_judgements
 from probeloop.assessment.application.labels import label
 from probeloop.assessment.application.rubrics import Rubric
 from probeloop.assessment.application.schemas import criterion_judgements, cv_output
 from probeloop.assessment.domain.model import Check, Observation, Score
 from probeloop.context.application.analysis import chunks
+from probeloop.context.application.ports import TextClassifier
 from probeloop.context.application.snapshots import job_brief
+from probeloop.context.domain.lines import logical_lines
 from probeloop.context.domain.model import ContextSnapshot, DocumentKind
 from probeloop.platform.jobs import Progress
 
 
+def _no_classifier() -> TextClassifier | None:
+    return None
+
+
 class CvReviewer:
+    """`classifier` gives, for the job being run, the line classifier selected for it, if any."""
+
     prompt_ref = "review_cv@v2:off"
 
-    def __init__(self, model: ChatModel, rubric: Rubric) -> None:
+    def __init__(
+        self,
+        model: ChatModel,
+        rubric: Rubric,
+        *,
+        classifier: Callable[[], TextClassifier | None] = _no_classifier,
+    ) -> None:
         self.model = model
         self.rubric = rubric
         self._prompts = PromptRenderer("probeloop.assessment")
+        self._classifier = classifier
 
     async def review(
         self,
@@ -37,6 +53,8 @@ class CvReviewer:
         cv = next((d for d in snapshot.documents if d.kind is DocumentKind.CV), None)
         if cv is None:
             raise ValueError("the approved context has no CV")
+        # Read before the review, so an unavailable classifier stops the job before model calls.
+        readings = await self._read_lines(cv.text)
         pieces = chunks(cv.text, size=3000)
         collected: dict[str, list[Score]] = {}
         observations: list[Observation] = []
@@ -113,4 +131,15 @@ class CvReviewer:
                         "Evidenza insufficiente." if language == "it" else "Insufficient evidence.",
                     )
                 )
-        return tuple(aggregated), tuple(observations), cv_checks(cv, language), dropped
+        checks = cv_checks(cv, language, readings)
+        return tuple(aggregated), tuple(observations), checks, dropped
+
+    async def _read_lines(self, text: str) -> LineReadings | None:
+        """The selected classifier's readings of every logical line; its refusal fails the job."""
+        classifier = self._classifier()
+        if classifier is None:
+            return None
+        lines = tuple(logical_lines(text))
+        headings = await classifier.headings(lines)
+        quantified = await classifier.quantified(lines)
+        return LineReadings(lines, headings, quantified)

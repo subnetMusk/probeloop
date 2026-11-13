@@ -257,33 +257,36 @@ export function DocumentsEditor({
   const t = useMessages(documentsMessages)
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle role="heading" aria-level={2}>
-            {t.cv.title}
-          </CardTitle>
-          <CardDescription>{t.cv.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DocumentField
-            id={`${id}-cv`}
-            kind="cv"
-            label={t.cv.text}
-            required
-            slot={documents.cv}
-            onChange={(cv) => {
-              onChange((d) => ({ ...d, cv }))
-            }}
-          />
-        </CardContent>
-      </Card>
-      <OfferSection
-        id={id}
-        documents={documents}
-        language={language}
-        execution={execution}
-        onChange={onChange}
-      />
+      {/* Wide windows put the CV beside the offer it is read against, at the same height. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              {t.cv.title}
+            </CardTitle>
+            <CardDescription>{t.cv.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DocumentField
+              id={`${id}-cv`}
+              kind="cv"
+              label={t.cv.text}
+              required
+              slot={documents.cv}
+              onChange={(cv) => {
+                onChange((d) => ({ ...d, cv }))
+              }}
+            />
+          </CardContent>
+        </Card>
+        <OfferSection
+          id={id}
+          documents={documents}
+          language={language}
+          execution={execution}
+          onChange={onChange}
+        />
+      </div>
       <ResourcesSection id={id} resources={documents.resources} onChange={onChange} />
     </div>
   )

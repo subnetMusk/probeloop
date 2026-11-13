@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Annotated, Literal
-from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from probeloop.ai.ports import LlmError
 from probeloop.ai.profiles import using_profile
+from probeloop.api.downloads import file_headers
 from probeloop.api.schemas import JobView, RoleProfileData
 from probeloop.context.application.ports import ExtractionError
 from probeloop.context.application.service import (
@@ -31,8 +31,10 @@ from probeloop.context.domain.model import (
     Fact,
     FactKind,
     JobMode,
+    Obligation,
     Preparation,
     Profile,
+    RequirementDetail,
     Review,
     Subject,
 )
@@ -152,6 +154,68 @@ class PrepareIn(Strict):
     execution_profile: str | None = Field(default=None, max_length=1024)
 
 
+class AlternativeView(BaseModel):
+    value: str
+    open: bool
+
+
+class RouteView(BaseModel):
+    kind: str
+    value: str
+
+
+class ThresholdView(BaseModel):
+    kind: str
+    minimum: str
+    subject: str
+
+
+class ObligationReadingView(BaseModel):
+    source: Literal["user", "cue", "jev", "model"]
+    obligation: Literal["must", "preferred", "unclear"]
+
+
+class RequirementDetailView(BaseModel):
+    """How binding a job requirement is, who read it so, and what satisfies it."""
+
+    obligation: Literal["must", "preferred", "unclear"]
+    cue: str | None
+    category: str
+    any_of: list[AlternativeView]
+    equivalents: list[RouteView]
+    threshold: ThresholdView | None
+    refines: str | None
+    implicit: bool
+    disputed: bool
+    readings: list[ObligationReadingView]
+
+    @classmethod
+    def of(cls, d: RequirementDetail) -> RequirementDetailView:
+        return cls(
+            obligation=d.obligation.value,
+            cue=d.cue,
+            category=d.category,
+            any_of=[AlternativeView(value=a.value, open=a.open) for a in d.any_of],
+            equivalents=[RouteView(kind=e.kind, value=e.value) for e in d.equivalents],
+            threshold=(
+                ThresholdView(
+                    kind=d.threshold.kind,
+                    minimum=d.threshold.minimum,
+                    subject=d.threshold.subject,
+                )
+                if d.threshold
+                else None
+            ),
+            refines=d.refines,
+            implicit=d.implicit,
+            disputed=d.disputed,
+            readings=[
+                ObligationReadingView(source=source, obligation=obligation.value)
+                for source, obligation in d.readings
+            ],
+        )
+
+
 class FactView(BaseModel):
     id: str
     subject: str
@@ -163,6 +227,7 @@ class FactView(BaseModel):
     quote: str | None
     review: str
     corrected: str | None
+    requirement: RequirementDetailView | None = None
 
     @classmethod
     def of(cls, f: Fact) -> FactView:
@@ -177,6 +242,7 @@ class FactView(BaseModel):
             quote=f.quote,
             review=f.review.value,
             corrected=f.corrected,
+            requirement=RequirementDetailView.of(f.requirement) if f.requirement else None,
         )
 
 
@@ -255,6 +321,10 @@ class PreparationView(BaseModel):
 class ReviewIn(Strict):
     review: Review
     corrected: str | None = Field(default=None, max_length=400)
+
+
+class ObligationIn(Strict):
+    obligation: Literal["must", "preferred", "unclear"]
 
 
 class AddFactIn(Strict):
@@ -459,12 +529,12 @@ def context_router(
             return Response(
                 data,
                 media_type=document.media_type,
-                headers=_file_headers(document.filename or document.title, inline=inline),
+                headers=file_headers(document.filename or document.title, inline=inline),
             )
         return Response(
             document.text.encode(),
             media_type="text/plain; charset=utf-8",
-            headers=_file_headers(f"{document.title}.txt", inline=False),
+            headers=file_headers(f"{document.title}.txt", inline=False),
         )
 
     @router.post("/documents/{document_id}/revisions", status_code=201)
@@ -516,6 +586,21 @@ def context_router(
         try:
             preparation = await context.review_fact(
                 preparation_id, fact_id, body.review, body.corrected
+            )
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="not found") from exc
+        except ContextError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return await view(preparation)
+
+    @router.put("/preparations/{preparation_id}/facts/{fact_id}/obligation")
+    async def set_obligation(
+        preparation_id: str, fact_id: str, body: ObligationIn
+    ) -> PreparationView:
+        """The user's reading of how binding a job requirement is; it overrides every other."""
+        try:
+            preparation = await context.set_obligation(
+                preparation_id, fact_id, Obligation(body.obligation)
             )
         except ContextNotFoundError as exc:
             raise HTTPException(status_code=404, detail="not found") from exc
@@ -582,18 +667,3 @@ def context_router(
             raise HTTPException(status_code=404, detail="not found") from exc
 
     return router
-
-
-def _file_headers(filename: str, *, inline: bool) -> dict[str, str]:
-    """Download headers with an ASCII fallback name and the UTF-8 name (RFC 6266 and 5987)."""
-    fallback = "".join(
-        c if c.isascii() and c.isprintable() and c not in '"\\' else "_" for c in filename
-    )
-    disposition = "inline" if inline else "attachment"
-    return {
-        "Content-Disposition": (
-            f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
-        ),
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "private, no-cache",
-    }

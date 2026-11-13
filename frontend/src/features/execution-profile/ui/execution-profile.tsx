@@ -5,6 +5,7 @@ import {
   CloudIcon,
   CpuIcon,
   KeyRoundIcon,
+  ListChecksIcon,
   RefreshCwIcon,
   Settings2Icon,
   SparklesIcon,
@@ -31,6 +32,7 @@ const LABELS = {
   analysis: ['Analisi dei documenti', 'Document analysis'],
   evaluation: ['Valutazioni e report', 'Evaluations and reports'],
   limits: ['Limiti dichiarati', 'Stated limits'],
+  classification: ['Classificazione dei documenti', 'Document classification'],
 } as const
 const DESCRIPTIONS = {
   interviewer: [
@@ -49,14 +51,30 @@ const DESCRIPTIONS = {
     'Riconosce ciò che dichiari di non ricordare o non aver mai fatto.',
     'Recognises what you say you cannot recall or have never done.',
   ],
+  classification: [
+    'Decide se un requisito dell’offerta è obbligatorio o preferito e, nel controllo del CV, quali righe sono intestazioni di sezione o risultati misurati.',
+    'Decides whether a requirement of the job offer is required or preferred and, in the CV check, which lines are section headings or measured outcomes.',
+  ],
 } as const
 
 const TYPESAFE_CONSOLE_URL = 'https://console.typesafe.ai'
 
 const toolName = (tool: Tool, it: boolean) =>
-  ({ local: it ? 'LLM locale' : 'Local LLM', cloud: 'ChatGPT', laya: 'Laya', jev: 'Jev' })[tool]
+  ({
+    local: it ? 'LLM locale' : 'Local LLM',
+    cloud: 'ChatGPT',
+    laya: 'Laya',
+    jev: 'Jev',
+    rules: it ? 'Regole e modello di analisi' : 'Rules and analysis model',
+  })[tool]
 
-const ICONS = { local: CpuIcon, cloud: CloudIcon, laya: SparklesIcon, jev: ZapIcon } as const
+const ICONS = {
+  local: CpuIcon,
+  cloud: CloudIcon,
+  laya: SparklesIcon,
+  jev: ZapIcon,
+  rules: ListChecksIcon,
+} as const
 
 function ToolIcon({ tool }: { tool: Tool }) {
   const Icon = ICONS[tool]
@@ -65,7 +83,7 @@ function ToolIcon({ tool }: { tool: Tool }) {
 
 /** The model shown under a selection; Laya is identified by its name alone. */
 function modelLabel(tool: Tool, modelRef: string) {
-  if (tool === 'laya') return null
+  if (tool === 'laya' || tool === 'rules') return null
   if (tool === 'jev') return modelRef.split(':')[1] ?? modelRef
   return modelRef.replace(/^(ollama:|chatgpt:)/, '').replace(/@ctx\d+$/, '')
 }
@@ -77,6 +95,7 @@ function modelLabel(tool: Tool, modelRef: string) {
 function recommended(role: string, jevKey: boolean): Tool | null {
   if (role === 'interviewer') return 'cloud'
   if (role === 'limits') return jevKey ? 'jev' : 'laya'
+  if (role === 'classification') return jevKey ? 'jev' : null
   return null
 }
 
@@ -96,6 +115,7 @@ function reasonText(reason: string, it: boolean) {
     loading: ['Caricamento del modello', 'Loading model'],
     model_invalid: ['Modello da reinstallare', 'Reinstall model'],
     key_missing: ['Aggiungi la chiave API di Jev', 'Add a Jev API key'],
+    not_evaluated: ['Non ancora valutato', 'Not evaluated yet'],
   }
   return messages[reason]?.[it ? 0 : 1] ?? (it ? 'Non disponibile' : 'Unavailable')
 }
@@ -288,6 +308,13 @@ export function ExecutionProfileSettings() {
                   >
                     {DESCRIPTIONS[role.id][it ? 0 : 1]}
                   </p>
+                  {role.id === 'classification' && role.selected === 'jev' && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {it
+                        ? 'Le righe dei requisiti delle offerte e le righe del CV vengono inviate a TypeSafe. Se Jev non risponde, l’analisi o il controllo del CV si ferma fino al ripristino.'
+                        : 'The requirement lines of job offers and the lines of the CV are sent to TypeSafe. If Jev does not answer, the analysis or the CV check stops until it is restored.'}
+                    </p>
+                  )}
                   {role.id === 'limits' &&
                     (role.selected === 'laya' || role.selected === 'jev') && (
                       <p className="mt-2 text-xs text-muted-foreground">
@@ -472,8 +499,8 @@ export function ExecutionProfileSettings() {
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {it
-                  ? 'Un servizio cloud che può leggere i limiti dichiarati al posto di Laya, utile se Laya non è installato. Richiede una chiave API a consumo.'
-                  : 'A cloud service that can read stated limits instead of Laya, useful when Laya is not installed. It needs a pay-as-you-go API key.'}{' '}
+                  ? 'Un servizio cloud che può leggere i limiti dichiarati al posto di Laya, utile se Laya non è installato, e classificare i requisiti delle offerte. Richiede una chiave API a consumo.'
+                  : 'A cloud service that can read stated limits instead of Laya, useful when Laya is not installed, and classify the requirements of job offers. It needs a pay-as-you-go API key.'}{' '}
                 <a
                   href={TYPESAFE_CONSOLE_URL}
                   target="_blank"

@@ -39,6 +39,7 @@ export const newInterviewMessages = defineMessages({
     missing: {
       profile: 'Choose an option to continue.',
       profileName: 'Name the new profile to continue.',
+      role: 'Fill in the target profession, role and level to continue.',
       uploading: 'Wait for the uploads to finish.',
       microphone: 'Enable the microphone.',
       speech: 'The speech services are not ready.',
@@ -72,10 +73,12 @@ export const newInterviewMessages = defineMessages({
       level: 'Target level',
       quick: 'No documents',
       once: 'This interview only',
+      approved: (name: string) => `Approved in the CV check of ${name}`,
       local: 'On this computer',
       mixed: 'Tools selected in Settings',
       cloud: 'ChatGPT plan',
       edit: 'Change',
+      fixed: 'Set for this interview',
       types: {
         technical: 'Technical',
         behavioral: 'Behavioural',
@@ -128,6 +131,7 @@ export const newInterviewMessages = defineMessages({
     missing: {
       profile: 'Scegli un’opzione per continuare.',
       profileName: 'Dai un nome al nuovo profilo per continuare.',
+      role: 'Compila professione, ruolo e livello target per continuare.',
       uploading: 'Attendi la fine dei caricamenti.',
       microphone: 'Attiva il microfono.',
       speech: 'I servizi vocali non sono pronti.',
@@ -161,10 +165,12 @@ export const newInterviewMessages = defineMessages({
       level: 'Livello target',
       quick: 'Nessun documento',
       once: 'Solo per questo colloquio',
+      approved: (name: string) => `Approvato nel CV check di ${name}`,
       local: 'Su questo computer',
       mixed: 'Strumenti selezionati nelle Impostazioni',
       cloud: 'Piano ChatGPT',
       edit: 'Modifica',
+      fixed: 'Fissata per questo colloquio',
       types: {
         technical: 'Tecnico',
         behavioral: 'Comportamentale',

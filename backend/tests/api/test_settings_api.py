@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from probeloop.ai.fake import FakeChatGptAccount, FakeChatModel
+from probeloop.ai.profiles import using_profile
 from probeloop.api.app import create_app
 from probeloop.bootstrap import build
 from probeloop.interview.infrastructure.jev_limits import JevKeyFile, JevStatedLimitReader
@@ -182,8 +183,10 @@ def test_per_role_choices_are_checked_and_frozen_with_new_work(tmp_path: Path) -
     container = build(settings)
     with TestClient(create_app(container)) as client:
         roles = {r["id"]: r for r in client.get("/api/settings/execution").json()["tools"]}
-        assert set(roles) == {"interviewer", "analysis", "evaluation", "limits"}
+        assert set(roles) == {"interviewer", "analysis", "evaluation", "limits", "classification"}
         assert [o["id"] for o in roles["analysis"]["options"]] == ["local", "cloud"]
+        assert [o["id"] for o in roles["classification"]["options"]] == ["rules", "jev"]
+        assert roles["classification"]["selected"] == "rules"
         assert [o["id"] for o in roles["limits"]["options"]] == ["local", "cloud", "laya", "jev"]
         laya = next(o for o in roles["limits"]["options"] if o["id"] == "laya")
         assert not laya["available"]
@@ -200,6 +203,7 @@ def test_per_role_choices_are_checked_and_frozen_with_new_work(tmp_path: Path) -
             "analysis": "cloud",
             "evaluation": "local",
             "limits": "local",
+            "classification": "rules",
         }
         session = client.post("/api/sessions", json={"interview_type": "hr"}).json()
         assert session["execution_profile"] == frozen
@@ -230,6 +234,9 @@ def test_jev_is_optional_and_needs_a_verified_key(tmp_path: Path) -> None:
         assert option["model_ref"] == "typesafe:jev-1.14.0:limits.v2:threshold=0.5"
         refused = client.put("/api/settings/execution", json={"tools": {"limits": "jev"}})
         assert refused.status_code == 409
+        classification = next(r for r in view["tools"] if r["id"] == "classification")
+        line_option = next(o for o in classification["options"] if o["id"] == "jev")
+        assert (line_option["available"], line_option["reason"]) == (False, "key_missing")
         elsewhere = client.put("/api/settings/execution", json={"tools": {"analysis": "jev"}})
         assert elsewhere.status_code == 422
 
@@ -252,6 +259,16 @@ def test_jev_is_optional_and_needs_a_verified_key(tmp_path: Path) -> None:
         selected = client.put("/api/settings/execution", json={"tools": {"limits": "jev"}})
         assert selected.status_code == 200
         assert execution_tools(selected.json()["profile"])["limits"] == "jev"
+        lines = client.put("/api/settings/execution", json={"tools": {"classification": "jev"}})
+        assert lines.status_code == 200
+        plan = lines.json()["profile"]
+        assert execution_tools(plan)["classification"] == "jev"
+        # An analysis run with this plan reads requirement obligations with Jev.
+        analyser = container.context._analyser  # type: ignore[attr-defined]
+        with using_profile(plan):
+            assert analyser._classifier() is container.classifier
+        with using_profile("cloud"):
+            assert analyser._classifier() is None
 
         # The key is machine configuration, never part of a portable backup or data deletion.
         assert "typesafe" not in OWNED_DIRS
@@ -265,6 +282,7 @@ def test_jev_is_optional_and_needs_a_verified_key(tmp_path: Path) -> None:
         removed = client.post("/api/settings/jev/remove", json={})
         assert removed.json()["jev"] == {"configured": False}
         assert execution_tools(removed.json()["profile"])["limits"] == "local"
+        assert execution_tools(removed.json()["profile"])["classification"] == "rules"
         assert not (tmp_path / "typesafe" / "api-key").exists()
 
 

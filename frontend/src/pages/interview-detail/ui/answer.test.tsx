@@ -8,6 +8,7 @@ import { api } from '@/shared/api'
 import type { SessionView, TurnView } from '@/shared/api'
 import { setLanguage } from '@/shared/lib/preferences'
 import { Answer, Words } from './answer'
+import { TurnAudioProvider } from './turn-audio'
 
 const turn: TurnView = {
   seq: 1,
@@ -50,21 +51,24 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function mount() {
+function mount(base: TurnView = turn) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  client.setQueryData(['session', session.id], session)
+  const initial = { ...session, turns: [base] }
+  client.setQueryData(['session', session.id], initial)
   function Content() {
     const data =
       useQuery({
         queryKey: ['session', session.id],
-        queryFn: () => Promise.resolve(session),
+        queryFn: () => Promise.resolve(initial),
         staleTime: Infinity,
-      }).data ?? session
-    return <Answer session={data} turn={data.turns[0] ?? turn} number={1} />
+      }).data ?? initial
+    return <Answer session={data} turn={data.turns[0] ?? base} number={1} />
   }
   render(
     <QueryClientProvider client={client}>
-      <Content />
+      <TurnAudioProvider>
+        <Content />
+      </TurnAudioProvider>
     </QueryClientProvider>,
   )
 }
@@ -120,4 +124,46 @@ it('highlights only recogniser probabilities below one half', () => {
   expect([...container.querySelectorAll('mark')].map((element) => element.textContent)).toEqual([
     'uncertain',
   ])
+})
+
+it('saves with Ctrl+Enter and cancels with Escape', async () => {
+  const edit = vi.spyOn(api, 'editAnswer').mockResolvedValue({
+    ...session,
+    turns: [{ ...turn, text: 'Shortcut answer.' }],
+  })
+  mount()
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Correct' }))
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('textbox')).toBeNull()
+  await user.click(screen.getByRole('button', { name: 'Correct' }))
+  const field = screen.getByRole('textbox', { name: 'Corrected answer' })
+  await user.clear(field)
+  await user.type(field, 'Shortcut answer.')
+  await user.keyboard('{Control>}{Enter}{/Control}')
+  await waitFor(() => {
+    expect(edit).toHaveBeenCalledWith('synthetic', 1, 'Shortcut answer.')
+  })
+})
+
+it('plays the audio around a doubtful word', async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  mount({
+    ...turn,
+    audio: '/api/sessions/synthetic/files/audio/turn-0001-candidate.wav',
+    words: [
+      { text: 'Synthetic', start_s: 0, end_s: 0.4, probability: 0.9 },
+      { text: 'answer.', start_s: 2, end_s: 2.5, probability: 0.3 },
+    ],
+  })
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: /Listen to “answer\.”/ }))
+  expect(play).toHaveBeenCalledTimes(1)
+  const element = play.mock.contexts[0] as HTMLAudioElement
+  expect(element.src).toContain('turn-0001-candidate.wav')
+  expect(element.currentTime).toBeCloseTo(1.4)
+  expect(screen.getByRole('button', { name: 'Pause Answer 1' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  )
 })

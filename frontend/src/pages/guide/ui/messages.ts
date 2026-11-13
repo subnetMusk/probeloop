@@ -42,7 +42,7 @@ export const guideContent: Record<Language, GuideContent> = {
           },
           {
             title: 'Review',
-            text: 'Read the transcript, listen to the recording and correct the answers that were recognised badly.',
+            text: 'Read the transcript, listen to each turn or to a highlighted word, and correct in place the answers that were recognised badly.',
           },
           {
             title: 'Improve',
@@ -170,7 +170,7 @@ export const guideContent: Record<Language, GuideContent> = {
         points: [
           {
             term: 'CV check',
-            text: 'A review of your CV against the position, with the original file and its reports. Start one from CV checks, from a profile or during the final check of an interview; deleting it keeps the documents a profile or an interview still uses.',
+            text: 'A review of your CV against the position, with the original file and its reports. Start one from CV checks, from a profile or during the final check of an interview; one you leave before it finishes waits under In progress on CV checks. From its page you can start an interview on the same reviewed context. Deleting it keeps the documents a profile or an interview still uses.',
           },
           {
             term: 'Profiles',
@@ -188,7 +188,7 @@ export const guideContent: Record<Language, GuideContent> = {
           },
           {
             term: 'Sent to a cloud service',
-            text: 'With ChatGPT or Jev selected, only the text those roles need: documents and transcripts for ChatGPT, question and answer for Jev.',
+            text: 'With ChatGPT or Jev selected, only the text those roles need: documents and transcripts for ChatGPT; question and answer, offer requirements and CV lines for Jev.',
           },
           {
             term: 'Backup and deletion',
@@ -242,7 +242,7 @@ export const guideContent: Record<Language, GuideContent> = {
           },
           {
             title: 'Rivedi',
-            text: 'Leggi il trascritto, ascolta la registrazione e correggi le risposte riconosciute male.',
+            text: 'Leggi il trascritto, ascolta ogni turno o una parola evidenziata e correggi sul posto le risposte riconosciute male.',
           },
           {
             title: 'Migliori',
@@ -370,7 +370,7 @@ export const guideContent: Record<Language, GuideContent> = {
         points: [
           {
             term: 'CV check',
-            text: 'Una revisione del tuo CV rispetto alla posizione, con il file originale e i suoi report. Avviala da CV check, da un profilo o durante il controllo finale di un colloquio; eliminarla conserva i documenti che un profilo o un colloquio usano ancora.',
+            text: 'Una revisione del tuo CV rispetto alla posizione, con il file originale e i suoi report. Avviala da CV check, da un profilo o durante il controllo finale di un colloquio; se la lasci prima che finisca, la ritrovi in In corso su CV check. Dalla sua pagina puoi avviare un colloquio sullo stesso contesto già revisionato. Eliminarla conserva i documenti che un profilo o un colloquio usano ancora.',
           },
           {
             term: 'Profili',
@@ -388,7 +388,7 @@ export const guideContent: Record<Language, GuideContent> = {
           },
           {
             term: 'Inviato a un servizio cloud',
-            text: 'Con ChatGPT o Jev selezionati, solo il testo che serve a quegli ambiti: documenti e trascritti per ChatGPT, domanda e risposta per Jev.',
+            text: 'Con ChatGPT o Jev selezionati, solo il testo che serve a quegli ambiti: documenti e trascritti per ChatGPT; domanda e risposta, requisiti dell’offerta e righe del CV per Jev.',
           },
           {
             term: 'Backup ed eliminazione',

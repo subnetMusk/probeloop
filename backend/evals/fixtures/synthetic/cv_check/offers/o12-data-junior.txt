@@ -1,0 +1,29 @@
+Junior Data Analyst - stage di 6 mesi con possibilità di inserimento
+Consorzio Latterie Valpadane Soc. Coop. (azienda sintetica) - Parma
+
+Il Consorzio raccoglie e trasforma il latte di 230 aziende agricole socie e vende formaggi e
+burro in Italia e in altri dodici Paesi. L'ufficio Controllo di gestione sta costruendo un
+piccolo team dati e cerca una persona all'inizio del percorso professionale.
+
+Cosa farai
+- Preparerai estrazioni e report sulle vendite e sui conferimenti di latte.
+- Aiuterai a pulire e documentare i dati del nuovo data warehouse aziendale.
+- Costruirai cruscotti in Power BI insieme a un analista senior.
+- Analizzerai l'andamento di prezzi e volumi per i responsabili commerciali.
+
+Requisiti
+- Laurea in statistica, matematica, economia o affini.
+- Conoscenza di SQL.
+- Buona conoscenza dell'inglese, preferibilmente B2.
+- Familiarità con Excel e curiosità per i numeri.
+- Precisione e capacità di spiegare i risultati in modo semplice.
+
+Gradito
+- Conoscenza di base di Python o R.
+- Interesse per il settore agroalimentare.
+
+Cosa offriamo
+Stage di sei mesi con rimborso spese di 900 euro al mese, buoni pasto e un tutor dedicato. Al
+termine è previsto l'inserimento con contratto di apprendistato.
+
+Candidature entro il 30 novembre 2026 a stage@example.test.

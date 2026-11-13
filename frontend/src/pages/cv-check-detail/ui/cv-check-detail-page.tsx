@@ -1,21 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { DownloadIcon, ExternalLinkIcon } from 'lucide-react'
+import { DownloadIcon, ExternalLinkIcon, PlayIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { profilesQuery } from '@/entities/profile'
+import { toCvReportView } from '@/entities/report'
 import { CvCheck } from '@/features/check-cv'
 import { DeleteCvCheck, ProfileFromCheck } from '@/features/manage-cv-check'
+import { useStartWithContext } from '@/features/select-profile'
 import { api } from '@/shared/api'
 import type { DocumentView } from '@/shared/api'
 import { defineMessages, useMessages } from '@/shared/i18n'
 import { score, shortDate } from '@/shared/lib/format'
 import { useLanguage } from '@/shared/lib/preferences'
-import { usePaged } from '@/shared/lib/pagination'
-import { Pager } from '@/shared/ui/pager'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { PAGE_TITLE, Page, PageHeader } from '@/shared/ui/page-header'
+import { TocLayout } from '@/shared/ui/page-toc'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import { CvReport } from '@/widgets/report'
 
 const messages = defineMessages({
   en: {
@@ -32,11 +35,16 @@ const messages = defineMessages({
     preview: (name: string) => `Preview of ${name}`,
     typed: 'Typed text: there is no original file.',
     text: 'Show the extracted text',
-    versions: 'Versions',
-    version: (version: number, date: string) => `Version ${String(version)} · ${date}`,
+    version: 'Version',
+    versionOption: (version: number, date: string, result: string) =>
+      `Version ${String(version)} · ${date} · ${result}`,
     unscored: 'not scored',
-    noVersions: 'No CV report yet.',
+    noVersions: 'No CV report yet: it appears here when the check ends.',
     profile: 'Profile',
+    documents: 'Documents of the check',
+    report: 'CV report',
+    toc: 'On this page',
+    practise: 'Practise an interview on this context',
   },
   it: {
     eyebrow: 'CV check',
@@ -52,11 +60,16 @@ const messages = defineMessages({
     preview: (name: string) => `Anteprima di ${name}`,
     typed: 'Testo digitato: non c’è un file originale.',
     text: 'Mostra il testo estratto',
-    versions: 'Versioni',
-    version: (version: number, date: string) => `Versione ${String(version)} · ${date}`,
+    version: 'Versione',
+    versionOption: (version: number, date: string, result: string) =>
+      `Versione ${String(version)} · ${date} · ${result}`,
     unscored: 'non valutato',
-    noVersions: 'Ancora nessun report del CV.',
+    noVersions: 'Ancora nessun report del CV: compare qui al termine del controllo.',
     profile: 'Profilo',
+    documents: 'Documenti del controllo',
+    report: 'Report del CV',
+    toc: 'In questa pagina',
+    practise: 'Fai un colloquio con questo contesto',
   },
 })
 
@@ -135,7 +148,10 @@ function DocumentCard({
   )
 }
 
-/** One CV check: the original CV, the job offer, the latest review and every version. */
+/**
+ * One CV check: the selected version of its report in full, the controls to check again or pick
+ * an earlier version, and the documents it was made from.
+ */
 export function CvCheckDetailPage() {
   const t = useMessages(messages)
   const language = useLanguage()
@@ -152,7 +168,9 @@ export function CvCheckDetailPage() {
   const execution = useQuery({ queryKey: ['execution-profile'], queryFn: api.executionProfile })
   const profiles = useQuery(profilesQuery)
   const navigate = useNavigate()
-  const versions = usePaged(reports.data?.toReversed() ?? [], 4)
+  const practise = useStartWithContext()
+  // No choice follows the latest version, including one that a new check has just added.
+  const [chosen, setChosen] = useState<string | null>(null)
   const ownerId = reports.data?.at(-1)?.profile_id ?? null
   const owner = profiles.data?.find((p) => p.id === ownerId)
   const unowned = reports.data !== undefined && reports.data.every((r) => !r.profile_id)
@@ -165,6 +183,7 @@ export function CvCheckDetailPage() {
     )
   const cv = snapshot.data.documents.find((d) => d.kind === 'cv')
   const offer = snapshot.data.documents.find((d) => d.kind === 'job_offer')
+  const shown = reports.data?.find((r) => r.id === chosen) ?? reports.data?.at(-1)
   return (
     <Page>
       <PageHeader
@@ -175,6 +194,22 @@ export function CvCheckDetailPage() {
         )}`}
         actions={
           <>
+            <Button
+              type="button"
+              className="bg-brand text-brand-foreground hover:bg-brand/90"
+              onClick={() => {
+                practise.start({
+                  snapshotId,
+                  name: cv?.filename ?? cv?.title ?? 'CV',
+                  profileId: ownerId,
+                  role: snapshot.data.role_profile ?? null,
+                })
+              }}
+            >
+              <PlayIcon data-icon="inline-start" />
+              {t.practise}
+            </Button>
+            {practise.confirmation}
             {unowned && <ProfileFromCheck snapshotId={snapshotId} />}
             <DeleteCvCheck
               snapshotId={snapshotId}
@@ -196,9 +231,86 @@ export function CvCheckDetailPage() {
           </p>
         )}
       </PageHeader>
-      <div className="grid items-start gap-6 lg:grid-cols-5">
-        <div className="flex flex-col gap-6 lg:col-span-3">
-          {cv && <DocumentCard title={t.cv} document={cv} preview />}
+      {/* Side-by-side cards share their height. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {execution.data && (
+          <CvCheck
+            snapshotId={snapshotId}
+            language={language}
+            execution={execution.data.profile}
+            summary={false}
+          />
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              {t.report}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {reports.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground">{t.noVersions}</p>
+            )}
+            {shown && reports.data && (
+              <>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="cv-check-version" className="text-sm font-medium">
+                    {t.version}
+                  </label>
+                  <Select
+                    value={shown.id}
+                    onValueChange={(id) => {
+                      setChosen(id === reports.data.at(-1)?.id ? null : id)
+                    }}
+                  >
+                    <SelectTrigger id="cv-check-version" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reports.data.toReversed().map((report) => (
+                        <SelectItem key={report.id} value={report.id}>
+                          {t.versionOption(
+                            report.version,
+                            shortDate(report.created_at, language),
+                            report.overall === null
+                              ? t.unscored
+                              : `${score(report.overall, language)} / 100`,
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(['md', 'json', 'pdf'] as const).map((format) => (
+                    <Button key={format} asChild size="sm" variant="outline">
+                      <a
+                        href={`/api/reports/${encodeURIComponent(shown.id)}/export/${format}`}
+                        download
+                      >
+                        {format.toUpperCase()}
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      {shown && (
+        <TocLayout label={t.toc}>
+          <div data-testid="report-content" className="flex flex-col gap-8">
+            <CvReport view={toCvReportView(shown)} snapshot={snapshot.data} />
+          </div>
+        </TocLayout>
+      )}
+      <details className="group rounded-2xl border bg-card" open={shown ? undefined : true}>
+        <summary className="cursor-pointer px-5 py-4 font-heading font-semibold">
+          {t.documents}
+        </summary>
+        <div className="grid gap-6 px-5 pb-5 lg:grid-cols-2">
+          {cv && <DocumentCard title={t.cv} document={cv} preview={!shown} />}
           {offer && (
             <DocumentCard
               title={t.offer}
@@ -208,52 +320,7 @@ export function CvCheckDetailPage() {
             />
           )}
         </div>
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          {execution.data && (
-            <CvCheck
-              snapshotId={snapshotId}
-              language={language}
-              execution={execution.data.profile}
-            />
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle role="heading" aria-level={2}>
-                {t.versions}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {reports.data?.length === 0 && (
-                <p className="text-sm text-muted-foreground">{t.noVersions}</p>
-              )}
-              <ul className="flex flex-col divide-y text-sm">
-                {versions.items.map((report) => (
-                  <li key={report.id} className="flex items-center justify-between gap-3 py-2">
-                    <Link
-                      to="/cv-checks/$snapshotId/reports/$reportId"
-                      params={{ snapshotId, reportId: report.id }}
-                      className="text-brand-text underline"
-                    >
-                      {t.version(report.version, shortDate(report.created_at, language))}
-                    </Link>
-                    <span className="text-muted-foreground tabular-nums">
-                      {report.overall === null
-                        ? t.unscored
-                        : `${score(report.overall, language)} / 100`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Pager
-                label={t.versions}
-                page={versions.page}
-                pages={versions.pages}
-                onPage={versions.setPage}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </details>
     </Page>
   )
 }

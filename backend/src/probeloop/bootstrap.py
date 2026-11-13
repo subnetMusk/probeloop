@@ -19,7 +19,7 @@ from probeloop.ai.debuglog import DebugLogChatModel
 from probeloop.ai.fake import FakeChatGptAccount, FakeChatModel
 from probeloop.ai.ollama import OllamaChatModel
 from probeloop.ai.ports import ChatModel, ChatRequest
-from probeloop.ai.profiles import ProfiledChatModel, using_profile
+from probeloop.ai.profiles import ProfiledChatModel, current_profile, using_profile
 from probeloop.ai.scheduled import ScheduledChatModel
 from probeloop.assessment.application.cv_review import CvReviewer
 from probeloop.assessment.application.delivery import DeliveryAnalyser
@@ -38,6 +38,11 @@ from probeloop.context.application.analysis import ContextAnalyser
 from probeloop.context.application.service import ANALYSE_JOB, ContextService
 from probeloop.context.application.snapshots import vocabulary_prompt
 from probeloop.context.infrastructure.fake_analysis import scripted_analysis
+from probeloop.context.infrastructure.jev_classifier import (
+    EVALUATED,
+    JevTextClassifier,
+)
+from probeloop.context.infrastructure.jev_classifier import MODEL as JEV_LINE_MODEL
 from probeloop.context.infrastructure.text_extraction import TextExtractor
 from probeloop.ids import new_id
 from probeloop.interview.application.limits import LlmStatedLimitReader
@@ -104,6 +109,7 @@ class Container:
     account: ChatGptAccount
     limits: OnnxStatedLimitReader
     jev: JevStatedLimitReader
+    classifier: JevTextClassifier
     tool_options: Callable[[], Awaitable[Mapping[str, tuple[ToolOption, ...]]]]
     installation: InstallationService
 
@@ -118,6 +124,7 @@ class Container:
         await self.jobs.stop()
         await self.limits.close()
         await self.jev.aclose()
+        await self.classifier.aclose()
         await self.data.close()
         await self.engine.dispose()
         self.extractor.close()
@@ -342,6 +349,8 @@ def build(
     if jev is None:
         # Machine configuration next to the ChatGPT account, outside portable backups.
         jev = JevStatedLimitReader(JevKeyFile(settings.data_dir / "typesafe"))
+    # The same key reads requirement lines when the plan of an analysis selects Jev.
+    classifier = JevTextClassifier(jev.key)
     available: tuple[Profile, ...] = ("local", "cloud")
     profiles = ExecutionProfiles(
         settings.data_dir / "execution-profile.json",
@@ -389,9 +398,15 @@ def build(
     jobs.register(REFINE_JOB, transcripts.refine)
     extractor = TextExtractor()
     context_store = SqlContextStore(db, settings.data_dir / "blobs")
+
+    def selected_classifier() -> JevTextClassifier | None:
+        return classifier if tool_for(current_profile(), "classification") == "jev" else None
+
     context = ContextService(
         store=context_store,
-        analyser=ContextAnalyser(analysis_model, cache=context_store),
+        analyser=ContextAnalyser(
+            analysis_model, cache=context_store, classifier=selected_classifier
+        ),
         extractor=extractor,
         submit=jobs.submit,
         now=clock.now,
@@ -401,7 +416,7 @@ def build(
     assessment_model = ScheduledChatModel(assessment_model, access.acquire)
     assessment = AssessmentService(
         store=SqlReportStore(db),
-        reviewer=CvReviewer(assessment_model, load_rubric("cv")),
+        reviewer=CvReviewer(assessment_model, load_rubric("cv"), classifier=selected_classifier),
         interviewer=InterviewReviewer(
             assessment_model, judge_reasoning=settings.evaluation_judge_reasoning
         ),
@@ -522,6 +537,7 @@ def build(
         account=account,
         limits=limits,
         jev=jev,
+        classifier=classifier,
         tool_options=build_tool_options(settings, local, cloud, account, limits, jev),
         installation=installation,
     )
@@ -574,6 +590,20 @@ def build_tool_options(
                 reason = "ready" if jev.key.configured else "key_missing"
                 choices += (ToolOption("jev", reason == "ready", jev.model_ref, reason),)
             result[role] = choices
+        # Requirement obligations follow the offer's cues and the analysis model, and CV headings
+        # and measured outcomes follow exact patterns, or Jev once its wordings for all three
+        # have been evaluated on the reference labels.
+        reason = (
+            "not_evaluated"
+            if not {"obligation", "heading", "quantified"} <= EVALUATED
+            else "ready"
+            if jev.key.configured
+            else "key_missing"
+        )
+        result["classification"] = (
+            ToolOption("rules", True, "rules+analysis", "ready"),
+            ToolOption("jev", reason == "ready", f"typesafe:{JEV_LINE_MODEL}", reason),
+        )
         return result
 
     return options

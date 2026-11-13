@@ -1,0 +1,44 @@
+Davide Marchetti (candidato sintetico)
+Tecnico IT junior
+Verona - tel. +39 000 000 0000 - davide.marchetti@example.test
+Patente B, automunito
+
+Sono una persona precisa e disponibile, abituata a spiegare le cose a utenti non tecnici.
+Cerco un ambiente in cui crescere nel supporto sistemistico.
+
+Percorso professionale:
+
+09/2024 - oggi | Tecnico helpdesk di primo livello
+InfoRete Servizi S.r.l. (azienda sintetica), Verona
+- Assistenza telefonica e da remoto a circa 200 utenti di tre aziende clienti.
+- Gestione degli utenti in Active Directory: nuovi account, gruppi, reset delle password.
+- Circa 30 richieste su Active Directory a settimana, chiuse quasi sempre in giornata.
+- Preparazione di nuove postazioni Windows 11 e configurazione di Outlook e Teams.
+- Apertura e aggiornamento dei ticket in GLPI, con passaggio al secondo livello.
+
+06/2023 - 08/2024 | Addetto vendite reparto informatica
+Elettrocasa Bertoni S.r.l. (azienda sintetica), San Giovanni Lupatoto (VR)
+- Consigli ai clienti su PC, stampanti e reti domestiche.
+- Installazione di software e piccole riparazioni al banco assistenza.
+
+2022 | Stage PCTO di 160 ore
+Studio Associato Lanza (azienda sintetica), Verona
+- Inventario dell'hardware e cablaggio di un ufficio di 15 postazioni.
+
+Cosa so fare:
+- Windows 10 e 11, Microsoft 365, Active Directory, stampanti di rete
+- Reti: indirizzamento IP, DHCP, DNS, cablaggio strutturato
+- Linux di base (Ubuntu)
+- Ticketing: GLPI
+- Sono una persona precisa e disponibile, abituata a spiegare le cose a utenti non tecnici.
+
+Lingue:
+Italiano madrelingua. Inglese A2: leggo la documentazione tecnica con l'aiuto di un traduttore.
+
+Studi:
+2022 - Diploma di Istituto Tecnico, indirizzo Informatica e Telecomunicazioni (78/100)
+Istituto Tecnico Statale di Esempio, Verona
+2023 - Corso serale "Reti e sistemi" (60 ore), Centro di Formazione Esempio, Verona
+
+Altre informazioni:
+Disponibile a lavorare su turni e a spostarmi presso i clienti.

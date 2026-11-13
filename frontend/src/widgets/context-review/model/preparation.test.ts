@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { api } from '@/shared/api'
 import type { PreparationView, RoleProfileData } from '@/shared/api'
-import { approvalBlock, prepareAgain } from './preparation'
+import { approvalBlock, approvePreparation, prepareAgain } from './preparation'
 
 const role: RoleProfileData = {
   profession: 'Software',
@@ -41,15 +42,16 @@ function view(patch: Partial<PreparationView> = {}): PreparationView {
 }
 
 describe('approving a preparation', () => {
-  it('waits for the analysis, then for the confirmed role', () => {
+  it('waits for the analysis, then for a complete role, which approving confirms', () => {
     expect(approvalBlock(undefined, null)).toBe('analysing')
     expect(approvalBlock(view({ status: 'analysing' }), null)).toBe('analysing')
     expect(approvalBlock(view({ status: 'failed' }), null)).toBe('analysing')
-    expect(approvalBlock(view(), null)).toBe('role')
+    // An unconfirmed but complete role does not block: approving confirms it.
+    expect(approvalBlock(view(), null)).toBeNull()
     expect(approvalBlock(view({ role_profile: { ...role, confirmed: true } }), null)).toBeNull()
-    // Unconfirmed edits of the caller count, even over a confirmed role.
+    // The caller's unconfirmed edits count, even over a confirmed role.
     const confirmed = view({ role_profile: { ...role, confirmed: true } })
-    expect(approvalBlock(confirmed, { ...role, confirmed: false })).toBe('role')
+    expect(approvalBlock(confirmed, { ...role, seniority: ' ', confirmed: false })).toBe('role')
   })
 
   it('needs the area of a check without a job offer when there is no role', () => {
@@ -69,5 +71,48 @@ describe('approving a preparation', () => {
       profile_id: 'pr1',
       execution_profile: 'cloud',
     })
+  })
+})
+
+describe('approvePreparation', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('confirms the role as shown, then approves', async () => {
+    const edited = { ...role, seniority: 'senior' }
+    const setRole = vi
+      .spyOn(api, 'setRoleProfile')
+      .mockResolvedValue(view({ role_profile: { ...edited, confirmed: true } }))
+    const approve = vi.spyOn(api, 'approve').mockResolvedValue({ id: 's1' } as never)
+    const result = await approvePreparation(view(), edited)
+    expect(setRole).toHaveBeenCalledWith('p1', { ...edited, confirmed: true })
+    expect(approve).toHaveBeenCalledWith('p1')
+    expect(result).toEqual({ snapshotId: 's1', role: { ...edited, confirmed: true } })
+  })
+
+  it('reopens an approved preparation whose role was edited', async () => {
+    const reopen = vi.spyOn(api, 'reopen').mockResolvedValue(undefined as never)
+    vi.spyOn(api, 'setRoleProfile').mockResolvedValue(
+      view({ status: 'review', role_profile: { ...role, confirmed: true } }),
+    )
+    vi.spyOn(api, 'approve').mockResolvedValue({ id: 's2' } as never)
+    const approved = view({ status: 'approved', snapshot_id: 's1' })
+    const result = await approvePreparation(approved, { ...role, confirmed: false })
+    expect(reopen).toHaveBeenCalledWith('p1')
+    expect(result.snapshotId).toBe('s2')
+  })
+
+  it('keeps the snapshot of an approved preparation with a confirmed role', async () => {
+    const setRole = vi.spyOn(api, 'setRoleProfile')
+    const approve = vi.spyOn(api, 'approve')
+    const approved = view({
+      status: 'approved',
+      snapshot_id: 's1',
+      role_profile: { ...role, confirmed: true },
+    })
+    expect((await approvePreparation(approved, null)).snapshotId).toBe('s1')
+    expect(setRole).not.toHaveBeenCalled()
+    expect(approve).not.toHaveBeenCalled()
   })
 })

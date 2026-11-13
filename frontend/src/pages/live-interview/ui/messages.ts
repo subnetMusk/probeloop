@@ -29,8 +29,6 @@ export const callMessages = defineMessages({
       question: 'Next question',
     },
     ended: 'The interview has ended',
-    summary: (n: number, duration: string) =>
-      `${String(n)} ${n === 1 ? 'answer' : 'answers'} · ${duration} of conversation`,
     kept: 'The full transcript and the audio of the whole conversation are kept with the session. Review the answers, especially the flagged ones, before the report.',
     review: 'Review the transcript',
     newInterview: 'New interview',
@@ -84,8 +82,6 @@ export const callMessages = defineMessages({
       question: 'Prossima domanda',
     },
     ended: 'Il colloquio è terminato',
-    summary: (n: number, duration: string) =>
-      `${String(n)} ${n === 1 ? 'risposta' : 'risposte'} · ${duration} di conversazione`,
     kept: 'Il trascritto e l’audio completo sono salvati con la sessione. Rivedi le risposte, soprattutto quelle segnalate, prima del report.',
     review: 'Rivedi il trascritto',
     newInterview: 'Nuovo colloquio',

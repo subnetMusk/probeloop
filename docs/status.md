@@ -1,8 +1,8 @@
 # Current implementation and acceptance status
 
-Updated for the interview, interface and model-setup source checkpoint, 2026-11-12. This page
-describes current behaviour; dated research and handoffs retain the measurements available at their
-original checkpoints.
+Updated for the transcript review, preparation flow and Jev CV line checkpoint, 2026-11-13.
+This page describes current behaviour; dated research and handoffs retain the measurements
+available at their original checkpoints.
 
 The [alpha.2 installation validation](research/installation-validation-2026-11-11.md) records
 published-artifact checks, the empty-volume Windows run and the limits of ARM64 evidence.
@@ -25,12 +25,23 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
 - Local Parakeet recognition and Piper synthesis; optional Whisper second transcription.
 - Correctable transcripts with revision history, report exports, history and portable backups;
   restoring a backup is a [documented command](operations.md#restoring-a-backup).
+- One full-window transcript review that a completed call opens: chat bubbles with each turn's
+  audio, doubtful words that replay their audio, in-place correction and the answers to check.
+- Downloaded files named after their interview or CV check, its date and the start of its id.
 - Profiles and CV checks created without an interview; a CV check can be saved as a profile or
   deleted, and deleting either keeps what interviews and other reports still use.
+- Unfinished CV checks reachable from the CV checks page and its new-check notice, with their saved
+  preparation state; a CV check page shows its selected report version in full and can start an
+  interview on the approved context.
+- Approval that confirms the target role as shown; a start without documents sets its role with
+  the choice.
+- Structured offer requirements with reviewable obligations, alternatives, equivalents and
+  thresholds; optional Jev obligation classification, with disagreements shown for user review,
+  and Jev heading and measured-outcome readings in the CV check under the same choice.
 - Score trends with one line per profile, broken only by rubric version changes and marking other
   evaluator changes.
 - First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
-- Evidence-scoped reports with descriptive anchors shown on a 0–100 scale and unassessed criteria.
+- Evidence-scoped reports with descriptive anchors shown on a 0-100 scale and unassessed criteria.
 - Container-based tooling, import contracts, adapter contracts and scripted browser acceptance.
 - Versioned installer packaging for amd64/arm64 images and OS-native shell launchers.
 
@@ -57,6 +68,14 @@ transition. Lint, formatting, strict type checks, import contracts, documentatio
 production builds and API schema/type regeneration also passed. A backup, delete and restore
 round trip with the documented command reproduced the data summary of a local installation.
 
+The review, flow and Jev checkpoint on 2026-11-13 passed 747 backend tests (46 skipped, 23 live
+tests deselected), 120 frontend unit tests and 38 browser tests against a rebuilt runtime, with
+the two live tests skipped. Lint, formatting, strict type checks, import contracts, documentation
+checks and the production build also passed. The PostgreSQL contracts were not rerun because no
+persistence contract changed. On one real CV, a CV check with Jev found the experience, education
+and skills headings, where the exact patterns had missed the experience heading; one CV is not a
+measurement.
+
 ## Remaining quality gates
 
 - Interview behaviour and evaluator grounding across independent professions, seniority and
@@ -65,6 +84,9 @@ round trip with the documented command reproduced the data summary of a local in
   recordings, including specialist terms and realistic microphone conditions.
 - Independent stated-limit examples and real ASR transcripts. The Laya pilot used synthetic
   development data and label-derived thresholds; it is a provisional model, not a final release.
+- Full CV-check calibration against the frozen reference labels and independent real documents.
+  The Jev line-classifier measurements cover a small synthetic set; the heading and
+  quantified-outcome readings now used by the CV check have not been measured on real CVs.
 - Physical Mac latency, memory use and usability with Docker Desktop. Native ARM64 builds and
   dependency/model smoke tests establish narrower compatibility evidence, not a Mac benchmark.
 - Voice preference/listening acceptance and complete real voice interviews after each relevant
@@ -82,6 +104,11 @@ The provisional full checkpoint, int8 runtime export, tokenizer and model card a
 [submsk/probeloop-laya-stated-limits](https://huggingface.co/submsk/probeloop-laya-stated-limits).
 Installers pin the reviewed revision and hashes; a later fine-tuning needs its own validation and
 manifest update. Laya is not adopted for choosing interview moves.
+
+The [CV check assessment](research/cv-check-assessment-2026-11-12.md) separates the scripted
+pipeline baseline from later Jev line-classification measurements. The reference labels are
+frozen at version 2; classifier results do not establish matching, scoring or feedback quality
+for the full CV check.
 
 The active product work remains the adaptive interview/reporting milestone and its acceptance
 work. Guided installation is an explicitly approved usability addition, and so are standalone

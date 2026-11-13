@@ -1,0 +1,45 @@
+Ellie Brandon (synthetic candidate)
+Junior Frontend Developer
+Manchester, UK | ellie.brandon@example.test | +44 0000 000000 | https://example.test/ebrandon
+
+About me
+Career changer who completed a 16-week full-time web development bootcamp in 2024. I like
+building interfaces that work for everyone, including keyboard and screen reader users.
+I have no commercial experiance as a developer yet, so since the bootcamp I have been building
+real projects for local groups while looking for my first role.
+
+Projects
+
+Allotment Booking App (2024 - 2025) | React, TypeScript
+- Booking app for a community allotment association: 70 members reserve tools and plots online.
+- Built the whole frontend in React and TypeScript; a volunteer wrote the small Node.js API.
+- Reworked forms, focus order and colour contrast after testing with two screen reader users.
+- Raised the Lighthouse accessibility score from 72 to 96.
+
+Recipe Box (2024, bootcamp final project) | React
+- Team of three: I built the search, the filters and the recipe pages with React hooks.
+- Fetched data from a public recipes API, with loading and error states.
+- Presented the project to a panel of local employers on demo day.
+
+Portfolio site (2023)
+- Personal website in HTML, CSS and plain JavaScript, responsive from 320 px upwards.
+
+Training
+2024  Full-Stack Web Development Bootcamp, Codeyard Academy (synthetic company), Manchester
+      16 weeks full time: HTML, CSS, JavaScript, React, Node.js, Git, agile teamwork
+2023  Online course "Accessible Web Design Fundamentals" (20 hours)
+2019  A levels: English Literature, Art and Design, Biology
+
+Work history
+2021 - 2024  Shop Assistant, Halden & Price Home Store (synthetic company), Manchester
+- Served customers, handled returns and exchanges, and trained four new starters on the tills.
+- Planned the weekly window display with the visual merchandiser.
+
+Skills
+Frontend: HTML, CSS, JavaScript (ES6+), React, TypeScript, Vue
+Testing: Jest (basics)
+Tools: Git and GitHub, VS Code, Figma, Chrome DevTools, Lighthouse, axe
+Accessibility: semantic HTML, keyboard navigation, WCAG 2.1 AA checks
+
+Languages
+English (native), Spanish (A2)

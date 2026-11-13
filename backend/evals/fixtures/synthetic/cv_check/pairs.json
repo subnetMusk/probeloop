@@ -1,0 +1,200 @@
+{
+  "pairs": [
+    {
+      "id": "p01",
+      "cv": "c01-galli",
+      "offer": "o01-pagafacile",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p02",
+      "cv": "c01-galli",
+      "offer": "o02-rottesmart",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p03",
+      "cv": "c02-neri",
+      "offer": "o01-pagafacile",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p04",
+      "cv": "c02-neri",
+      "offer": "o02-rottesmart",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p05",
+      "cv": "c01-galli",
+      "offer": "o10-backend-go",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p06",
+      "cv": "c03-frontend-junior",
+      "offer": "o03-frontend-junior",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p07",
+      "cv": "c03-frontend-junior",
+      "offer": "o09-frontend-senior",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p08",
+      "cv": "c04-data-analyst",
+      "offer": "o04-data-analyst",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p09",
+      "cv": "c04-data-analyst",
+      "offer": "o12-data-junior",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p10",
+      "cv": "c09-accademico",
+      "offer": "o04-data-analyst",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p11",
+      "cv": "c09-accademico",
+      "offer": "o12-data-junior",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p12",
+      "cv": "c05-supporto-it",
+      "offer": "o05-it-support",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p13",
+      "cv": "c05-supporto-it",
+      "offer": "o11-support-lead",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p14",
+      "cv": "c06-logistica",
+      "offer": "o06-logistica",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p15",
+      "cv": "c06-logistica",
+      "offer": "o11-support-lead",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p16",
+      "cv": "c07-contabile",
+      "offer": "o07-contabile",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p17",
+      "cv": "c07-contabile",
+      "offer": "o04-data-analyst",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p18",
+      "cv": "c08-nurse",
+      "offer": "o08-nurse",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p19",
+      "cv": "c08-nurse",
+      "offer": "o03-frontend-junior",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p20",
+      "cv": "c10-career-changer",
+      "offer": "o11-support-lead",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p21",
+      "cv": "c10-career-changer",
+      "offer": "o05-it-support",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p22",
+      "cv": "c02-neri",
+      "offer": "o10-backend-go",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "p23",
+      "cv": "c04-data-analyst",
+      "offer": "o07-contabile",
+      "language": "en",
+      "variant_of": null
+    },
+    {
+      "id": "p24",
+      "cv": "c06-logistica",
+      "offer": "o05-it-support",
+      "language": "it",
+      "variant_of": null
+    },
+    {
+      "id": "v01",
+      "cv": "c01-galli--headings",
+      "offer": "o01-pagafacile",
+      "language": "it",
+      "variant_of": "p01"
+    },
+    {
+      "id": "v02",
+      "cv": "c01-galli--order",
+      "offer": "o02-rottesmart",
+      "language": "it",
+      "variant_of": "p02"
+    },
+    {
+      "id": "v03",
+      "cv": "c04-data-analyst--dates",
+      "offer": "o04-data-analyst",
+      "language": "en",
+      "variant_of": "p08"
+    },
+    {
+      "id": "v04",
+      "cv": "c07-contabile--name",
+      "offer": "o07-contabile",
+      "language": "it",
+      "variant_of": "p16"
+    }
+  ]
+}

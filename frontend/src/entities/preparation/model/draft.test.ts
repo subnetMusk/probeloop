@@ -70,17 +70,44 @@ describe('preparation draft', () => {
     expect(stepDone(draft, 'resource-profile')).toBe(true)
   })
 
-  it('a quick start skips documents but requires a confirmed role', () => {
+  it('a quick start skips documents and review but requires an approved, confirmed role', () => {
     const draft = initialDraft()
     draft.settings = { ...SETTINGS }
     draft.settingsDone = true
     draft.profile = { kind: 'quick' }
     expect(canOpen(draft, 'documents')).toBe(false)
-    expect(canOpen(draft, 'fact-review')).toBe(true)
+    expect(canOpen(draft, 'fact-review')).toBe(false)
     expect(canOpen(draft, 'final-check')).toBe(false)
-    expect(firstOpenStep(draft)).toBe('fact-review')
-    expect(nextStep(draft, 'resource-profile')).toBe('fact-review')
-    expect(previousStep(draft, 'final-check')).toBe('fact-review')
+    expect(firstOpenStep(draft)).toBe('resource-profile')
+    expect(nextStep(draft, 'resource-profile')).toBe('final-check')
+    expect(previousStep(draft, 'final-check')).toBe('resource-profile')
+    draft.snapshotId = 's1'
+    draft.roleProfile = {
+      profession: 'Economics',
+      target_role: 'Research economist',
+      seniority: 'Junior',
+      responsibilities: [],
+      competencies: [],
+      basis_fact_ids: [],
+      rationale: '',
+      confirmed: false,
+    }
+    expect(canOpen(draft, 'final-check')).toBe(false)
+    draft.roleProfile.confirmed = true
+    expect(canOpen(draft, 'final-check')).toBe(true)
+  })
+
+  it('a context approved by a CV check goes from the settings to the final check', () => {
+    const draft = initialDraft()
+    draft.settings = { ...SETTINGS }
+    draft.profile = { kind: 'approved', snapshotId: 's1', name: 'cv.pdf', profileId: null }
+    draft.snapshotId = 's1'
+    expect(canOpen(draft, 'final-check')).toBe(false)
+    draft.settingsDone = true
+    expect(nextStep(draft, 'interview-settings')).toBe('final-check')
+    expect(canOpen(draft, 'resource-profile')).toBe(false)
+    expect(canOpen(draft, 'final-check')).toBe(true)
+    expect(previousStep(draft, 'final-check')).toBe('interview-settings')
   })
 
   it('keeps the preparation until its inputs change', () => {

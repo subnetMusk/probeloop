@@ -25,6 +25,24 @@
         "title": "AddFactIn",
         "type": "object"
       },
+      "AlternativeView": {
+        "properties": {
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "open"
+        ],
+        "title": "AlternativeView",
+        "type": "object"
+      },
       "AreaIn": {
         "additionalProperties": false,
         "properties": {
@@ -671,7 +689,8 @@
                     "interviewer",
                     "analysis",
                     "evaluation",
-                    "limits"
+                    "limits",
+                    "classification"
                   ]
                 },
                 "type": "object"
@@ -850,6 +869,16 @@
               }
             ],
             "title": "Quote"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementDetailView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "review": {
             "title": "Review",
@@ -1434,6 +1463,54 @@
         ],
         "title": "MovePurpose",
         "type": "string"
+      },
+      "ObligationIn": {
+        "additionalProperties": false,
+        "properties": {
+          "obligation": {
+            "enum": [
+              "must",
+              "preferred",
+              "unclear"
+            ],
+            "title": "Obligation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "obligation"
+        ],
+        "title": "ObligationIn",
+        "type": "object"
+      },
+      "ObligationReadingView": {
+        "properties": {
+          "obligation": {
+            "enum": [
+              "must",
+              "preferred",
+              "unclear"
+            ],
+            "title": "Obligation",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "user",
+              "cue",
+              "jev",
+              "model"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "obligation"
+        ],
+        "title": "ObligationReadingView",
+        "type": "object"
       },
       "ObservationData": {
         "additionalProperties": false,
@@ -2514,6 +2591,99 @@
         "title": "ReportKind",
         "type": "string"
       },
+      "RequirementDetailView": {
+        "description": "How binding a job requirement is, who read it so, and what satisfies it.",
+        "properties": {
+          "any_of": {
+            "items": {
+              "$ref": "#/components/schemas/AlternativeView"
+            },
+            "title": "Any Of",
+            "type": "array"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "disputed": {
+            "title": "Disputed",
+            "type": "boolean"
+          },
+          "equivalents": {
+            "items": {
+              "$ref": "#/components/schemas/RouteView"
+            },
+            "title": "Equivalents",
+            "type": "array"
+          },
+          "implicit": {
+            "title": "Implicit",
+            "type": "boolean"
+          },
+          "obligation": {
+            "enum": [
+              "must",
+              "preferred",
+              "unclear"
+            ],
+            "title": "Obligation",
+            "type": "string"
+          },
+          "readings": {
+            "items": {
+              "$ref": "#/components/schemas/ObligationReadingView"
+            },
+            "title": "Readings",
+            "type": "array"
+          },
+          "refines": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refines"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThresholdView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "obligation",
+          "cue",
+          "category",
+          "any_of",
+          "equivalents",
+          "threshold",
+          "refines",
+          "implicit",
+          "disputed",
+          "readings"
+        ],
+        "title": "RequirementDetailView",
+        "type": "object"
+      },
       "RequirementView": {
         "description": "A requirement of the position and how the approved candidate facts cover it.",
         "properties": {
@@ -2821,6 +2991,24 @@
           "confirmed"
         ],
         "title": "RoleProfileData",
+        "type": "object"
+      },
+      "RouteView": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "RouteView",
         "type": "object"
       },
       "ScoreData": {
@@ -3325,12 +3513,36 @@
         "title": "TargetRoleView",
         "type": "object"
       },
+      "ThresholdView": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "minimum": {
+            "title": "Minimum",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "minimum",
+          "subject"
+        ],
+        "title": "ThresholdView",
+        "type": "object"
+      },
       "Tool": {
         "enum": [
           "local",
           "cloud",
           "laya",
-          "jev"
+          "jev",
+          "rules"
         ],
         "type": "string"
       },
@@ -3368,7 +3580,8 @@
               "interviewer",
               "analysis",
               "evaluation",
-              "limits"
+              "limits",
+              "classification"
             ],
             "title": "Id",
             "type": "string"
@@ -4902,6 +5115,65 @@
           }
         },
         "summary": "Review Fact"
+      }
+    },
+    "/api/preparations/{preparation_id}/facts/{fact_id}/obligation": {
+      "put": {
+        "description": "The user's reading of how binding a job requirement is; it overrides every other.",
+        "operationId": "set_obligation_api_preparations__preparation_id__facts__fact_id__obligation_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fact_id",
+            "required": true,
+            "schema": {
+              "title": "Fact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObligationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Obligation"
       }
     },
     "/api/preparations/{preparation_id}/reopen": {

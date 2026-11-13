@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { forgetCvCheckPreparation, rememberCvCheckPreparation } from '@/entities/cv-check'
 import { rememberReportJob } from '@/entities/report-job'
 import {
   ContextReview,
   approvalBlock,
+  approvePreparation,
   prepareAgain,
   useApprovalHint,
   usePreparation,
@@ -33,10 +36,7 @@ export function CvCheckReviewPage() {
   const check = useMutation({
     mutationFn: async () => {
       if (!view) throw new Error('preparation unavailable')
-      const snapshotId =
-        view.status === 'approved' && view.snapshot_id
-          ? view.snapshot_id
-          : (await api.approve(view.id)).id
+      const { snapshotId } = await approvePreparation(view, role)
       const job = await api.reviewCv(
         snapshotId,
         language,
@@ -57,6 +57,8 @@ export function CvCheckReviewPage() {
       return api.prepare(prepareAgain(view))
     },
     onSuccess: (again) => {
+      if (view) forgetCvCheckPreparation(view.id)
+      rememberCvCheckPreparation(again.id)
       setRole(null)
       void navigate({
         to: '/cv-checks/new/$preparationId',
@@ -90,7 +92,13 @@ export function CvCheckReviewPage() {
         </Alert>
       )}
       <div className="sticky bottom-0 z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-6 py-4 backdrop-blur">
-        <p className="text-sm text-muted-foreground" aria-live="polite">
+        <Button asChild variant="outline">
+          <Link to="/cv-checks/new" search={{ from: preparationId }}>
+            <ArrowLeftIcon data-icon="inline-start" />
+            {t.review.back}
+          </Link>
+        </Button>
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground" aria-live="polite">
           {hint}
         </p>
         <Button

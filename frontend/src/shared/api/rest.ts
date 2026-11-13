@@ -14,6 +14,8 @@ export type ProfileView = components['schemas']['ProfileView']
 export type PreparationView = components['schemas']['PreparationView']
 export type RoleProfileData = components['schemas']['RoleProfileData']
 export type FactView = components['schemas']['FactView']
+export type RequirementDetailView = components['schemas']['RequirementDetailView']
+export type Obligation = RequirementDetailView['obligation']
 export type SnapshotView = components['schemas']['SnapshotView']
 export type PrepareIn = components['schemas']['PrepareIn']
 export type ResourceIn = components['schemas']['ResourceIn']
@@ -177,6 +179,11 @@ export const api = {
     request<PreparationView>(
       `${preparationPath(id)}/facts/${encodeURIComponent(factId)}`,
       json('PUT', body),
+    ),
+  setObligation: (id: string, factId: string, obligation: Obligation) =>
+    request<PreparationView>(
+      `${preparationPath(id)}/facts/${encodeURIComponent(factId)}/obligation`,
+      json('PUT', { obligation }),
     ),
   addFact: (id: string, body: AddFactIn) =>
     request<PreparationView>(`${preparationPath(id)}/facts`, json('POST', body)),

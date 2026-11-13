@@ -11,7 +11,12 @@ from typing import Any
 
 from probeloop.ai.ports import UserActionRequiredError
 from probeloop.context.application.analysis import ContextAnalyser
-from probeloop.context.application.ports import ContextStore, ExtractedText, TextExtraction
+from probeloop.context.application.ports import (
+    ContextStore,
+    ExtractedText,
+    TextClassifierUnavailable,
+    TextExtraction,
+)
 from probeloop.context.application.snapshots import snapshot_of
 from probeloop.context.domain.model import (
     ContextError,
@@ -23,6 +28,7 @@ from probeloop.context.domain.model import (
     FactKind,
     FactOrigin,
     JobMode,
+    Obligation,
     Preparation,
     PreparationStatus,
     Profile,
@@ -296,19 +302,13 @@ class ContextService:
                 "context analysis failed",
                 extra={"preparation_id": preparation.id, "error_type": type(exc).__name__},
             )
-            # A provider refusal the user can resolve (sign-in, usage limit) is shown as is.
-            reason = (
-                str(exc)
-                if isinstance(exc, UserActionRequiredError)
-                else "the documents could not be analysed; try again"
-            )
+            # A refusal the user can resolve (sign-in, usage limit, the selected classifier's key
+            # or connection) is shown as is; the analysis never switches tools on its own.
+            actionable = isinstance(exc, UserActionRequiredError | TextClassifierUnavailable)
+            reason = str(exc) if actionable else "the documents could not be analysed; try again"
             preparation.failed(reason)
             await self._store.save_preparation(preparation)
-            raise JobError(
-                reason
-                if isinstance(exc, UserActionRequiredError)
-                else "the documents could not be analysed"
-            ) from exc
+            raise JobError(reason if actionable else "the documents could not be analysed") from exc
         preparation.analysed(result.facts, result.matches, result.area, result.vocabulary)
         preparation.role_profile = role_profile
         await self._store.save_preparation(preparation)
@@ -323,6 +323,14 @@ class ContextService:
     ) -> Preparation:
         preparation = await self.preparation(preparation_id)
         preparation.review_fact(fact_id, review, corrected)
+        await self._store.save_preparation(preparation)
+        return preparation
+
+    async def set_obligation(
+        self, preparation_id: str, fact_id: str, obligation: Obligation
+    ) -> Preparation:
+        preparation = await self.preparation(preparation_id)
+        preparation.set_obligation(fact_id, obligation)
         await self._store.save_preparation(preparation)
         return preparation
 

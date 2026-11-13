@@ -80,13 +80,7 @@ export function ContextReview({
         </Alert>
       )}
       {view && reviewable && (
-        <RoleProfileEditor
-          preparation={view}
-          role={role}
-          onEdit={onRoleEdit}
-          onChange={store}
-          onReopened={onReopened}
-        />
+        <RoleProfileEditor preparation={view} role={role} onEdit={onRoleEdit} />
       )}
       {view && reviewable && view.documents.length > 0 && (
         <FactReview

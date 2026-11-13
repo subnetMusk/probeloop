@@ -17,6 +17,7 @@ import { Textarea } from '@/shared/ui/textarea'
 import { summarise } from '../model/summary'
 import type { RequirementRow } from '../model/summary'
 import { reviewMessages } from './messages'
+import { RequirementDetail } from './requirement-detail'
 
 type Messages = (typeof reviewMessages)['en']
 type Review = 'confirmed' | 'excluded' | 'corrected' | 'pending'
@@ -67,6 +68,15 @@ function FactItem({
         <p className="text-xs text-muted-foreground">
           {kindLabel(t, fact.kind)} · {originLabel(t, fact.origin)}
         </p>
+        {fact.requirement && (
+          <RequirementDetail
+            id={fact.id}
+            detail={fact.requirement}
+            onObligation={(obligation) => {
+              act(() => api.setObligation(preparationId, fact.id, obligation))
+            }}
+          />
+        )}
         {detailed && fact.quote && (
           <blockquote className="rounded-lg bg-muted/70 px-3 py-2 text-sm text-muted-foreground">
             <span className="sr-only">{t.fact.quote}: </span>“{fact.quote}”
@@ -355,37 +365,41 @@ export function FactReview({
         {preparation.job_mode === 'none' && !preparation.role_profile && (
           <Area preparation={preparation} act={act} />
         )}
-        <Card>
-          <CardHeader>
-            <CardTitle role="heading" aria-level={2} className="flex items-center gap-3">
-              {t.doubtful.title}
-              {summary.doubtful.length > 0 && (
-                <Badge variant={summary.open ? 'secondary' : 'outline'}>
-                  {t.doubtful.open(summary.open)}
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              {summary.doubtful.length ? t.doubtful.hint : t.doubtful.none}
-            </CardDescription>
-          </CardHeader>
-          {summary.doubtful.length > 0 && (
-            <CardContent>
-              <ul data-testid="doubtful-facts">
-                {summary.doubtful.map((fact) => (
-                  <FactItem
-                    key={fact.id}
-                    fact={fact}
-                    preparationId={preparation.id}
-                    act={act}
-                    detailed
-                  />
-                ))}
-              </ul>
-            </CardContent>
-          )}
-        </Card>
-        {preparation.job_mode !== 'none' && <Requirements rows={summary.requirements} />}
+        {/* Wide windows put the facts to check beside the requirements they may affect, at the
+            same height. */}
+        <div className={cn('grid gap-6', preparation.job_mode !== 'none' && 'lg:grid-cols-2')}>
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={2} className="flex items-center gap-3">
+                {t.doubtful.title}
+                {summary.doubtful.length > 0 && (
+                  <Badge variant={summary.open ? 'secondary' : 'outline'}>
+                    {t.doubtful.open(summary.open)}
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {summary.doubtful.length ? t.doubtful.hint : t.doubtful.none}
+              </CardDescription>
+            </CardHeader>
+            {summary.doubtful.length > 0 && (
+              <CardContent>
+                <ul data-testid="doubtful-facts">
+                  {summary.doubtful.map((fact) => (
+                    <FactItem
+                      key={fact.id}
+                      fact={fact}
+                      preparationId={preparation.id}
+                      act={act}
+                      detailed
+                    />
+                  ))}
+                </ul>
+              </CardContent>
+            )}
+          </Card>
+          {preparation.job_mode !== 'none' && <Requirements rows={summary.requirements} />}
+        </div>
         <Disclosure title={t.all.title(preparation.facts.length)}>
           {(['candidate', 'job'] as const).map((subject) => {
             const facts = preparation.facts.filter((f) => f.subject === subject)

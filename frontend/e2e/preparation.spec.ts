@@ -93,9 +93,12 @@ test('back and forward keep what was entered until the interview starts', async 
 
   await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
   await expect(page.getByTestId('context-review')).toBeVisible({ timeout: 30_000 })
+  // An incomplete role blocks the approval; a complete one is confirmed by approving it.
+  const level = page.getByRole('textbox', { name: 'Target level or training grade', exact: true })
+  await level.fill('')
   await expect(continueButton(page)).toBeDisabled()
   await expect(
-    page.getByText('Confirm the target profession, role and level to continue.'),
+    page.getByText('Complete the target profession, role and level to continue.'),
   ).toBeVisible()
   const doubtful = page.getByTestId('doubtful-facts').getByTestId('context-fact').first()
   await expect(doubtful).toContainText('Unverified model interpretation.')
@@ -112,11 +115,8 @@ test('back and forward keep what was entered until the interview starts', async 
   await expect(
     page.getByRole('textbox', { name: 'Target level or training grade', exact: true }),
   ).toHaveValue('Junior under supervision')
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
-  await expect(
-    page.getByTestId('role-profile').getByText('Confirmed', { exact: true }),
-  ).toBeVisible()
   await noSeriousViolations(page)
+  // Approving confirms the role as shown.
   await continueButton(page).click()
 
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
@@ -176,11 +176,11 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
   ).toContainText('Added by you')
   await page.reload()
   await expect(page.getByTestId('context-review')).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
   await continueButton(page).click()
 
+  await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   const check = page.getByTestId('cv-check')
-  await expect(check.getByTestId('requirements')).toBeVisible()
+  await expect(check).toBeVisible()
   // The same documents give the same approved context, so earlier runs may have left versions.
   const snapshotId = await page.evaluate(() => {
     const stored = JSON.parse(sessionStorage.getItem('probeloop.prepare-draft') ?? '{}') as {
@@ -196,9 +196,15 @@ test('an uploaded CV and a drafted job offer reach the CV check', async ({ page,
     await run.click()
     await expect(score).toContainText(`version ${String(version)}`, { timeout: 30_000 })
   }
-  await check.getByRole('link', { name: 'Open the full CV report' }).click()
-  await expect(page).toHaveURL(/\/cv-checks\/\w+\/reports\/\w+$/)
-  await expect(page.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
+  // The full report opens in a new tab, so the preparation stays where it is.
+  const [report] = await Promise.all([
+    page.waitForEvent('popup'),
+    check.getByRole('link', { name: /^Open the full CV report/ }).click(),
+  ])
+  await expect(report).toHaveURL(/\/cv-checks\/\w+\/reports\/\w+$/)
+  await expect(report.getByText('Synthetic assessment.', { exact: true }).first()).toBeVisible()
+  await report.close()
+  await expect(page).toHaveURL(/\/new-interview\/final-check$/)
 })
 
 test('a quick start requires an explicit role and level without demo facts', async ({
@@ -211,15 +217,13 @@ test('a quick start requires an explicit role and level without demo facts', asy
   await expect(page.getByRole('radio', { name: 'Italian', exact: true })).toBeChecked()
   await continueButton(page).click()
   await page.getByRole('radio', { name: 'No documents', exact: true }).click()
-  await continueButton(page).click()
-  await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
+  // The role is written under the choice; continuing approves it and skips the review.
   await expect(continueButton(page)).toBeDisabled()
   await page.getByRole('textbox', { name: 'Profession or field', exact: true }).fill('Economics')
   await page.getByRole('textbox', { name: 'Target role', exact: true }).fill('Research economist')
   await page
     .getByRole('textbox', { name: 'Target level or training grade', exact: true })
     .fill('Junior under supervision')
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
   await continueButton(page).click()
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   const snapshotId = await page.evaluate(
@@ -242,8 +246,12 @@ test('a quick start requires an explicit role and level without demo facts', asy
   await page.getByTestId('enable-microphone').click()
   await expect(page.getByText('Say something')).toBeVisible()
   await expect(continueButton(page)).toBeEnabled()
+  // Back returns to the choice, where the role was written and stays.
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await expect(page).toHaveURL(/\/new-interview\/fact-review$/)
+  await expect(page).toHaveURL(/\/new-interview\/resource-profile$/)
+  await expect(page.getByRole('textbox', { name: 'Target role', exact: true })).toHaveValue(
+    'Research economist',
+  )
 })
 
 test('a changed profile can be overwritten, copied or used once', async ({ page, request }) => {

@@ -93,7 +93,8 @@ export function DocumentField({
       )}
       <Textarea
         id={`${id}-text`}
-        className="min-h-40"
+        // Long documents scroll inside the field, so the cards beside it keep a usable height.
+        className="max-h-[32rem] min-h-40 overflow-y-auto"
         required={required}
         maxLength={MAX_TEXT}
         value={slot.text}

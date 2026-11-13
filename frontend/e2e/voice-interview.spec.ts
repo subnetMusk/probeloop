@@ -41,10 +41,7 @@ test('a voice interview from the preparation to the end of the call', async ({ p
     'true',
   )
   await page.getByRole('textbox', { name: 'Profession or field', exact: true }).fill('Backend APIs')
-  await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
-  await expect(
-    page.getByTestId('role-profile').getByText('Confirmed', { exact: true }),
-  ).toBeVisible()
+  // Approving confirms the role as shown.
   await next.click()
   await expect(page).toHaveURL(/\/new-interview\/final-check$/)
   await page.getByTestId('enable-microphone').click()
@@ -73,12 +70,13 @@ test('a voice interview from the preparation to the end of the call', async ({ p
   await expect(transcript).toContainText('domanda di prova numero 2')
 
   await page.getByTestId('end-call').click()
-  // Ending persists the transcript and mixes the complete recording before publishing completion.
+  // Ending persists the transcript and mixes the complete recording before publishing completion;
+  // the call then opens the transcript review, which summarises it.
   await expect(page.getByText('The interview has ended')).toBeVisible({ timeout: 30_000 })
+  await expect(page).toHaveURL(/\/interviews\/[0-9a-f]+\?ended=true$/)
   await expect(page.getByTestId('ended-summary')).toContainText('1 answer')
 
   // After the call the answers are transcribed again; the transcript can then be corrected.
-  await page.getByTestId('review-transcript').click()
   await expect(page.getByTestId('refine-done')).toContainText('1 answer', { timeout: 30_000 })
   const answerText = page.getByTestId('answer-text')
   await expect(answerText).toContainText('Segmento di prova')

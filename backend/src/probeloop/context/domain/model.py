@@ -128,6 +128,7 @@ class Fact:
     quote: str | None = None
     review: Review = Review.PENDING
     corrected: str | None = None  # the user's wording, when the review corrected the statement
+    requirement: RequirementDetail | None = None  # only for the requirements of a job offer
 
     @property
     def text(self) -> str:
@@ -149,6 +150,112 @@ class MatchStatus(StrEnum):
     MET = "met"
     PARTIAL = "partial"
     NOT_SHOWN = "not_shown"
+
+
+class Obligation(StrEnum):
+    """How binding a requirement of a job offer is, as its text or its section heading says."""
+
+    MUST = "must"
+    PREFERRED = "preferred"
+    UNCLEAR = "unclear"  # no cue decides it
+
+
+REQUIREMENT_CATEGORIES = frozenset(
+    {
+        "skill",
+        "knowledge",
+        "experience",
+        "education",
+        "credential",
+        "language",
+        "eligibility",
+        "interpersonal",
+        "other",
+    }
+)
+ROUTE_KINDS = frozenset({"education", "experience", "credential"})
+THRESHOLD_KINDS = frozenset({"years", "language_level", "degree"})
+# Who read a requirement's obligation, from the strongest to the weakest: the user in the review,
+# a cue in the offer (a heading or a phrase), the Jev classifier, the analysis model.
+OBLIGATION_SOURCES = ("user", "cue", "jev", "model")
+
+
+@dataclass(frozen=True, slots=True)
+class Alternative:
+    """One way to satisfy a requirement; an open one stands for "or another ..."."""
+
+    value: str
+    open: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Route:
+    """An equivalent route to a requirement, such as "or equivalent experience"."""
+
+    kind: str
+    value: str
+
+    def __post_init__(self) -> None:
+        if self.kind not in ROUTE_KINDS:
+            raise ContextError(f"unknown equivalent route: {self.kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class Threshold:
+    """A minimum the offer states: years of experience, a language level or a degree."""
+
+    kind: str
+    minimum: str
+    subject: str = ""
+
+    def __post_init__(self) -> None:
+        if self.kind not in THRESHOLD_KINDS:
+            raise ContextError(f"unknown threshold: {self.kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class RequirementDetail:
+    """The structure of a job requirement: how binding it is and what satisfies it.
+
+    `readings` keeps every source's reading of the obligation; `obligation` is the one that
+    decided it (`decide_obligation`).
+    """
+
+    obligation: Obligation
+    cue: str | None = None
+    category: str = "other"
+    any_of: tuple[Alternative, ...] = ()
+    equivalents: tuple[Route, ...] = ()
+    threshold: Threshold | None = None
+    refines: str | None = None  # the id of the requirement this one narrows
+    implicit: bool = False
+    readings: tuple[tuple[str, Obligation], ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.category not in REQUIREMENT_CATEGORIES:
+            raise ContextError(f"unknown requirement category: {self.category}")
+        if any(source not in OBLIGATION_SOURCES for source, _ in self.readings):
+            raise ContextError("unknown obligation source")
+
+    @property
+    def disputed(self) -> bool:
+        """The sources that decided something disagree and the user has not settled it."""
+        if any(source == "user" for source, _ in self.readings):
+            return False
+        return len({o for _, o in self.readings if o is not Obligation.UNCLEAR}) > 1
+
+
+def decide_obligation(readings: tuple[tuple[str, Obligation], ...]) -> Obligation:
+    """The strongest source that decided wins; an unclear reading leaves it to the next one."""
+    for source in OBLIGATION_SOURCES:
+        for reader, obligation in readings:
+            if reader == source and obligation is not Obligation.UNCLEAR:
+                return obligation
+    return Obligation.UNCLEAR
+
+
+def requirement_kind(obligation: Obligation) -> FactKind:
+    return FactKind.NICE_TO_HAVE if obligation is Obligation.PREFERRED else FactKind.REQUIREMENT
 
 
 @dataclass(frozen=True, slots=True)
@@ -326,6 +433,18 @@ class Preparation:
             FactKind.NICE_TO_HAVE,
         ):
             self.matches.append(RequirementMatch(fact.id, MatchStatus.NOT_SHOWN))
+
+    def set_obligation(self, fact_id: str, obligation: Obligation) -> Fact:
+        """The user's reading of how binding a requirement is; it overrides every other source."""
+        self._require_review()
+        fact = self.fact(fact_id)
+        if fact.requirement is None:
+            raise ContextError("only a requirement of the job offer has an obligation")
+        readings = (*(r for r in fact.requirement.readings if r[0] != "user"), ("user", obligation))
+        detail = replace(fact.requirement, obligation=obligation, readings=readings)
+        updated = replace(fact, requirement=detail, kind=requirement_kind(obligation))
+        self.facts = [updated if f.id == fact_id else f for f in self.facts]
+        return updated
 
     def set_area(self, area: str, seniority: str) -> None:
         self._require_review()

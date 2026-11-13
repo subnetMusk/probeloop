@@ -24,9 +24,9 @@ export const newCvCheckMessages = defineMessages({
     },
     review: {
       title: 'Review the analysis',
-      description:
-        'Confirm the target role and check the facts the analysis found, then check the CV.',
+      description: 'Check the target role and the facts the analysis found, then check the CV.',
       approve: 'Approve and check the CV',
+      back: 'Back to the documents',
       approving: 'Starting the check…',
       noCv: 'There is no CV among these documents, so there is nothing to check.',
     },
@@ -54,9 +54,9 @@ export const newCvCheckMessages = defineMessages({
     },
     review: {
       title: 'Revisione dell’analisi',
-      description:
-        'Conferma il ruolo target e controlla i fatti trovati dall’analisi, poi controlla il CV.',
+      description: 'Verifica il ruolo target e i fatti trovati dall’analisi, poi controlla il CV.',
       approve: 'Approva e controlla il CV',
+      back: 'Torna ai documenti',
       approving: 'Avvio del controllo…',
       noCv: 'Tra questi documenti non c’è un CV, quindi non c’è nulla da controllare.',
     },

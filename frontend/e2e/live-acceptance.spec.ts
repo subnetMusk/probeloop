@@ -59,7 +59,6 @@ for (const profile of ['local', 'cloud'] as const) {
         'true',
       )
     }
-    await page.getByRole('button', { name: 'Confirm role and level', exact: true }).click()
     await next.click()
     await expect(page).toHaveURL(/\/final-check$/)
     const draft = await page.evaluate(
@@ -79,17 +78,20 @@ for (const profile of ['local', 'cloud'] as const) {
       `version ${String(previous.length + 1)}`,
       { timeout: 900_000 },
     )
-    await check.getByRole('link', { name: 'Open the full CV report' }).click()
-    await expect(page.getByTitle('Original CV')).toBeVisible()
-    await page.screenshot({ path: `test-results/live-${profile}-cv-report.png` })
-    const cvReportId = page.url().split('/').at(-1) ?? ''
+    const [cvTab] = await Promise.all([
+      page.waitForEvent('popup'),
+      check.getByRole('link', { name: /^Open the full CV report/ }).click(),
+    ])
+    await expect(cvTab.getByTitle('Original CV')).toBeVisible()
+    await cvTab.screenshot({ path: `test-results/live-${profile}-cv-report.png` })
+    const cvReportId = cvTab.url().split('/').at(-1) ?? ''
+    await cvTab.close()
     const cvReport = (await (await request.get(`/api/reports/${cvReportId}`)).json()) as {
       model_ref: string
       language: string
     }
     expect(cvReport.model_ref).toContain(profile === 'local' ? 'ollama:' : 'chatgpt:')
     expect(cvReport.language).toBe('it')
-    await page.goBack()
     await page.getByTestId('enable-microphone').click()
     await expect(page.getByText('Say something')).toBeVisible()
     await next.click()
@@ -99,8 +101,8 @@ for (const profile of ['local', 'cloud'] as const) {
     await page.getByTestId('end-answer').click()
     await expect(page.getByTestId('answer')).toBeEnabled({ timeout: 600_000 })
     await page.getByTestId('end-call').click()
+    // A completed call opens the transcript review, which summarises it.
     await expect(page.getByText('The interview has ended')).toBeVisible({ timeout: 60_000 })
-    await page.getByTestId('review-transcript').click()
     await expect(page.getByTestId('refine-done')).toBeVisible({ timeout: 600_000 })
     await expect(page.getByTestId('answer-text')).not.toContainText('Segmento di prova')
     await page.screenshot({ path: `test-results/live-${profile}-transcript.png` })

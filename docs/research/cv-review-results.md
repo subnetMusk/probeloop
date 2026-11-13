@@ -29,7 +29,10 @@ The final run did not repeat the claim. Exact-quote checks establish presence in
 not the truth of a CV statement or the semantic correctness of a judgement.
 
 These runs establish integration and known failure handling. They do not establish ranking
-validity, multilingual parity or the interview evaluator's separate calibration thresholds.
+validity, multilingual parity or the interview evaluator's separate calibration thresholds. The
+[CV check assessment of 2026-11-12](cv-check-assessment-2026-11-12.md) compares the baseline at
+`81c13e1` with the owner's review points and published practice, then records the Jev classifier
+measurements and the subsequent integration scope.
 
 ## Complete criterion output (2026-11-09)
 

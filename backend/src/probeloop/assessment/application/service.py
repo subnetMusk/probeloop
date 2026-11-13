@@ -33,6 +33,7 @@ from probeloop.assessment.domain.model import (
     overall_score,
 )
 from probeloop.assessment.domain.progress import ProgressGroup, latest_reports, progress_groups
+from probeloop.context.application.ports import TextClassifierUnavailable
 from probeloop.context.domain.model import ContextSnapshot, DocumentKind, RoleProfile
 from probeloop.interview.application.ports import SessionStore
 from probeloop.interview.domain.model import CandidateTurn, InterviewerTurn
@@ -229,7 +230,9 @@ class AssessmentService:
             scores, observations, checks, dropped = await self.reviewer.review(
                 snapshot, language, progress
             )
-        except UserActionRequiredError as exc:
+        except (UserActionRequiredError, TextClassifierUnavailable) as exc:
+            # A refusal the user can resolve (sign-in, usage limit, the selected classifier's key
+            # or connection) is shown as is; the check never switches tools on its own.
             raise JobError(str(exc)) from None
         except Exception as exc:
             # Provider/schema exceptions may carry excerpts: never log their contents or causes.

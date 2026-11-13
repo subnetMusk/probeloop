@@ -1,0 +1,30 @@
+Senior Backend Engineer (Go/Java) - Payments Platform
+Fintrail Systems S.r.l. (synthetic company) - Milan, hybrid or remote within Italy
+
+Fintrail Systems processes card and instant payments for about 2,000 online merchants in
+Southern Europe. The platform team owns the services that authorise, settle and reconcile
+transactions, with peaks of 1,500 requests per second during sales seasons.
+
+What you will work on
+- Designing and evolving the authorisation and settlement services.
+- Improving reliability: SLOs, alerting, incident reviews and capacity planning.
+- Mentoring mid-level engineers and reviewing designs across teams.
+- Working with compliance on audit trails and data retention.
+
+Must have
+- 5+ years of backend development.
+- Go or Java in production.
+- Experience running services on Kubernetes in production.
+- Solid knowledge of PostgreSQL or MySQL.
+- Good spoken and written English: the engineering team works in English.
+
+Nice to have
+- Experience with Kafka.
+- On-call experience for production systems.
+- A background in payments or banking.
+
+What we offer
+A gross annual salary of EUR 60,000 - 75,000, stock options, EUR 2,000 a year for training and
+conferences, and a paid on-call rotation shared by eight engineers.
+
+Apply at https://example.test/jobs/senior-backend or write to careers@example.test.

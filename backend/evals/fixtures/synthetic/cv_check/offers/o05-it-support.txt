@@ -1,0 +1,33 @@
+Tecnico di supporto IT junior - Service Desk
+Servizi Informatici Scaligeri S.r.l. (azienda sintetica) - Verona
+
+Chi siamo
+Gestiamo l'assistenza informatica di circa 60 aziende clienti del Veneto, dalle postazioni di
+lavoro alle reti d'ufficio. Il nostro service desk conta dieci tecnici e lavora su due turni dal
+lunedì al sabato.
+
+Di cosa ti occuperai
+- Prenderai in carico le richieste di assistenza arrivate per telefono, email e portale.
+- Risolverai i problemi di primo livello su PC Windows, stampanti e posta elettronica.
+- Preparerai e installerai nuove postazioni, anche presso le sedi dei clienti.
+- Documenterai gli interventi nel sistema di ticketing e passerai al secondo livello i casi
+  complessi.
+
+Requisiti
+- Diploma tecnico o esperienza equivalente nel supporto informatico.
+- Conoscenza di base di Windows 10/11 e di Microsoft 365.
+- Patente B, per raggiungere i clienti con l'auto aziendale.
+- Inglese B1, per leggere documentazione tecnica e aprire segnalazioni ai fornitori.
+- Disponibilità a turni (6:30-14:30 e 13:30-21:30), con un sabato al mese.
+- Pazienza e chiarezza nel parlare con utenti non tecnici.
+
+Costituisce titolo preferenziale
+- Certificazione CompTIA A+.
+- Esperienza con Active Directory (creazione utenti, gruppi, reset delle password).
+- Conoscenze di reti: indirizzamento IP, DHCP, DNS.
+
+Offriamo
+Contratto a tempo determinato di 12 mesi finalizzato all'assunzione, CCNL Commercio IV livello,
+buoni pasto da 8 euro e quattro settimane di formazione interna con un tecnico senior.
+
+Candidature a lavoro@example.test con oggetto "Service Desk Verona".

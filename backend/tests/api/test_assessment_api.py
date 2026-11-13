@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -60,6 +61,11 @@ def test_cv_review_is_a_job_and_regeneration_preserves_versions(tmp_path: Path) 
             assert report["overall"] == 50
             assert report["assessed"] == 7
             assert report["checks"]
+        day = datetime.fromtimestamp(snapshot["created_at"], UTC).strftime("%Y%m%d")
+        exported = client.get(f"/api/reports/{report['id']}/export/json")
+        assert exported.headers["content-disposition"].startswith(
+            f'attachment; filename="probeloop-cv-check-{day}-{snapshot["id"][:8]}-report-v2.json"'
+        )
         assert len(client.get(f"/api/snapshots/{snapshot['id']}/cv-reviews").json()) == 2
         assert client.get("/api/reports/missing").status_code == 404
 
@@ -116,6 +122,9 @@ def test_interview_reports_keep_revisions_and_export_complete_versions(tmp_path:
             md = client.get(f"/api/reports/{report['id']}/export/md")
             assert md.status_code == 200
             assert "Technical details" in md.text
+            assert md.headers["content-disposition"].startswith(
+                f'attachment; filename="probeloop-interview-19700101-00000000-report-v{version}.md"'
+            )
             exported = client.get(f"/api/reports/{report['id']}/export/json").json()
             assert exported == report
             if original is None:

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { confirmRole, roleComplete } from '@/features/confirm-role'
 import { api } from '@/shared/api'
 import type { PrepareIn, PreparationView, RoleProfileData } from '@/shared/api'
 
@@ -19,8 +20,9 @@ export function usePreparation(id: string) {
 export type ApprovalBlock = 'analysing' | 'role' | null
 
 /**
- * The analysis has to finish, then the target role (or, without one, the area of a check
- * without a job offer) has to be confirmed. `role` holds unconfirmed edits, if any.
+ * The analysis has to finish, then the target role has to be complete (approving confirms it)
+ * or, without one, the area of a check without a job offer has to be confirmed. `role` holds
+ * unconfirmed edits, if any.
  */
 export function approvalBlock(
   view: PreparationView | undefined,
@@ -28,10 +30,28 @@ export function approvalBlock(
 ): ApprovalBlock {
   if (view?.status !== 'review' && view?.status !== 'approved') return 'analysing'
   const current = role ?? view.role_profile
-  const missing = view.role_profile
-    ? current?.confirmed !== true
+  const missing = current
+    ? !roleComplete(current)
     : view.job_mode === 'none' && view.area?.confirmed !== true
   return missing ? 'role' : null
+}
+
+/**
+ * Approve a reviewed preparation: the target role as shown is confirmed first when it is not
+ * yet, then the snapshot is built, or the existing one is kept when nothing changed. Returns the
+ * snapshot and the confirmed role.
+ */
+export async function approvePreparation(
+  view: PreparationView,
+  role: RoleProfileData | null,
+): Promise<{ snapshotId: string; role: RoleProfileData | null }> {
+  let current = view
+  const shown = role ?? view.role_profile
+  if (shown && !shown.confirmed) current = await confirmRole(view, shown)
+  const confirmed = current.role_profile ?? null
+  if (current.status === 'approved' && current.snapshot_id)
+    return { snapshotId: current.snapshot_id, role: confirmed }
+  return { snapshotId: (await api.approve(current.id)).id, role: confirmed }
 }
 
 /** The same documents and settings, to analyse them again after a failed analysis. */

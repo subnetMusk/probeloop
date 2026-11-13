@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from probeloop.context.domain.model import ContextSnapshot, Document, Preparation, Profile
+from probeloop.context.domain.model import (
+    ContextSnapshot,
+    Document,
+    Obligation,
+    Preparation,
+    Profile,
+)
 
 
 class ExtractionError(ValueError):
@@ -61,3 +68,54 @@ class ContextStore(Protocol):
     async def snapshot(self, snapshot_id: str) -> ContextSnapshot | None: ...
 
     async def snapshot_by_hash(self, content_hash: str) -> ContextSnapshot | None: ...
+
+
+class TextClassifierUnavailable(Exception):
+    """The classifier could not read the lines; the message is safe to show."""
+
+
+@dataclass(frozen=True, slots=True)
+class OfferLine:
+    """A line of a job offer and the heading of the section it belongs to."""
+
+    text: str
+    heading: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ObligationReading:
+    obligation: Obligation
+    must: float  # the probability that the line states a requirement
+    preferred: float  # the probability that it states a preference
+
+
+@dataclass(frozen=True, slots=True)
+class LineReading:
+    positive: bool
+    score: float
+
+
+@dataclass(frozen=True, slots=True)
+class Classified[T]:
+    """One reading per line, in order, and the model, wording and thresholds that produced them."""
+
+    readings: tuple[T, ...]
+    model_ref: str
+
+
+class TextClassifier(Protocol):
+    """Line-level labels that a fast classifier can give beside the analysis model.
+
+    Its readings are inputs that the analysis checks against its rules and its own model. It
+    never decides coverage, fit, scores or feedback.
+    """
+
+    async def obligations(self, lines: Sequence[OfferLine]) -> Classified[ObligationReading]: ...
+
+    async def quantified(self, lines: Sequence[str]) -> Classified[LineReading]:
+        """Whether each CV line states a measured outcome or scope of the candidate's work."""
+        ...
+
+    async def headings(self, lines: Sequence[str]) -> Classified[LineReading]:
+        """Whether each CV line is a section heading, in any wording, case or spacing."""
+        ...

@@ -20,7 +20,9 @@ from probeloop.context.domain.model import (
     FactOrigin,
     JobMode,
     MatchStatus,
+    Obligation,
     Subject,
+    Threshold,
 )
 from tests.context.conftest import CV_TEXT, cv, offer, scripted_analysis
 from tests.context.test_preparation import GUESS, PYTHON
@@ -94,14 +96,30 @@ async def test_analysis_verifies_quotes_and_checks_matches() -> None:
     # A fact read from the CV is about the candidate, whatever the model says.
     assert by_statement["Usa Python e PostgreSQL."].subject is Subject.CANDIDATE
     requirements = [f for f in result.facts if f.kind is FactKind.REQUIREMENT]
-    assert [r.subject for r in requirements] == [Subject.JOB, Subject.JOB]
+    assert [r.subject for r in requirements] == [Subject.JOB] * 3
+    details = {r.statement: r.requirement for r in requirements if r.requirement}
+    # The offer's heading decides; the model's different reading stays visible as a dispute.
+    python_detail = details["Almeno 5 anni di esperienza con Python."]
+    assert (python_detail.obligation, python_detail.cue) == (Obligation.MUST, "Requisiti")
+    assert python_detail.threshold == Threshold("years", "5", "Python")
+    assert not python_detail.disputed
+    kafka_detail = details["Esperienza con Kafka e architetture a eventi."]
+    assert (kafka_detail.obligation, kafka_detail.disputed) == (Obligation.MUST, True)
+    implicit = next(r for r in requirements if r.statement == "Italiano fluente.")
+    assert (implicit.origin, implicit.quote) == (FactOrigin.INFERRED, None)
+    assert implicit.requirement is not None
+    assert (implicit.requirement.obligation, implicit.requirement.cue) == (Obligation.UNCLEAR, None)
+    company = by_statement["Piattaforma di pagamenti."]
+    assert (company.kind, company.requirement) == (FactKind.COMPANY, None)
 
     statuses = {m.requirement_id: m for m in result.matches}
-    python, kafka_req = (statuses[r.id] for r in requirements)
+    python, kafka_req = (statuses[r.id] for r in requirements[:2])
     assert python.status is MatchStatus.MET
     assert "nonexistent" not in python.fact_ids
     assert kafka_req.status is MatchStatus.NOT_SHOWN  # "met" without evidence
     nice = next(f for f in result.facts if f.kind is FactKind.NICE_TO_HAVE)
+    assert nice.requirement is not None
+    assert (nice.requirement.cue, nice.requirement.disputed) == ("Preferibile", True)
     assert statuses[nice.id].status is MatchStatus.NOT_SHOWN  # not answered by the model
 
     assert result.vocabulary == ("Python", "FastAPI", "PostgreSQL", "Redis", "Kafka", "Kubernetes")

@@ -1,7 +1,7 @@
 /** What the shell needs from a matched route. */
 export interface RouteMatchLike {
   pathname: string
-  staticData: { slug?: string; chrome?: 'none' }
+  staticData: { slug?: string; chrome?: 'none' | 'workspace' }
 }
 
 export interface Crumb {

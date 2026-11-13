@@ -1,0 +1,39 @@
+Paula Herrero (synthetic candidate)
+Data Analyst
+Madrid, Spain · paula.herrero@example.test · +34 000 000 000
+
+Summary
+Data analyst with seven years of experience in retail and telecoms. I write the SQL behind
+recurring reports, turn it into dashboards that people actually open, and work closely with
+finance and operations teams.
+
+Experience
+
+Data Analyst
+Mercado Verde Supermercados S.L. (synthetic company), Madrid
+03/2021 - present
+- Rebuilt the SQL behind the weekly sales and margin report for 85 stores.
+- Cut the report's preparation time from two days to three hours.
+- Built Tableau dashboards on stock-outs and waste, used every week by 120 store managers.
+- Wrote SQL checks that flag pricing errors before they reach the tills, about 40 a month.
+- Responsible for various reporting tasks.
+- Work with category managers to define KPIs for promotions.
+
+Junior Data Analyst
+Celera Telecom Servicios S.A. (synthetic company), Valencia
+09/2019 - 02/2021
+- Queried the customer database in SQL to produce monthly churn and call-centre reports.
+- Scheduled 12 recurring SQL extracts, saving the team about 20 hours a month.
+- Built the first Tableau workbook for the customer service director.
+
+Education
+MSc in Business Analytics, Universidad de Ejemplo, Madrid
+09/2018 - 07/2019
+BSc in Economics, Universidad de Ejemplo, Valencia
+09/2014 - 06/2018
+
+Skills
+SQL (PostgreSQL, SQL Server), Tableau, Excel, Python (pandas), Google Sheets, Jira
+
+Languages
+Spanish (native), English (C1), Catalan (B2)

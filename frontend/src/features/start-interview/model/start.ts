@@ -22,7 +22,12 @@ export function useStartInterview() {
         duration_minutes: settings.minutes,
         snapshot_id: draft.snapshotId,
         execution_profile: settings.execution,
-        profile_id: draft.profile?.kind === 'saved' ? draft.profile.id : null,
+        profile_id:
+          draft.profile?.kind === 'saved'
+            ? draft.profile.id
+            : draft.profile?.kind === 'approved'
+              ? draft.profile.profileId
+              : null,
       })
     },
     onSuccess: (session) => {

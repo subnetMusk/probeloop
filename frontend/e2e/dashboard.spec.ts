@@ -112,20 +112,17 @@ test('the dashboard summarises the history a short page at a time', async ({ pag
   expect(await checks.count()).toBeLessThanOrEqual(4)
   await page.goto(`/cv-checks/${snapshotId}`)
   await expect(page).toHaveTitle('CV check | ProbeLoop')
-  await expect(page.getByRole('heading', { name: 'Versions' })).toBeVisible()
   const versions = await json<{ version: number }[]>(
     request.get(`/api/snapshots/${snapshotId}/cv-reviews`),
   )
   const latestVersion = versions.at(-1)?.version ?? 1
-  const latestReport = page.getByRole('link', {
-    name: new RegExp(`^Version ${String(latestVersion)} ·`),
-  })
-  await expect(latestReport).toBeVisible()
-  await expect(page.getByText('Typed text: there is no original file.')).toBeVisible()
-  await noSeriousViolations(page)
-  await latestReport.click()
-  await expect(page).toHaveTitle('Report | ProbeLoop')
+  // The check's page shows its latest report in full, with the documents folded below.
+  await expect(page.getByRole('combobox', { name: 'Version' })).toContainText(
+    `Version ${String(latestVersion)} ·`,
+  )
   await expect(page.getByRole('heading', { name: 'Document checks' })).toBeVisible()
+  await page.locator('summary', { hasText: 'Documents of the check' }).click()
+  await expect(page.getByText('Typed text: there is no original file.').first()).toBeVisible()
   for (const theme of ['light', 'dark']) {
     await setTheme(page, theme)
     await noSeriousViolations(page)

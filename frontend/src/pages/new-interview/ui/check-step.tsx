@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 import { useState } from 'react'
 
-import { useDraft } from '@/entities/preparation'
+import { applies, useDraft } from '@/entities/preparation'
 import { CvCheck } from '@/features/check-cv'
 import { MicrophoneCheck, useVoiceReadiness } from '@/features/check-microphone'
 import { useStartInterview } from '@/features/start-interview'
@@ -23,13 +23,16 @@ function Summary() {
   const documents =
     profile?.kind === 'quick'
       ? t.summary.quick
-      : profile?.kind === 'saved' || profile?.kind === 'new'
-        ? profile.name
-        : t.summary.once
+      : profile?.kind === 'approved'
+        ? t.summary.approved(profile.name)
+        : profile?.kind === 'saved' || profile?.kind === 'new'
+          ? profile.name
+          : t.summary.once
   const rows: [
     string,
     string,
-    'interview-settings' | 'resource-profile' | 'fact-review' | 'settings',
+    // The processing tools were fixed when the analysis started; Settings change later work.
+    'interview-settings' | 'resource-profile' | 'fact-review' | null,
   ][] = [
     [t.summary.type, t.summary.types[settings.interviewType], 'interview-settings'],
     [t.summary.difficulty, t.summary.difficulties[settings.difficulty], 'interview-settings'],
@@ -42,15 +45,22 @@ function Summary() {
         : settings.execution === 'cloud'
           ? t.summary.cloud
           : t.summary.local,
-      'settings',
+      null,
     ],
-    [t.summary.profile, documents, 'resource-profile'],
+    [t.summary.profile, documents, applies(draft, 'resource-profile') ? 'resource-profile' : null],
   ]
-  if (draft.roleProfile)
+  if (draft.roleProfile) {
+    // A quick start sets its role with the choice of documents.
+    const where = applies(draft, 'fact-review')
+      ? 'fact-review'
+      : applies(draft, 'resource-profile')
+        ? 'resource-profile'
+        : null
     rows.push(
-      [t.summary.targetRole, draft.roleProfile.target_role, 'fact-review'],
-      [t.summary.level, draft.roleProfile.seniority, 'fact-review'],
+      [t.summary.targetRole, draft.roleProfile.target_role, where],
+      [t.summary.level, draft.roleProfile.seniority, where],
     )
+  }
   return (
     <Card>
       <CardHeader>
@@ -65,13 +75,17 @@ function Summary() {
               <dt className="text-muted-foreground">{label}</dt>
               <dd className="font-medium">{value}</dd>
               <dd>
-                <Link
-                  to={step === 'settings' ? '/settings' : stepPath(step)}
-                  aria-label={`${t.summary.edit}: ${label}`}
-                  className="text-brand-text underline"
-                >
-                  {t.summary.edit}
-                </Link>
+                {step === null ? (
+                  <span className="text-xs text-muted-foreground">{t.summary.fixed}</span>
+                ) : (
+                  <Link
+                    to={stepPath(step)}
+                    aria-label={`${t.summary.edit}: ${label}`}
+                    className="text-brand-text underline"
+                  >
+                    {t.summary.edit}
+                  </Link>
+                )}
               </dd>
             </div>
           ))}
@@ -155,7 +169,13 @@ export function CheckStep() {
               snapshotId={snapshotId}
               language={draft.settings.language}
               execution={draft.settings.execution ?? 'local'}
-              profileId={draft.profile?.kind === 'saved' ? draft.profile.id : null}
+              profileId={
+                draft.profile?.kind === 'saved'
+                  ? draft.profile.id
+                  : draft.profile?.kind === 'approved'
+                    ? draft.profile.profileId
+                    : null
+              }
               inInterview
               onBusyChange={setCvBusy}
             />

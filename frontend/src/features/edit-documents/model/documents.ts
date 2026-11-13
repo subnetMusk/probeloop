@@ -54,6 +54,29 @@ export function documentsOf(profile: ProfileView, texts: ReadonlyMap<string, str
   return documents
 }
 
+/**
+ * Load the documents of a preparation with their full texts, to edit them again. They count as
+ * loaded from the preparation's profile, if it has one.
+ */
+export async function loadPreparationDocuments(view: PreparationView): Promise<DocumentsDraft> {
+  const of = (kind: string) => view.documents.filter((d) => d.kind === kind)
+  const texts = await Promise.all(view.documents.map((d) => api.documentText(d.id)))
+  const documents = documentsOf(
+    {
+      id: view.profile_id ?? '',
+      name: '',
+      created_at: 0,
+      updated_at: 0,
+      job_mode: view.job_mode as ProfileView['job_mode'],
+      cv: of('cv')[0] ?? null,
+      job_offer: of('job_offer')[0] ?? null,
+      resources: of('resource'),
+    },
+    new Map(texts.map((t) => [t.id, t.text])),
+  )
+  return { ...documents, loadedFrom: view.profile_id }
+}
+
 /** Load the documents of a saved profile with their full texts. */
 export async function loadProfileDocuments(profile: ProfileView): Promise<DocumentsDraft> {
   const all = [profile.cv, profile.job_offer, ...profile.resources].filter(
