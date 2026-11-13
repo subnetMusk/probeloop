@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useInstallation } from '@/features/installation'
-import { Link, useParams } from '@tanstack/react-router'
-import { TriangleAlertIcon } from 'lucide-react'
-import { useState } from 'react'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { ArrowDownIcon, CheckCircle2Icon, TriangleAlertIcon, XIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
 
 import {
   conversationOf,
@@ -12,7 +12,7 @@ import {
 } from '@/entities/interview'
 import { rememberReportJob } from '@/entities/report-job'
 import { api, isRunning, localizeProblem, sessionFile } from '@/shared/api'
-import type { JobView } from '@/shared/api'
+import type { JobView, SessionView } from '@/shared/api'
 import { useMessages } from '@/shared/i18n'
 import { clock, minutes, shortDate } from '@/shared/lib/format'
 import { usePaged } from '@/shared/lib/pagination'
@@ -21,25 +21,54 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog'
-import { Page, PageHeader } from '@/shared/ui/page-header'
+import { Page } from '@/shared/ui/page-header'
 import { Pager } from '@/shared/ui/pager'
 import { Progress } from '@/shared/ui/progress'
-import { transcriptReview } from '../model/review'
+import { nextFlagged, transcriptReview } from '../model/review'
 import { Answer } from './answer'
+import { InterviewerTurn } from './interviewer-turn'
 import { transcriptMessages } from './messages'
+import { TurnAudioProvider } from './turn-audio'
+import { useTurnAudio } from './turn-audio-context'
 
+/**
+ * The transcript review: the conversation as chat bubbles, each with its audio and an in-place
+ * editor, beside the recording, the answers to check, the second transcription and the report.
+ * It fills the window below the header (`chrome: 'workspace'`); each column scrolls on its own.
+ */
 export function InterviewDetailPage() {
-  const installation = useInstallation()
   const { sessionId } = useParams({ from: '/interviews/$sessionId/' })
   const t = useMessages(transcriptMessages)
-  const labels = useMessages(interviewLabels)
-  const language = useLanguage()
-  const client = useQueryClient()
-  const [confirming, setConfirming] = useState(false)
   const session = useQuery({
     queryKey: ['session', sessionId],
     queryFn: () => api.session(sessionId),
   })
+  const data = session.data
+  if (!data)
+    return (
+      <Page>
+        <p role={session.error ? 'alert' : 'status'}>{session.error?.message ?? t.loading}</p>
+      </Page>
+    )
+  return (
+    <TurnAudioProvider>
+      <Review data={data} />
+    </TurnAudioProvider>
+  )
+}
+
+function Review({ data }: { data: SessionView }) {
+  const installation = useInstallation()
+  const sessionId = data.id
+  const search = useSearch({ from: '/interviews/$sessionId/' })
+  const navigate = useNavigate()
+  const t = useMessages(transcriptMessages)
+  const labels = useMessages(interviewLabels)
+  const language = useLanguage()
+  const client = useQueryClient()
+  const player = useTurnAudio()
+  const [confirming, setConfirming] = useState(false)
+  const visited = useRef<number | null>(null)
   const history = useQuery(interviewHistoryQuery)
   const jobs = useQuery({
     queryKey: ['jobs', sessionId],
@@ -79,140 +108,218 @@ export function InterviewDetailPage() {
       void client.invalidateQueries({ queryKey: ['jobs', sessionId] })
     },
   })
-  const data = session.data
-  if (!data)
-    return (
-      <Page>
-        <p role={session.error ? 'alert' : 'status'}>{session.error?.message ?? t.loading}</p>
-      </Page>
-    )
   const ended = data.status === 'ended' || data.status === 'failed'
+  const voice = data.modality === 'voice'
   const hasAudio = data.turns.some((turn) => turn.audio)
   const meta = history.data?.find((item) => item.id === data.id)
   const latest = reports.data?.at(-1)
   const busy = isRunning(refineJob) || isRunning(reportJob)
   const check = transcriptReview(data)
+  const answers = data.turns.filter((turn) => turn.speaker === 'candidate').length
+  const spoken = meta?.effective_s ?? Math.max(0, ...data.turns.map((turn) => turn.elapsed_s))
+  const goTo = (seq: number) => {
+    visited.current = seq
+    const target = document.getElementById(`turn-${String(seq)}`)
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    target?.focus({ preventScroll: true })
+  }
   return (
-    <Page>
-      <PageHeader
-        title={t.title}
-        description={[
-          labelOf(labels, 'types', data.interview_type),
-          shortDate(data.created_at, language),
-          meta?.effective_s != null && minutes(meta.effective_s),
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-        actions={
-          <>
-            {latest && (
-              <Button asChild size="sm">
-                <Link
-                  to="/interviews/$sessionId/reports/$reportId"
-                  params={{ sessionId, reportId: latest.id }}
-                >
-                  {t.latest}
-                </Link>
-              </Button>
+    <main className="flex flex-1 flex-col gap-4 px-4 pt-3 pb-4 lg:min-h-0 lg:px-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+            {t.title}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {[
+              labelOf(labels, 'types', data.interview_type),
+              shortDate(data.created_at, language),
+              meta?.effective_s != null && minutes(meta.effective_s),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{labelOf(labels, 'statuses', data.status)}</Badge>
+            {data.execution_profile && (
+              <Badge variant="outline">
+                {labelOf(labels, 'execution', data.execution_profile)}
+              </Badge>
             )}
-            {ended &&
-              ['transcript.md', 'transcript.json'].map((name) => (
-                <Button key={name} asChild variant="outline" size="sm">
-                  <a href={sessionFile(sessionId, name)} download>
-                    {name}
-                  </a>
-                </Button>
-              ))}
-            {!ended && (
-              <Button asChild>
-                <Link to="/live-interview/$sessionId" params={{ sessionId }}>
-                  {t.resume}
-                </Link>
-              </Button>
-            )}
-          </>
-        }
-      >
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{labelOf(labels, 'statuses', data.status)}</Badge>
-          {data.execution_profile && (
-            <Badge variant="outline">{labelOf(labels, 'execution', data.execution_profile)}</Badge>
-          )}
+          </div>
         </div>
-      </PageHeader>
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="flex min-w-0 flex-col gap-5">
-          {data.turns.length === 0 && <p>{t.noTurns}</p>}
-          {conversationOf(data.turns).map((block) => (
-            <section
-              key={block.number}
-              aria-labelledby={`question-${String(block.number)}`}
-              className="flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:p-6"
-            >
-              <h2
-                id={`question-${String(block.number)}`}
-                className="text-sm font-semibold text-brand-text"
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {latest && (
+            <Button asChild size="sm">
+              <Link
+                to="/interviews/$sessionId/reports/$reportId"
+                params={{ sessionId, reportId: latest.id }}
               >
-                {t.question(block.number)}
-              </h2>
-              {block.questions.map((turn) => (
-                <div id={`turn-${String(turn.seq)}`} key={turn.seq} data-testid="turn-interviewer">
-                  <p className="text-lg leading-relaxed">
-                    {turn.text} {turn.status === 'interrupted' && <em>{t.interrupted}</em>}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{clock(turn.elapsed_s)}</p>
-                </div>
-              ))}
-              {block.answers.map(({ turn, number }) => (
-                <Answer key={turn.seq} session={data} turn={turn} number={number} />
-              ))}
-            </section>
-          ))}
-        </div>
-        <aside className="flex flex-col gap-5 lg:sticky lg:top-6">
-          {hasAudio && ended && (
-            <Card>
-              <CardHeader>
-                <CardTitle role="heading" aria-level={2}>
-                  {t.recording}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <audio
-                  controls
-                  preload="none"
-                  aria-label={t.recording}
-                  src={sessionFile(sessionId, 'audio/interview.wav')}
-                  className="w-full"
-                />
-                <a
-                  href={sessionFile(sessionId, 'audio/interview.wav')}
-                  download
-                  className="text-sm text-brand-text underline"
-                >
-                  interview.wav
-                </a>
-              </CardContent>
-            </Card>
+                {t.latest}
+              </Link>
+            </Button>
           )}
-          {ended && check.flagged.length > 0 && (
-            <Card data-testid="transcript-review" className="border-warning/40">
+          {!ended && (
+            <Button asChild>
+              <Link to="/live-interview/$sessionId" params={{ sessionId }}>
+                {t.resume}
+              </Link>
+            </Button>
+          )}
+        </div>
+      </header>
+      {search.ended && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm"
+        >
+          <CheckCircle2Icon className="size-5 shrink-0 text-success" aria-hidden />
+          <p className="min-w-0 flex-1">
+            <span className="font-semibold">{t.endedTitle}</span>{' '}
+            <span data-testid="ended-summary">{t.endedSummary(answers, clock(spoken))}</span>
+            {voice && <span className="text-muted-foreground"> · {t.endedNext}</span>}
+          </p>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/new-interview">{t.newInterview}</Link>
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t.dismiss}
+            onClick={() => {
+              void navigate({
+                to: '/interviews/$sessionId',
+                params: { sessionId },
+                search: {},
+                replace: true,
+              })
+            }}
+          >
+            <XIcon />
+          </Button>
+        </div>
+      )}
+      <div className="grid flex-1 items-start gap-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-stretch xl:grid-cols-[minmax(0,1fr)_25rem]">
+        <section
+          aria-label={t.conversation}
+          data-testid="conversation"
+          className="rounded-2xl border bg-card lg:min-h-0 lg:overflow-y-auto"
+        >
+          <div className="flex flex-col gap-6 p-4 sm:p-6">
+            {data.turns.length === 0 && <p>{t.noTurns}</p>}
+            {conversationOf(data.turns).map((block) => (
+              <section
+                key={block.number}
+                aria-labelledby={`question-${String(block.number)}`}
+                className="flex flex-col gap-3"
+              >
+                <h2
+                  id={`question-${String(block.number)}`}
+                  className="flex items-center gap-3 text-xs font-semibold tracking-wide text-brand-text uppercase"
+                >
+                  <span aria-hidden="true" className="h-px flex-1 bg-border" />
+                  {t.question(block.number)}
+                  <span aria-hidden="true" className="h-px flex-1 bg-border" />
+                </h2>
+                {block.questions.map((turn) => (
+                  <InterviewerTurn key={turn.seq} turn={turn} question={block.number} />
+                ))}
+                {block.answers.map(({ turn, number }) => (
+                  <Answer key={turn.seq} session={data} turn={turn} number={number} />
+                ))}
+              </section>
+            ))}
+          </div>
+        </section>
+        <aside className="flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
+          {ended && voice && (
+            <Card
+              data-testid="transcript-review"
+              className={check.flagged.length > 0 ? 'border-warning/40' : undefined}
+            >
               <CardHeader>
                 <CardTitle role="heading" aria-level={2} className="flex items-center gap-2">
-                  <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
+                  {check.flagged.length > 0 ? (
+                    <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
+                  ) : (
+                    <CheckCircle2Icon className="size-4 text-success" aria-hidden />
+                  )}
                   {t.reviewTitle}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm">
-                <p className="text-muted-foreground">{t.reviewNote}</p>
-                <ul className="flex flex-wrap gap-2">
-                  {check.flagged.map((item) => (
-                    <li key={item.seq}>
+                {check.flagged.length > 0 ? (
+                  <>
+                    <p className="text-muted-foreground">{t.reviewNote}</p>
+                    <ul className="flex flex-wrap gap-2">
+                      {check.flagged.map((item) => (
+                        <li key={item.seq}>
+                          <a
+                            href={`#turn-${String(item.seq)}`}
+                            className="text-brand-text underline underline-offset-4"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              goTo(item.seq)
+                            }}
+                          >
+                            {t.reviewItem(item.number)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="self-start"
+                      onClick={() => {
+                        const next = nextFlagged(check.flagged, visited.current)
+                        if (next) goTo(next.seq)
+                      }}
+                    >
+                      <ArrowDownIcon data-icon="inline-start" />
+                      {t.nextFlagged}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">{t.reviewClear}</p>
+                )}
+                <p className="text-muted-foreground">{t.refineNote}</p>
+              </CardContent>
+            </Card>
+          )}
+          {ended && (
+            <Card>
+              <CardHeader>
+                <CardTitle role="heading" aria-level={2}>
+                  {hasAudio ? t.recording : t.exports}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 text-sm">
+                {hasAudio && (
+                  <audio
+                    controls
+                    preload="none"
+                    aria-label={t.recording}
+                    src={sessionFile(sessionId, 'audio/interview.wav')}
+                    className="w-full"
+                    onPlay={() => {
+                      player?.stop()
+                    }}
+                  />
+                )}
+                <ul className="flex flex-wrap gap-x-4 gap-y-1">
+                  {[
+                    ...(hasAudio ? ['audio/interview.wav'] : []),
+                    'transcript.md',
+                    'transcript.json',
+                  ].map((name) => (
+                    <li key={name}>
                       <a
-                        href={`#turn-${String(item.seq)}`}
+                        href={sessionFile(sessionId, name)}
+                        download
                         className="text-brand-text underline underline-offset-4"
                       >
-                        {t.reviewItem(item.number)}
+                        {name.replace('audio/', '')}
                       </a>
                     </li>
                   ))}
@@ -220,10 +327,7 @@ export function InterviewDetailPage() {
               </CardContent>
             </Card>
           )}
-          {ended && data.modality === 'voice' && (
-            <p className="text-sm text-muted-foreground">{t.refineNote}</p>
-          )}
-          {ended && data.modality === 'voice' && installation.data?.config.refinement !== false && (
+          {ended && voice && installation.data?.config.refinement !== false && (
             <Card>
               <CardHeader>
                 <CardTitle role="heading" aria-level={2}>
@@ -346,11 +450,11 @@ export function InterviewDetailPage() {
               {(refine.error ?? review.error ?? jobs.error ?? reports.error)?.message}
             </p>
           )}
+          <Button asChild variant="outline" className="self-start">
+            <Link to="/interviews">{t.all}</Link>
+          </Button>
         </aside>
       </div>
-      <Button asChild variant="outline" className="self-start">
-        <Link to="/interviews">{t.all}</Link>
-      </Button>
-    </Page>
+    </main>
   )
 }

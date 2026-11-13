@@ -99,8 +99,8 @@ for (const profile of ['local', 'cloud'] as const) {
     await page.getByTestId('end-answer').click()
     await expect(page.getByTestId('answer')).toBeEnabled({ timeout: 600_000 })
     await page.getByTestId('end-call').click()
+    // A completed call opens the transcript review, which summarises it.
     await expect(page.getByText('The interview has ended')).toBeVisible({ timeout: 60_000 })
-    await page.getByTestId('review-transcript').click()
     await expect(page.getByTestId('refine-done')).toBeVisible({ timeout: 600_000 })
     await expect(page.getByTestId('answer-text')).not.toContainText('Segmento di prova')
     await page.screenshot({ path: `test-results/live-${profile}-transcript.png` })

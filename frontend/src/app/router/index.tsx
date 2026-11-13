@@ -45,8 +45,11 @@ import { Root } from './root'
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
     slug?: string
-    /** `none` hides the app shell, for the full-screen interview call. */
-    chrome?: 'none'
+    /**
+     * `none` hides the app shell, for the full-screen interview call. `workspace` keeps the
+     * header but gives the page the whole window below it, for pages with their own panes.
+     */
+    chrome?: 'none' | 'workspace'
   }
 }
 
@@ -139,6 +142,10 @@ const interviewRoute = createRoute({
 const interviewIndexRoute = createRoute({
   getParentRoute: () => interviewRoute,
   path: '/',
+  staticData: { chrome: 'workspace' },
+  // `ended` comes from the call that has just finished, to summarise it above the transcript.
+  validateSearch: (search: Record<string, unknown>): { ended?: true } =>
+    search.ended === true || search.ended === 'true' ? { ended: true } : {},
   component: InterviewDetailPage,
 })
 const interviewReportRoute = createRoute({

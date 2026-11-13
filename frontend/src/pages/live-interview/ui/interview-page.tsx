@@ -1,4 +1,4 @@
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { MicIcon, PhoneOffIcon, RotateCcwIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
@@ -188,41 +188,54 @@ function Preparation({ state, onRetry }: { state: InterviewState; onRetry: () =>
   )
 }
 
+/**
+ * The end of the call. A completed call opens the transcript review, which summarises it; a
+ * failed one stays here with its reason and a way to the saved transcript.
+ */
 function Ended({ state, sessionId }: { state: InterviewState; sessionId: string }) {
   const t = useMessages(callMessages)
-  const answers = state.entries.filter((e) => e.speaker === 'candidate').length
+  const navigate = useNavigate()
+  const failure = state.ended?.failure
+  useEffect(() => {
+    if (!failure)
+      void navigate({
+        to: '/interviews/$sessionId',
+        params: { sessionId },
+        search: { ended: true },
+        replace: true,
+      })
+  }, [failure, navigate, sessionId])
+  if (!failure)
+    return (
+      <Stage className="items-center justify-center">
+        <Dots />
+      </Stage>
+    )
   return (
     <Stage className="items-center overflow-y-auto p-6">
-      <div className="flex w-full max-w-2xl flex-col gap-6 py-10">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex size-14 items-center justify-center rounded-full bg-zinc-800">
-            <PhoneOffIcon className="size-6 text-zinc-300" />
-          </div>
-          <h1 className="font-heading text-2xl font-semibold">{t.ended}</h1>
-          <p className="text-sm text-zinc-400" data-testid="ended-summary">
-            {state.ended?.failure ?? t.summary(answers, formatClock(state.clock?.elapsedS ?? 0))}
-          </p>
-          <p className="max-w-md text-xs text-zinc-500">{t.kept}</p>
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link
-                to="/interviews/$sessionId"
-                params={{ sessionId }}
-                data-testid="review-transcript"
-              >
-                {t.review}
-              </Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link to="/new-interview">{t.newInterview}</Link>
-            </Button>
-          </div>
+      <div className="flex w-full max-w-2xl flex-col items-center gap-3 py-10 text-center">
+        <div className="flex size-14 items-center justify-center rounded-full bg-zinc-800">
+          <PhoneOffIcon className="size-6 text-zinc-300" />
         </div>
-        {state.entries.length > 0 && (
-          <div className="h-[60vh]">
-            <TranscriptPanel entries={state.entries} />
-          </div>
-        )}
+        <h1 className="font-heading text-2xl font-semibold">{t.ended}</h1>
+        <p className="text-sm text-zinc-400" data-testid="ended-summary">
+          {failure}
+        </p>
+        <p className="max-w-md text-xs text-zinc-500">{t.kept}</p>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link
+              to="/interviews/$sessionId"
+              params={{ sessionId }}
+              data-testid="review-transcript"
+            >
+              {t.review}
+            </Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link to="/new-interview">{t.newInterview}</Link>
+          </Button>
+        </div>
       </div>
     </Stage>
   )

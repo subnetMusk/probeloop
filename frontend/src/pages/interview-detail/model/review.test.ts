@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { SessionView, TurnView } from '@/shared/api'
 
-import { openIssues, transcriptReview } from './review'
+import { nextFlagged, openIssues, transcriptReview } from './review'
 
 function answer(seq: number, sources: string[], issues: TurnView['issues'] = []): TurnView {
   return {
@@ -90,5 +90,26 @@ describe('transcript review', () => {
       flagged: [],
       liveOnly: 0,
     })
+  })
+})
+
+describe('nextFlagged', () => {
+  const flagged = [
+    { seq: 2, number: 1, issues: [] },
+    { seq: 6, number: 3, issues: [] },
+  ]
+
+  it('starts from the first flagged answer', () => {
+    expect(nextFlagged(flagged, null)?.seq).toBe(2)
+  })
+
+  it('moves forward from the turn looked at last and wraps after the last one', () => {
+    expect(nextFlagged(flagged, 2)?.seq).toBe(6)
+    expect(nextFlagged(flagged, 4)?.seq).toBe(6)
+    expect(nextFlagged(flagged, 6)?.seq).toBe(2)
+  })
+
+  it('has nothing to offer without flagged answers', () => {
+    expect(nextFlagged([], null)).toBeUndefined()
   })
 })
