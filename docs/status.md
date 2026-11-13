@@ -25,11 +25,19 @@ published-artifact checks, the empty-volume Windows run and the limits of ARM64 
 - Local Parakeet recognition and Piper synthesis; optional Whisper second transcription.
 - Correctable transcripts with revision history, report exports, history and portable backups;
   restoring a backup is a [documented command](operations.md#restoring-a-backup).
+- One full-window transcript review that a completed call opens: chat bubbles with each turn's
+  audio, doubtful words that replay their audio, in-place correction and the answers to check.
+- Downloaded files named after their interview or CV check, its date and the start of its id.
 - Profiles and CV checks created without an interview; a CV check can be saved as a profile or
   deleted, and deleting either keeps what interviews and other reports still use.
-- Unfinished CV checks reachable from the CV checks page, with their saved preparation state.
+- Unfinished CV checks reachable from the CV checks page and its new-check notice, with their saved
+  preparation state; a CV check page shows its selected report version in full and can start an
+  interview on the approved context.
+- Approval that confirms the target role as shown; a start without documents sets its role with
+  the choice.
 - Structured offer requirements with reviewable obligations, alternatives, equivalents and
-  thresholds; optional Jev obligation classification, with disagreements shown for user review.
+  thresholds; optional Jev obligation classification, with disagreements shown for user review,
+  and Jev heading and measured-outcome readings in the CV check under the same choice.
 - Score trends with one line per profile, broken only by rubric version changes and marking other
   evaluator changes.
 - First-run checklist, an in-app guide, localised page names and a full-screen mobile menu.
@@ -69,8 +77,8 @@ round trip with the documented command reproduced the data summary of a local in
 - Independent stated-limit examples and real ASR transcripts. The Laya pilot used synthetic
   development data and label-derived thresholds; it is a provisional model, not a final release.
 - Full CV-check calibration against the frozen reference labels and independent real documents.
-  The Jev line-classifier measurements cover a small synthetic set; heading and quantified-outcome
-  classification remain evaluation helpers outside the application flow.
+  The Jev line-classifier measurements cover a small synthetic set; the heading and
+  quantified-outcome readings now used by the CV check have not been measured on real CVs.
 - Physical Mac latency, memory use and usability with Docker Desktop. Native ARM64 builds and
   dependency/model smoke tests establish narrower compatibility evidence, not a Mac benchmark.
 - Voice preference/listening acceptance and complete real voice interviews after each relevant

@@ -5,13 +5,14 @@
 Settings contain independent tool choices for interviewer, document analysis, evaluation and
 stated-limit reading. The first three support ChatGPT or Ollama. The stated-limit reader also
 supports the approved Laya ONNX classifier and the optional TypeSafe Jev service. A separate
-choice classifies job-offer requirements: the offer's cues with the analysis model (`rules`),
-or Jev. Unavailable options are disabled, with a reason: missing sign-in, missing model, missing
+choice classifies document lines: job-offer requirements by the offer's cues with the analysis
+model, and CV headings and measured outcomes by exact patterns (`rules`), or Jev for both
+([ADR 0024](adr/0024-jev-cv-line-readings.md)). Unavailable options are disabled, with a reason: missing sign-in, missing model, missing
 Jev key, loading, failed service, or unsupported turn mode.
 
 Jev requires an API key added in Settings and an explicit selection for each role that uses it.
 The key is machine configuration, excluded from portable backups. Removing it returns stated-limit
-reading to the interviewer's tool and requirement classification to `rules` where Jev was selected.
+reading to the interviewer's tool and document classification to `rules` where Jev was selected.
 
 The home page displays the current choices. New preparations and interviews retain their own
 execution plan; the interview wizard does not ask for another processing profile. Legacy uniform
@@ -49,7 +50,7 @@ files. The report uses the current reviewed transcript revisions, including user
 | Cloud evaluation | Transcript revisions and supporting context needed by the report |
 | Cloud stated-limit reader | Latest question and answer text |
 | Jev stated-limit reader | Latest question and answer sentences sent to TypeSafe |
-| Jev requirement classification | Extracted offer requirement text and section headings sent to TypeSafe |
+| Jev document classification | Extracted offer requirement text and section headings, and the logical lines of the CV in a CV check, sent to TypeSafe |
 | Local Ollama | Corresponding text sent to the configured Ollama endpoint |
 | Local Laya | Question/sentence pairs processed in the backend's CPU ONNX session |
 | Local speech services | Audio for recognition; question text for synthesis, over the internal network |

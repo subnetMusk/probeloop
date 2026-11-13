@@ -136,22 +136,28 @@ same pause behaviour.
 
 Supplied CVs, job offers and titled resources are external data, never instructions. Links in
 these documents are not automatically followed. Extraction keeps provenance, and analysis output
-is schema-validated before it becomes reviewable facts. The user reviews those facts and confirms
-the target profession, role and seniority before approving an immutable context snapshot.
+is schema-validated before it becomes reviewable facts. The user reviews those facts and the
+target profession, role and seniority; approving confirms the role as shown and builds an
+immutable context snapshot.
 
 Profiles and CV checks do not depend on an interview. A profile is a named set of documents,
 created on its own page, from a CV check or in the interview wizard. A CV check analyses a saved
 profile or documents added for it, goes through the same review and approval, then reviews the
-CV against the approved snapshot. The wizard and the CV check share the review components; the
-preparation and snapshot ids in the URL hold the state of a standalone CV check.
+CV against the approved snapshot. The wizard and the CV check share the documents editor, the
+profile-saving choice and the review components; the preparation and snapshot ids in the URL hold
+the state of a standalone CV check. An interview can start on a CV check's approved snapshot, and
+its plan then uses that check's practice questions. A start without documents takes the target
+role with the choice and approves it there.
 
 Offer analysis extracts requirements with an obligation (`must`, `preferred` or `unclear`),
 category, alternatives, equivalent routes, thresholds and links to requirements they refine.
 The offer's verified wording or heading takes precedence over Jev, then the analysis model;
 unclear readings defer to the next source. The review shows disagreements and lets the user
 choose the obligation, overriding those readings. Structured requirements persist in the
-preparation and approved snapshot. Jev heading and quantified-outcome classification have
-evaluation helpers but are not connected to the application flow.
+preparation and approved snapshot. When document classification selects Jev, the CV check also
+reads each logical line of the CV for headings and measured outcomes; rules map a heading to its
+section, and the report records the wordings and thresholds used
+([ADR 0024](adr/0024-jev-cv-line-readings.md)).
 
 Planning builds objectives from approved context. A session keeps its configuration, execution
 plan, objective state, coverage and conversation. The interviewer reacts to the latest answer,
@@ -255,4 +261,5 @@ and ADRs [0016](adr/0016-adaptive-role-based-interviews.md),
 [0019](adr/0019-guided-installation.md), [0020](adr/0020-faster-turns-and-reviewed-transcripts.md),
 [0021](adr/0021-interface-guidance-and-navigation.md),
 [0022](adr/0022-standalone-profiles-and-cv-checks.md) and
-[0023](adr/0023-score-trends-per-profile.md) for the relevant decisions.
+[0023](adr/0023-score-trends-per-profile.md), [0024](adr/0024-jev-cv-line-readings.md) for the
+relevant decisions.

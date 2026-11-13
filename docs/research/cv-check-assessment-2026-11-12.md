@@ -361,8 +361,9 @@ documents, which the CV check's own measures will have to watch.
 ## Integration after the baseline
 
 Offer analysis now extracts structured requirements and lets the user review their obligations.
-Jev can be selected for obligation classification; heading and quantified-outcome classification
-remain evaluation helpers. The [architecture](../architecture.md#preparation-and-interview-flow)
+Jev can be selected for obligation classification and, under the same choice, reads CV headings
+and measured outcomes for the CV check's deterministic checks
+([ADR 0024](../adr/0024-jev-cv-line-readings.md)). The [architecture](../architecture.md#preparation-and-interview-flow)
 describes the integrated flow, and [configuration](../configuration.md) describes tool selection
 and the text sent to TypeSafe. Matching, scoring, evidence selection and feedback have not been
 remeasured against the frozen labels by this record.
