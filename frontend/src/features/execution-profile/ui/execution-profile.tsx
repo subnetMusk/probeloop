@@ -52,8 +52,8 @@ const DESCRIPTIONS = {
     'Recognises what you say you cannot recall or have never done.',
   ],
   classification: [
-    'Decide se un requisito dell’offerta è obbligatorio o preferito.',
-    'Decides whether a requirement of the job offer is required or preferred.',
+    'Decide se un requisito dell’offerta è obbligatorio o preferito e, nel controllo del CV, quali righe sono intestazioni di sezione o risultati misurati.',
+    'Decides whether a requirement of the job offer is required or preferred and, in the CV check, which lines are section headings or measured outcomes.',
   ],
 } as const
 
@@ -311,8 +311,8 @@ export function ExecutionProfileSettings() {
                   {role.id === 'classification' && role.selected === 'jev' && (
                     <p className="mt-2 text-xs text-muted-foreground">
                       {it
-                        ? 'Le righe dei requisiti delle offerte vengono inviate a TypeSafe. Se Jev non risponde, l’analisi si ferma fino al ripristino.'
-                        : 'The requirement lines of job offers are sent to TypeSafe. If Jev does not answer, the analysis stops until it is restored.'}
+                        ? 'Le righe dei requisiti delle offerte e le righe del CV vengono inviate a TypeSafe. Se Jev non risponde, l’analisi o il controllo del CV si ferma fino al ripristino.'
+                        : 'The requirement lines of job offers and the lines of the CV are sent to TypeSafe. If Jev does not answer, the analysis or the CV check stops until it is restored.'}
                     </p>
                   )}
                   {role.id === 'limits' &&

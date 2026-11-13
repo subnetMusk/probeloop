@@ -398,14 +398,14 @@ def build(
     jobs.register(REFINE_JOB, transcripts.refine)
     extractor = TextExtractor()
     context_store = SqlContextStore(db, settings.data_dir / "blobs")
+
+    def selected_classifier() -> JevTextClassifier | None:
+        return classifier if tool_for(current_profile(), "classification") == "jev" else None
+
     context = ContextService(
         store=context_store,
         analyser=ContextAnalyser(
-            analysis_model,
-            cache=context_store,
-            classifier=lambda: (
-                classifier if tool_for(current_profile(), "classification") == "jev" else None
-            ),
+            analysis_model, cache=context_store, classifier=selected_classifier
         ),
         extractor=extractor,
         submit=jobs.submit,
@@ -416,7 +416,7 @@ def build(
     assessment_model = ScheduledChatModel(assessment_model, access.acquire)
     assessment = AssessmentService(
         store=SqlReportStore(db),
-        reviewer=CvReviewer(assessment_model, load_rubric("cv")),
+        reviewer=CvReviewer(assessment_model, load_rubric("cv"), classifier=selected_classifier),
         interviewer=InterviewReviewer(
             assessment_model, judge_reasoning=settings.evaluation_judge_reasoning
         ),
@@ -590,11 +590,12 @@ def build_tool_options(
                 reason = "ready" if jev.key.configured else "key_missing"
                 choices += (ToolOption("jev", reason == "ready", jev.model_ref, reason),)
             result[role] = choices
-        # Requirement obligations follow the offer's cues and the analysis model, or Jev once
-        # its wording has been evaluated on the reference labels.
+        # Requirement obligations follow the offer's cues and the analysis model, and CV headings
+        # and measured outcomes follow exact patterns, or Jev once its wordings for all three
+        # have been evaluated on the reference labels.
         reason = (
             "not_evaluated"
-            if "obligation" not in EVALUATED
+            if not {"obligation", "heading", "quantified"} <= EVALUATED
             else "ready"
             if jev.key.configured
             else "key_missing"
