@@ -365,13 +365,9 @@ export function FactReview({
         {preparation.job_mode === 'none' && !preparation.role_profile && (
           <Area preparation={preparation} act={act} />
         )}
-        {/* Wide windows put the facts to check beside the requirements they may affect. */}
-        <div
-          className={cn(
-            'grid items-start gap-6',
-            preparation.job_mode !== 'none' && 'lg:grid-cols-2',
-          )}
-        >
+        {/* Wide windows put the facts to check beside the requirements they may affect, at the
+            same height. */}
+        <div className={cn('grid gap-6', preparation.job_mode !== 'none' && 'lg:grid-cols-2')}>
           <Card>
             <CardHeader>
               <CardTitle role="heading" aria-level={2} className="flex items-center gap-3">

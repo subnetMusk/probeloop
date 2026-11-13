@@ -257,8 +257,8 @@ export function DocumentsEditor({
   const t = useMessages(documentsMessages)
   return (
     <div className="flex flex-col gap-6">
-      {/* Wide windows put the CV beside the offer it is read against. */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      {/* Wide windows put the CV beside the offer it is read against, at the same height. */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle role="heading" aria-level={2}>

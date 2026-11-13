@@ -231,7 +231,8 @@ export function CvCheckDetailPage() {
           </p>
         )}
       </PageHeader>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {/* Side-by-side cards share their height. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {execution.data && (
           <CvCheck
             snapshotId={snapshotId}
@@ -308,7 +309,7 @@ export function CvCheckDetailPage() {
         <summary className="cursor-pointer px-5 py-4 font-heading font-semibold">
           {t.documents}
         </summary>
-        <div className="grid items-start gap-6 px-5 pb-5 lg:grid-cols-2">
+        <div className="grid gap-6 px-5 pb-5 lg:grid-cols-2">
           {cv && <DocumentCard title={t.cv} document={cv} preview={!shown} />}
           {offer && (
             <DocumentCard
