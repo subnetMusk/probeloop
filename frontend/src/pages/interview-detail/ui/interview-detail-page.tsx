@@ -124,12 +124,11 @@ function Review({ data }: { data: SessionView }) {
     target?.focus({ preventScroll: true })
   }
   return (
-    <main className="flex flex-1 flex-col gap-4 px-4 pt-3 pb-4 lg:min-h-0 lg:px-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-balance sm:text-3xl">
-            {t.title}
-          </h1>
+    <main className="flex flex-1 flex-col gap-3 px-4 pt-2 pb-3 lg:min-h-0 lg:px-6">
+      {/* One compact row, so the conversation keeps most of the window's height. */}
+      <header className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+          <h1 className="font-heading text-2xl font-bold tracking-tight">{t.title}</h1>
           <p className="text-sm text-muted-foreground">
             {[
               labelOf(labels, 'types', data.interview_type),
@@ -171,7 +170,7 @@ function Review({ data }: { data: SessionView }) {
       {search.ended && (
         <div
           role="status"
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm"
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-success/30 bg-success/10 px-4 py-2 text-sm"
         >
           <CheckCircle2Icon className="size-5 shrink-0 text-success" aria-hidden />
           <p className="min-w-0 flex-1">
@@ -231,7 +230,7 @@ function Review({ data }: { data: SessionView }) {
             ))}
           </div>
         </section>
-        <aside className="flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
+        <aside className="flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto [&>*]:shrink-0">
           {ended && voice && (
             <Card
               data-testid="transcript-review"

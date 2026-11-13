@@ -56,7 +56,7 @@ export function Layout() {
             data-testid="content"
             className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden"
           >
-            <div className="w-full px-4 pt-4 lg:px-6">
+            <div className="w-full px-4 pt-3 lg:px-6">
               <Breadcrumbs />
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
