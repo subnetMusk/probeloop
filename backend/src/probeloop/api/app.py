@@ -292,8 +292,8 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     @app.get("/api/sessions/{session_id}/files/{name:path}")
     async def session_file(session_id: str, name: str) -> FileResponse:
-        """Served inline, so `<audio src>` plays it, under a name unique to the interview that
-        `<a download>` keeps."""
+        # Served inline, so `<audio src>` plays it, under a name unique to the interview that
+        # `<a download>` keeps.
         path = store.artifact(session_id, name)
         if path is None:
             raise HTTPException(status_code=404, detail="file not found")
